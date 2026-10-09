@@ -1,0 +1,82 @@
+{
+  "admin_phone": "6676921223",
+  "authorized_users": [
+    {
+      "phone": "6672526550",
+      "lid": "10342314832036",
+      "name": "Lic. Mariano",
+      "role": "GERENTE_PROYECTO"
+    },
+    {
+      "phone": "6675767414",
+      "lid": "131435008675840",
+      "name": "Bladimir",
+      "role": "ENCARGADO_MANTENIMIENTO_OBRA"
+    },
+    {
+      "phone": "6672270340",
+      "lid": "12627271004376",
+      "name": "Ing. Emilio",
+      "role": "ENCARGADO_PREARMADOS"
+    },
+    {
+      "phone": "6672230733",
+      "lid": "69058846289936",
+      "name": "Ing. Samuel",
+      "role": "DIRECTOR_GENERAL"
+    },
+    {
+      "phone": "6672330260",
+      "lid": "87471337504889",
+      "name": "Ing. Sam",
+      "role": "GERENTE_PRODUCCION"
+    },
+    {
+      "phone": "6676921223",
+      "lid": "107194381013064",
+      "name": "Lic. Ted",
+      "role": "GERENTE_ADMINISTRATIVO"
+    },
+    {
+      "phone": "6672921223",
+      "lid": "260030758682778",
+      "name": "Lic. Ted",
+      "role": "GERENTE_ADMINISTRATIVO"
+    }
+  ],
+  "public_greeting": "👋 *Bienvenido a AMIS Constructora, S.A. de C.V.*\n\nGracias por comunicarte con nuestra línea oficial. ¿En qué podemos ayudarte el día de hoy?\n\n_Por favor déjanos tu nombre, empresa o el motivo de tu mensaje y un miembro de nuestro equipo te responderá a la brevedad._",
+  "menu_title": "🏗️ *AMIS CONSTRUCTORA · Portal de Operaciones*\n\nHola {name}, selecciona una opción respondiendo con el número:",
+  "menu_footer": "\n👉 _Responde con el número (1️⃣, 2️⃣ o 3️⃣), o escribe *menu* en cualquier momento._",
+  "options": [
+    {
+      "id": "1",
+      "code": "EXPENSE",
+      "title": "🧾 Subir Comprobante o Factura de Gasto",
+      "folder": "GASTOS",
+      "prefix": "GAS",
+      "allowed_roles": ["GERENTE_ADMINISTRATIVO", "GERENTE_PROYECTO", "GERENTE_PRODUCCION", "DIRECTOR_GENERAL", "ENCARGADO_PREARMADOS", "ENCARGADO_MANTENIMIENTO_OBRA"],
+      "prompt": "🧾 *Registro de Comprobante / Gasto*\n\nPor favor adjunta la foto del ticket/nota o el archivo PDF/XML de la factura, indicando brevemente el importe y concepto en el mensaje.",
+      "success_message": "✅ *Comprobante Registrado con Éxito*\n\n📋 *Folio:* `#{folio}`\n📄 *Archivo:* `{filename}`\n👤 *Registró:* {sender}\n📁 Guardado en el expediente de AMIS.\n\n_Escribe *menu* para realizar otra operación._"
+    },
+    {
+      "id": "2",
+      "code": "MATERIAL",
+      "title": "📦 Solicitar Materiales o Herramienta",
+      "folder": "MATERIALES",
+      "prefix": "MAT",
+      "allowed_roles": ["GERENTE_ADMINISTRATIVO", "GERENTE_PROYECTO", "GERENTE_PRODUCCION", "DIRECTOR_GENERAL", "ENCARGADO_PREARMADOS", "ENCARGADO_MANTENIMIENTO_OBRA"],
+      "prompt": "📦 *Requisición de Materiales y Herramienta*\n\nPor favor escribe qué insumos requieres, la cantidad y para qué obra/torre es (ejemplo: _'20 bultos de cemento y 10 varillas 3/8 para Álamos Torre 3'_).",
+      "success_message": "✅ *Requisición Registrada con Éxito*\n\n📋 *Folio:* `#{folio}`\n👤 *Solicitante:* {sender}\n📝 *Detalle:* {details}\n📩 _Tu solicitud ha sido enviada a Dirección para revisión y autorización._\n\n_Escribe *menu* para realizar otra operación._"
+    },
+    {
+      "id": "3",
+      "code": "ATTENDANCE",
+      "title": "👷‍♂️ Reportar Asistencias, Faltas o Nuevos Ingresos",
+      "folder": "ASISTENCIA",
+      "prefix": "ASIS",
+      "allowed_roles": ["GERENTE_ADMINISTRATIVO", "ENCARGADO_PREARMADOS", "ENCARGADO_MANTENIMIENTO_OBRA"],
+      "prompt": "👷‍♂️ *CONTROL DE PERSONAL · AMIS CONSTRUCTORA*\n\nSelecciona el tipo de registro respondiendo con el número:\n1️⃣ *Lista de Asistencia Diaria* (Adjuntar foto de lista firmada o escribir presentes)\n2️⃣ *Reporte de Faltas / Bajas* (Indicar nombre del trabajador, puesto y motivo)\n3️⃣ *Registro de Nuevo Ingreso / Alta* (Indicar nombre completo, puesto y fecha de ingreso)\n\n👉 _Responde con 1️⃣, 2️⃣ o 3️⃣, o escribe *menu* para cancelar._",
+      "success_message": "✅ *Reporte de Personal Registrado con Éxito*\n\n📋 *Folio:* `#{folio}`\n👤 *Reportó:* {sender}\n📊 _Registrado en bitácora e integrado al control de nómina semanal._\n\n_Escribe *menu* para realizar otra operación._"
+    }
+  ]
+}

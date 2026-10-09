@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: amis-whatsapp-control
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GEMINI_API_KEY
+        value: AIzaSyD9cZW2aewvPu3His_L5VYsR-GvxF_eJ38
+      - key: PORT
+        value: 10000
