@@ -14,9 +14,12 @@ import { generateConversationalReply } from './asistente_conversacional.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT || 5529;
+const PORT = process.env.PORT || 10000;
 const CONFIG_PATH = path.join(__dirname, 'menu_config.json');
-const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe') ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : undefined);
+const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || 
+  (process.platform === 'win32' && fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe') 
+    ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' 
+    : undefined);
 
 let currentQrData = null;
 let currentQrDataUrl = null;
@@ -76,7 +79,7 @@ function buildMainMenu(authUser, config) {
   return menu;
 }
 
-// Configuración de Cliente WhatsApp
+// Configuración de Cliente WhatsApp optimizado para 512MB RAM en Render Free Tier
 const client = new Client({
   authStrategy: new LocalAuth({
     dataPath: path.join(__dirname, '.wwebjs_auth')
@@ -91,7 +94,21 @@ const client = new Client({
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--no-zygote',
-      '--disable-gpu'
+      '--single-process',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--mute-audio',
+      '--hide-scrollbars',
+      '--disable-notifications',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-breakpad',
+      '--disable-renderer-backgrounding',
+      '--memory-pressure-off',
+      '--js-flags=--max-old-space-size=160'
     ]
   }
 });
@@ -286,7 +303,7 @@ const server = http.createServer((req, res) => {
           <div class="qr-box">
             <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="280" height="280">
           </div>
-          <p style="color:#cbd5e1;">Abre WhatsApp en tu teléfono $\rightarrow$ Dispositivos vinculados $\rightarrow$ Escanear.</p>
+          <p style="color:#cbd5e1;">Abre WhatsApp en tu teléfono → Dispositivos vinculados → Escanear.</p>
           <script>setTimeout(() => location.reload(), 8000);</script>
         ` : `
           <div class="badge badge-qr">⏳ INICIALIZANDO SESIÓN...</div>
@@ -299,8 +316,8 @@ const server = http.createServer((req, res) => {
   `);
 });
 
-server.listen(PORT, () => {
-  console.log(`📡 Servidor HTTP activo en el puerto ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`📡 Servidor HTTP activo en 0.0.0.0:${PORT}`);
 });
 
 client.initialize();
