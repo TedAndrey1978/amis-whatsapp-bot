@@ -37,7 +37,7 @@ WORKDIR /usr/src/app
 
 # Copiar paquetes e instalar dependencias
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install --production
 
 # Copiar código fuente
 COPY . .
