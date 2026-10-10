@@ -68,7 +68,7 @@ export async function generateConversationalReply(userText, authUser, mediaData 
   );
 
   if (isTed) {
-    const isGreeting = /^(hola|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|inicio|menu|men[uú])$/i.test(lower);
+    const isGreeting = /^(hola|hols|holi|holas|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|inicio|menu|men[uú]|hey|que\s*onda|buenas)/i.test(lower);
     if (isGreeting) {
       const now = new Date();
       const dayName = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][now.getDay()];
