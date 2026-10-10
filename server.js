@@ -372,6 +372,10 @@ async function startWhatsAppBot() {
         }
 
         const remoteJid = msg.key.remoteJid;
+        try {
+          await sock.readMessages([msg.key]);
+        } catch (e) {}
+
         const body = (
           msg.message?.conversation ||
           msg.message?.extendedTextMessage?.text ||
@@ -387,9 +391,8 @@ async function startWhatsAppBot() {
         const senderNumber = remoteJid.replace(/[^0-9]/g, '');
         const authUser = getAuthorizedUser(senderNumber, config);
 
-        const targetJid = authUser && authUser.phone 
-          ? `${authUser.phone.replace(/[^0-9]/g, '').startsWith('52') ? authUser.phone.replace(/[^0-9]/g, '') : '521' + authUser.phone.replace(/[^0-9]/g, '')}@s.whatsapp.net`
-          : remoteJid;
+        // Siempre responder exactamente al JID de donde provino el mensaje para que aparezca en el chat del usuario
+        const targetJid = remoteJid;
 
         // Mensaje de bienvenida para público general no registrado
         if (!authUser) {
