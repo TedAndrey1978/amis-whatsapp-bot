@@ -28,6 +28,7 @@ const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
 let sock = null;
 let currentQrData = null;
 let currentQrDataUrl = null;
+let currentPairingCode = null;
 let isClientReady = false;
 let connectedUser = null;
 const processedMsgIds = new Set();
@@ -127,6 +128,21 @@ async function startWhatsAppBot() {
   });
 
   sock.ev.on('creds.update', saveCreds);
+
+  if (!sock.authState.creds.registered) {
+    setTimeout(async () => {
+      try {
+        const botPhone = '526673545529';
+        const code = await sock.requestPairingCode(botPhone);
+        currentPairingCode = code;
+        console.log('\n======================================================');
+        console.log(`🔑 CÓDIGO DE VINCULACIÓN DIRECTO WHATSAPP: ${code}`);
+        console.log('======================================================\n');
+      } catch (err) {
+        console.error('Error solicitando pairing code:', err);
+      }
+    }, 4000);
+  }
 
   sock.ev.on('connection.update', async (update) => {
     try {
@@ -303,12 +319,13 @@ const server = http.createServer((req, res) => {
       ready: isClientReady,
       authenticated: isClientReady,
       needsQr: !isClientReady && !!currentQrData,
+      pairingCode: currentPairingCode || null,
       user: connectedUser || null
     }));
     return;
   }
 
-  // Página visual en navegador (QR y Estado en vivo)
+  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
     <!DOCTYPE html>
@@ -318,36 +335,53 @@ const server = http.createServer((req, res) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>AMIS Constructora · Torre de Control 24/7</title>
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 40px 20px; }
-        .card { max-width: 480px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 32px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
-        h1 { font-size: 24px; margin-bottom: 8px; color: #38bdf8; }
-        p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; }
-        .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 24px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 30px 20px; }
+        .card { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
+        h1 { font-size: 22px; margin-bottom: 6px; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+        .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
         .badge-online { background: #065f46; color: #34d399; }
         .badge-qr { background: #854d0e; color: #facc15; }
-        .qr-box { background: white; padding: 16px; border-radius: 12px; display: inline-block; margin-bottom: 20px; }
+        .code-box { background: #0f172a; border: 2px dashed #38bdf8; border-radius: 12px; padding: 16px; margin: 16px 0; }
+        .code-text { font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #38bdf8; }
+        .qr-box { background: white; padding: 12px; border-radius: 12px; display: inline-block; margin: 14px 0; }
         img { display: block; max-width: 100%; height: auto; }
+        .step-list { text-align: left; background: #0f172a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
       </style>
     </head>
     <body>
       <div class="card" id="mainCard">
         <h1>🏢 Torre de Control AMIS</h1>
-        <p>Servidor Baileys 24/7 en la Nube · Cerebro Antigravity</p>
+        <p>Servidor 24/7 en la Nube · Cerebro Antigravity</p>
         <div id="contentBox">
           ${isClientReady ? `
             <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
             <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
             <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-          ` : (currentQrDataUrl ? `
-            <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
-            <div class="qr-box">
-              <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="280" height="280">
-            </div>
-            <p style="color:#cbd5e1;">Abre WhatsApp en tu teléfono → Dispositivos vinculados → Escanear.</p>
           ` : `
-            <div class="badge badge-qr">⏳ INICIALIZANDO SOCKET...</div>
-            <p>Cargando credenciales y enlace...</p>
-          `)}
+            <div class="badge badge-qr">⚡ VINCULACIÓN DIRECTA</div>
+            
+            ${currentPairingCode ? `
+              <div class="code-box">
+                <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">CÓDIGO DE VINCULACIÓN (8 DÍGITOS):</div>
+                <div class="code-text">${currentPairingCode}</div>
+              </div>
+            ` : ''}
+
+            ${currentQrDataUrl ? `
+              <div class="qr-box">
+                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="220" height="220">
+              </div>
+            ` : ''}
+
+            <div class="step-list">
+              <strong>Cómo vincular en tu celular:</strong><br>
+              1. Abre WhatsApp en tu celular (<strong>667 354 5529</strong>).<br>
+              2. Ve a <strong>Dispositivos vinculados</strong> → <strong>Vincular un dispositivo</strong>.<br>
+              3. Toca abajo: <strong>Vincular con el número de teléfono</strong>.<br>
+              4. Escribe el código de 8 dígitos de arriba (o escanea el QR).
+            </div>
+          `}
         </div>
       </div>
       <script>
@@ -361,13 +395,10 @@ const server = http.createServer((req, res) => {
                 <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+\${data.user || '5216673545529'}</strong></p>
                 <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
               \`;
-            } else if (data.needsQr) {
-              // Si no está listo y necesita QR, recargar tras 8s para mostrar nueva imagen
-              setTimeout(() => location.reload(), 8000);
             }
           } catch(e) {}
         }
-        setInterval(checkStatus, 4000);
+        setInterval(checkStatus, 3000);
       </script>
     </body>
     </html>
