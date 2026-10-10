@@ -1,6 +1,10 @@
-// G:\Mi unidad\Antigravity_Laboratorio\integraciones\whatsapp_cloud_server\server.js
-// Servidor en la Nube 24/7 · AMIS CONSTRUCTORA & Cerebro Antigravity
-// Motor de Conexión Nativa: Baileys Multi-Device (Ultra-Ligero · Sin Chromium)
+// Manejo global de excepciones para evitar que el contenedor muera
+process.on('uncaughtException', (err) => {
+  console.error('🛡️ [EXCEPCIÓN CAPTURADA]:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('🛡️ [RECHAZO CAPTURADO]:', reason);
+});
 
 import pkg from '@whiskeysockets/baileys';
 const makeWASocket = typeof pkg === 'function' ? pkg : (pkg.default || pkg.makeWASocket || pkg);
@@ -85,13 +89,111 @@ function buildMainMenu(authUser, config) {
   return menu;
 }
 
-// Manejo global de excepciones para evitar que el contenedor muera
-process.on('uncaughtException', (err) => {
-  console.error('🛡️ [EXCEPCIÓN CAPTURADA]:', err);
+// Iniciar Servidor HTTP inmediatamente para Render
+const server = http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  if (req.url === '/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      ready: isClientReady,
+      authenticated: isClientReady,
+      needsQr: !isClientReady && !!currentQrData,
+      pairingCode: currentPairingCode || null,
+      user: connectedUser || null
+    }));
+    return;
+  }
+
+  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>AMIS Constructora · Torre de Control 24/7</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 30px 20px; }
+        .card { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
+        h1 { font-size: 22px; margin-bottom: 6px; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+        .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
+        .badge-online { background: #065f46; color: #34d399; }
+        .badge-qr { background: #854d0e; color: #facc15; }
+        .code-box { background: #0f172a; border: 2px dashed #38bdf8; border-radius: 12px; padding: 16px; margin: 16px 0; }
+        .code-text { font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #38bdf8; }
+        .qr-box { background: white; padding: 12px; border-radius: 12px; display: inline-block; margin: 14px 0; }
+        img { display: block; max-width: 100%; height: auto; }
+        .step-list { text-align: left; background: #0f172a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+      </style>
+    </head>
+    <body>
+      <div class="card" id="mainCard">
+        <h1>🏢 Torre de Control AMIS</h1>
+        <p>Servidor 24/7 en la Nube · Cerebro Antigravity</p>
+        <div id="contentBox">
+          ${isClientReady ? `
+            <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
+            <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
+            <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
+          ` : `
+            <div class="badge badge-qr">⚡ VINCULACIÓN DIRECTA</div>
+            
+            ${currentPairingCode ? `
+              <div class="code-box">
+                <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">CÓDIGO DE VINCULACIÓN (8 DÍGITOS):</div>
+                <div class="code-text">${currentPairingCode}</div>
+              </div>
+            ` : ''}
+
+            ${currentQrDataUrl ? `
+              <div class="qr-box">
+                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="220" height="220">
+              </div>
+            ` : ''}
+
+            <div class="step-list">
+              <strong>Cómo vincular en tu celular:</strong><br>
+              1. Abre WhatsApp en tu celular (<strong>667 354 5529</strong>).<br>
+              2. Ve a <strong>Dispositivos vinculados</strong> → <strong>Vincular un dispositivo</strong>.<br>
+              3. Toca abajo: <strong>Vincular con el número de teléfono</strong>.<br>
+              4. Escribe el código de 8 dígitos de arriba (o escanea el QR).
+            </div>
+          `}
+        </div>
+      </div>
+      <script>
+        async function checkStatus() {
+          try {
+            const res = await fetch('/status');
+            const data = await res.json();
+            if (data.ready) {
+              document.getElementById('contentBox').innerHTML = \`
+                <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
+                <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+\${data.user || '5216673545529'}</strong></p>
+                <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
+              \`;
+            }
+          } catch(e) {}
+        }
+        setInterval(checkStatus, 3000);
+      </script>
+    </body>
+    </html>
+  `);
 });
-process.on('unhandledRejection', (reason) => {
-  console.error('🛡️ [RECHAZO CAPTURADO]:', reason);
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`📡 Servidor HTTP activo en 0.0.0.0:${PORT}`);
 });
+
+// Self Keep-Alive para evitar que Render entre en reposo
+setInterval(() => {
+  const appUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  http.get(`${appUrl}/status`, () => {}).on('error', () => {});
+}, 8 * 60 * 1000);
 
 // Inicialización de Conexión Baileys Multi-Device
 async function startWhatsAppBot() {
@@ -308,112 +410,6 @@ async function startWhatsAppBot() {
     }
   });
 }
-
-// Servidor Web para Monitoreo y Código QR Visual
-const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-
-  if (req.url === '/status') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      ready: isClientReady,
-      authenticated: isClientReady,
-      needsQr: !isClientReady && !!currentQrData,
-      pairingCode: currentPairingCode || null,
-      user: connectedUser || null
-    }));
-    return;
-  }
-
-  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  res.end(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>AMIS Constructora · Torre de Control 24/7</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 30px 20px; }
-        .card { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
-        h1 { font-size: 22px; margin-bottom: 6px; color: #38bdf8; }
-        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
-        .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
-        .badge-online { background: #065f46; color: #34d399; }
-        .badge-qr { background: #854d0e; color: #facc15; }
-        .code-box { background: #0f172a; border: 2px dashed #38bdf8; border-radius: 12px; padding: 16px; margin: 16px 0; }
-        .code-text { font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #38bdf8; }
-        .qr-box { background: white; padding: 12px; border-radius: 12px; display: inline-block; margin: 14px 0; }
-        img { display: block; max-width: 100%; height: auto; }
-        .step-list { text-align: left; background: #0f172a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
-      </style>
-    </head>
-    <body>
-      <div class="card" id="mainCard">
-        <h1>🏢 Torre de Control AMIS</h1>
-        <p>Servidor 24/7 en la Nube · Cerebro Antigravity</p>
-        <div id="contentBox">
-          ${isClientReady ? `
-            <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-            <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
-            <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-          ` : `
-            <div class="badge badge-qr">⚡ VINCULACIÓN DIRECTA</div>
-            
-            ${currentPairingCode ? `
-              <div class="code-box">
-                <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">CÓDIGO DE VINCULACIÓN (8 DÍGITOS):</div>
-                <div class="code-text">${currentPairingCode}</div>
-              </div>
-            ` : ''}
-
-            ${currentQrDataUrl ? `
-              <div class="qr-box">
-                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="220" height="220">
-              </div>
-            ` : ''}
-
-            <div class="step-list">
-              <strong>Cómo vincular en tu celular:</strong><br>
-              1. Abre WhatsApp en tu celular (<strong>667 354 5529</strong>).<br>
-              2. Ve a <strong>Dispositivos vinculados</strong> → <strong>Vincular un dispositivo</strong>.<br>
-              3. Toca abajo: <strong>Vincular con el número de teléfono</strong>.<br>
-              4. Escribe el código de 8 dígitos de arriba (o escanea el QR).
-            </div>
-          `}
-        </div>
-      </div>
-      <script>
-        async function checkStatus() {
-          try {
-            const res = await fetch('/status');
-            const data = await res.json();
-            if (data.ready) {
-              document.getElementById('contentBox').innerHTML = \`
-                <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-                <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+\${data.user || '5216673545529'}</strong></p>
-                <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-              \`;
-            }
-          } catch(e) {}
-        }
-        setInterval(checkStatus, 3000);
-      </script>
-    </body>
-    </html>
-  `);
-});
-
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`📡 Servidor HTTP activo en 0.0.0.0:${PORT}`);
-});
-
-// Self Keep-Alive para evitar que Render entre en reposo
-setInterval(() => {
-  const appUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-  http.get(`${appUrl}/status`, () => {}).on('error', () => {});
-}, 8 * 60 * 1000);
 
 startWhatsAppBot();
 
