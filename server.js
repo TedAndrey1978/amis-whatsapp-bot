@@ -84,6 +84,14 @@ function buildMainMenu(authUser, config) {
   return menu;
 }
 
+// Manejo global de excepciones para evitar que el contenedor muera
+process.on('uncaughtException', (err) => {
+  console.error('🛡️ [EXCEPCIÓN CAPTURADA]:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('🛡️ [RECHAZO CAPTURADO]:', reason);
+});
+
 // Inicialización de Conexión Baileys Multi-Device
 async function startWhatsAppBot() {
   if (!fs.existsSync(AUTH_DIR)) {
@@ -95,18 +103,27 @@ async function startWhatsAppBot() {
 
   console.log(`🤖 Iniciando motor Baileys v${version.join('.')} (Última: ${isLatest})...`);
 
+  if (sock) {
+    try {
+      sock.ev.removeAllListeners();
+      sock.ws?.close();
+    } catch (e) {}
+  }
+
   sock = makeWASocket({
     version,
     auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: ['AMIS Torre Control', 'Chrome', '1.0.0'],
+    browser: ['Ubuntu', 'Chrome', '20.0.04'],
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     shouldSyncHistoryMessage: () => false,
     getMessage: async () => undefined,
     connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 15000
+    keepAliveIntervalMs: 25000,
+    emitOwnEvents: false,
+    fireInitQueries: false
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -141,13 +158,15 @@ async function startWhatsAppBot() {
       if (connection === 'close') {
         isClientReady = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-        console.log(`⚠️ Conexión cerrada. Código: ${statusCode}. Reintentando: ${shouldReconnect}`);
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        console.log(`⚠️ Conexión cerrada. Código: ${statusCode}. Deslogeado: ${isLoggedOut}`);
 
-        if (shouldReconnect) {
-          setTimeout(startWhatsAppBot, 3000);
+        if (!isLoggedOut) {
+          // Si es 515 (restart required), reiniciar de inmediato con las nuevas llaves
+          const delay = statusCode === 515 ? 500 : 2500;
+          setTimeout(startWhatsAppBot, delay);
         } else {
-          console.log('🛑 Sesión cerrada por el usuario. Esperando nuevo escaneo QR.');
+          console.log('🛑 Sesión cerrada por el usuario. Limpiando credenciales y esperando nuevo QR.');
           try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (e) {}
           setTimeout(startWhatsAppBot, 2000);
         }
