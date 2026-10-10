@@ -2,11 +2,13 @@
 // Servidor en la Nube 24/7 · AMIS CONSTRUCTORA & Cerebro Antigravity
 // Motor de Conexión Nativa: Baileys Multi-Device (Ultra-Ligero · Sin Chromium)
 
-import makeWASocket, {
+import pkg from '@whiskeysockets/baileys';
+const makeWASocket = typeof pkg === 'function' ? pkg : (pkg.default || pkg.makeWASocket || pkg);
+const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion
-} from '@whiskeysockets/baileys';
+} = pkg;
 import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
@@ -99,50 +101,59 @@ async function startWhatsAppBot() {
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
     browser: ['AMIS Torre Control', 'Chrome', '1.0.0'],
-    generateHighQualityLinkPreview: true
+    generateHighQualityLinkPreview: false,
+    syncFullHistory: false,
+    shouldSyncHistoryMessage: () => false,
+    getMessage: async () => undefined,
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 15000
   });
 
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
+    try {
+      const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-      currentQrData = qr;
-      try {
-        currentQrDataUrl = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
-      } catch (e) {}
+      if (qr) {
+        currentQrData = qr;
+        try {
+          currentQrDataUrl = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
+        } catch (e) {}
 
-      console.log('\n======================================================');
-      console.log('⚡ ESCANEA ESTE CÓDIGO QR EN WHATSAPP (Dispositivos Vinculados):');
-      console.log('======================================================\n');
-      qrcodeTerminal.generate(qr, { small: true });
-    }
-
-    if (connection === 'open') {
-      isClientReady = true;
-      currentQrData = null;
-      currentQrDataUrl = null;
-      connectedUser = sock.user?.id?.split(':')[0] || '5216673545529';
-      console.log('\n======================================================');
-      console.log('🤖 AMIS CONSTRUCTORA · SERVIDOR BAILEYS 24/7 EN LA NUBE ACTIVO');
-      console.log('======================================================');
-      console.log(`🟢 Línea Conectada: +${connectedUser}`);
-    }
-
-    if (connection === 'close') {
-      isClientReady = false;
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      console.log(`⚠️ Conexión cerrada. Código: ${statusCode}. Reintentando: ${shouldReconnect}`);
-
-      if (shouldReconnect) {
-        setTimeout(startWhatsAppBot, 3000);
-      } else {
-        console.log('🛑 Sesión cerrada por el usuario. Esperando nuevo escaneo QR.');
-        try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (e) {}
-        setTimeout(startWhatsAppBot, 2000);
+        console.log('\n======================================================');
+        console.log('⚡ ESCANEA ESTE CÓDIGO QR EN WHATSAPP (Dispositivos Vinculados):');
+        console.log('======================================================\n');
+        qrcodeTerminal.generate(qr, { small: true });
       }
+
+      if (connection === 'open') {
+        isClientReady = true;
+        currentQrData = null;
+        currentQrDataUrl = null;
+        connectedUser = sock.user?.id?.split(':')[0] || '5216673545529';
+        console.log('\n======================================================');
+        console.log('🤖 AMIS CONSTRUCTORA · SERVIDOR BAILEYS 24/7 EN LA NUBE ACTIVO');
+        console.log('======================================================');
+        console.log(`🟢 Línea Conectada: +${connectedUser}`);
+      }
+
+      if (connection === 'close') {
+        isClientReady = false;
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        console.log(`⚠️ Conexión cerrada. Código: ${statusCode}. Reintentando: ${shouldReconnect}`);
+
+        if (shouldReconnect) {
+          setTimeout(startWhatsAppBot, 3000);
+        } else {
+          console.log('🛑 Sesión cerrada por el usuario. Esperando nuevo escaneo QR.');
+          try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (e) {}
+          setTimeout(startWhatsAppBot, 2000);
+        }
+      }
+    } catch (err) {
+      console.error('Error en connection.update:', err);
     }
   });
 
@@ -300,26 +311,45 @@ const server = http.createServer((req, res) => {
       </style>
     </head>
     <body>
-      <div class="card">
+      <div class="card" id="mainCard">
         <h1>🏢 Torre de Control AMIS</h1>
         <p>Servidor Baileys 24/7 en la Nube · Cerebro Antigravity</p>
-        ${isClientReady ? `
-          <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-          <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
-          <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-        ` : (currentQrDataUrl ? `
-          <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
-          <div class="qr-box">
-            <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="280" height="280">
-          </div>
-          <p style="color:#cbd5e1;">Abre WhatsApp en tu teléfono → Dispositivos vinculados → Escanear.</p>
-          <script>setTimeout(() => location.reload(), 6000);</script>
-        ` : `
-          <div class="badge badge-qr">⏳ INICIALIZANDO SOCKET...</div>
-          <p>Cargando credenciales y enlace...</p>
-          <script>setTimeout(() => location.reload(), 3000);</script>
-        `)}
+        <div id="contentBox">
+          ${isClientReady ? `
+            <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
+            <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
+            <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
+          ` : (currentQrDataUrl ? `
+            <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
+            <div class="qr-box">
+              <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="280" height="280">
+            </div>
+            <p style="color:#cbd5e1;">Abre WhatsApp en tu teléfono → Dispositivos vinculados → Escanear.</p>
+          ` : `
+            <div class="badge badge-qr">⏳ INICIALIZANDO SOCKET...</div>
+            <p>Cargando credenciales y enlace...</p>
+          `)}
+        </div>
       </div>
+      <script>
+        async function checkStatus() {
+          try {
+            const res = await fetch('/status');
+            const data = await res.json();
+            if (data.ready) {
+              document.getElementById('contentBox').innerHTML = \`
+                <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
+                <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+\${data.user || '5216673545529'}</strong></p>
+                <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
+              \`;
+            } else if (data.needsQr) {
+              // Si no está listo y necesita QR, recargar tras 8s para mostrar nueva imagen
+              setTimeout(() => location.reload(), 8000);
+            }
+          } catch(e) {}
+        }
+        setInterval(checkStatus, 4000);
+      </script>
     </body>
     </html>
   `);
@@ -336,3 +366,4 @@ setInterval(() => {
 }, 8 * 60 * 1000);
 
 startWhatsAppBot();
+
