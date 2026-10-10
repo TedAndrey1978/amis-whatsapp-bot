@@ -139,27 +139,22 @@ const server = http.createServer((req, res) => {
             <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
             <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
           ` : `
-            <div class="badge badge-qr">⚡ VINCULACIÓN DIRECTA</div>
+            <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
             
-            ${currentPairingCode ? `
-              <div class="code-box">
-                <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">CÓDIGO DE VINCULACIÓN (8 DÍGITOS):</div>
-                <div class="code-text">${currentPairingCode}</div>
-              </div>
-            ` : ''}
-
             ${currentQrDataUrl ? `
               <div class="qr-box">
-                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="220" height="220">
+                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="250" height="250">
               </div>
-            ` : ''}
+            ` : `
+              <p style="color:#94a3b8; font-size:14px; margin: 30px 0;">⏳ Generando código QR...</p>
+            `}
 
             <div class="step-list">
               <strong>Cómo vincular en tu celular:</strong><br>
               1. Abre WhatsApp en tu celular (<strong>667 354 5529</strong>).<br>
-              2. Ve a <strong>Dispositivos vinculados</strong> → <strong>Vincular un dispositivo</strong>.<br>
-              3. Toca abajo: <strong>Vincular con el número de teléfono</strong>.<br>
-              4. Escribe el código de 8 dígitos de arriba (o escanea el QR).
+              2. Ve a <strong>Ajustes / Configuración</strong> → <strong>Dispositivos vinculados</strong>.<br>
+              3. Toca el botón verde <strong>Vincular un dispositivo</strong>.<br>
+              4. <strong>Apunta la cámara al código QR</strong> de la pantalla.
             </div>
           `}
         </div>
@@ -229,21 +224,6 @@ async function startWhatsAppBot() {
   });
 
   sock.ev.on('creds.update', saveCreds);
-
-  if (!sock.authState.creds.registered) {
-    setTimeout(async () => {
-      try {
-        const botPhone = '526673545529';
-        const code = await sock.requestPairingCode(botPhone);
-        currentPairingCode = code;
-        console.log('\n======================================================');
-        console.log(`🔑 CÓDIGO DE VINCULACIÓN DIRECTO WHATSAPP: ${code}`);
-        console.log('======================================================\n');
-      } catch (err) {
-        console.error('Error solicitando pairing code:', err);
-      }
-    }, 4000);
-  }
 
   sock.ev.on('connection.update', async (update) => {
     try {
