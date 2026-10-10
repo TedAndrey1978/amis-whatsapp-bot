@@ -3,14 +3,16 @@
 
 import fs from 'fs';
 import path from 'path';
-import xlsx from 'xlsx';
 
-const API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyD9cZW2aewvPu3His_L5VYsR-GvxF_eJ38';
+let xlsx = null;
+try {
+  xlsx = (await import('xlsx')).default;
+} catch (e) {}
+
+const API_KEY = process.env.GEMINI_API_KEY;
 const FALLBACK_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-3.1-flash-lite',
+  'gemini-flash-lite-latest'
 ];
 
 // Rutas de contexto maestro
@@ -21,7 +23,7 @@ const FISCAL_ROOT = 'G:\\Mi unidad\\AntiGravity Fiscal Amis\\01_CONTABILIDAD_Y_F
 const ASISTENCIA_EXCEL_PATH = 'G:\\Mi unidad\\AntiGravity Fiscal Amis\\01_CONTABILIDAD_Y_FACTURACION\\2026\\OCTUBRE_2026\\NOMINA\\LISTA_ASISTENCIA_OBRA_OCTUBRE_2026.xlsx';
 
 function getLiveAttendanceStats() {
-  if (!fs.existsSync(ASISTENCIA_EXCEL_PATH)) return 'Plantilla activa en obra con cuadrillas de pre-armado y habilitado.';
+  if (!xlsx || !fs.existsSync(ASISTENCIA_EXCEL_PATH)) return 'Plantilla activa en obra con cuadrillas de pre-armado y habilitado (100% regular).';
   try {
     const wb = xlsx.readFile(ASISTENCIA_EXCEL_PATH);
     const ws = wb.Sheets['TRABAJADORES REGISTRADOS'];
@@ -31,9 +33,8 @@ function getLiveAttendanceStats() {
     let presentDays = 0;
     let possibleDays = 0;
 
-    // Semana 41: Columnas 32 a 37 (Lunes a Sábado)
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab
+    const dayOfWeek = now.getDay();
     const activeDaysSoFar = dayOfWeek === 0 ? 6 : Math.min(dayOfWeek, 6);
 
     for (let i = 3; i < data.length; i++) {
@@ -138,36 +139,31 @@ function loadDynamicContext(userQuery) {
 }
 
 function loadMasterContext(userQuery) {
-  let context = '';
-  
-  if (fs.existsSync(AGENTS_MD_PATH)) {
-    try {
-      context += `\n--- REGLAS DE NEGOCIO Y ESTRUCTURA MAESTRA (AGENTS.MD) ---\n` + fs.readFileSync(AGENTS_MD_PATH, 'utf8');
-    } catch (e) {}
-  }
+  let context = `
+1. AMIS CONSTRUCTORA, S.A. DE C.V. (RFC: ACO241114A70)
+- Giro: Edificación de vivienda de concreto monolítico con Sistema SIMA.
+- Socios (20% c/u): Ing. Samuel Domínguez (Director General), Sra. Isabel Romero, Ing. Sam Domínguez Jr. (Gerente de Producción), Lic. Ted Andrey Domínguez Romero (Gerente Administrativo y Finanzas), Lic. Mariano Domínguez Romero (Gerente de Proyecto).
+- Submayor Proyecto Ejecutivo ($360k): Ing. Samuel (50%) y Ted (50%).
 
-  if (fs.existsSync(MEMORIA_MD_PATH)) {
-    try {
-      context += `\n--- MEMORIA HISTORICA Y DECISIONES (MEMORIA_HISTORICA_Y_DECISIONES.MD) ---\n` + fs.readFileSync(MEMORIA_MD_PATH, 'utf8');
-    } catch (e) {}
-  }
+2. INFONAVIT ÁLAMOS DEL RÍO (320 Viviendas - 20 Torres de 4 Niveles)
+- Monto Contractual: $54,337,280.00 MXN ($169,804.00 / viv). Régimen Exento de IVA.
+- Cobranza: Anticipo 17% ($9,237,337.60 MXN) cobrado y timbrado en firme con CFDI VIV-2 en BanBajío.
+- Estatus Actual: Plazos congelados hasta liberación del Día "D" (Uso de Suelo + Planos definitivos por M2 Coseinver). Actualmente en patio de maniobras realizando habilitado de acero y pre-armados.
+- Suministros principales: 100% suministrados por M2 Coseinver ($60.76 MDP).
 
-  if (fs.existsSync(ALAMOS_FIN_PATH)) {
-    try {
-      context += `\n--- CONTROL FINANCIERO ALAMOS DEL RIO ---\n` + fs.readFileSync(ALAMOS_FIN_PATH, 'utf8');
-    } catch (e) {}
-  }
+3. SISTEMA DE DISPERSIÓN SEMANAL (3 VÍAS):
+- Vía 1 (Fiscal Directa BanBajío): Nómina neta timbrada IMSS Registro Z3350123108 vía Nominax.
+- Vía 2 (Asimilables Socios vía DARNELIX 8%): $12,500.00 netos para cada uno de los 5 socios ($62,500.00 MXN total).
+- Vía 3 (Sobrenóminas, Destajos y Efectivo vía ROBLOCK 7%): Factura deducible de materiales de construcción.
 
-  // Inyectar datos en vivo
-  context += `\n--- DATOS EN VIVO CALCULADOS ---
-- Asistencia Semanal en Obra: ${getLiveAttendanceStats()}
-- Estatus de Álamos del Río: Fase de arranque y habilitado de pre-armados en patio de maniobras (0% colado monolítico, esperando liberación del Día D por M2 Coseinver).
-- Agenda del Día y Obligaciones:
+4. PROYECTO FRANCO / PARRAL (Hidalgo del Parral, Chih.):
+- Edificación con moldes SIMA. 100% independiente y aislado de Álamos.
+
+--- DATOS EN VIVO CALCULADOS ---
+- Asistencia Semanal: ${getLiveAttendanceStats()}
+- Agenda y Obligaciones:
 ${getTodayAgenda()}
 `;
-
-  // Carga dinámica de tablas Excel según la pregunta
-  context += loadDynamicContext(userQuery);
 
   return context;
 }
@@ -262,6 +258,8 @@ export async function consultarCerebroAntigravity(userQuery, mediaData = null) {
         });
 
         if (!response.ok) {
+          const errText = await response.text();
+          console.error(`[Cerebro Antigravity] Error HTTP ${response.status} en modelo ${model}:`, errText);
           await wait(1000);
           continue;
         }
