@@ -202,9 +202,8 @@ async function startWhatsAppBot() {
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307], isLatest: true }));
-
-  console.log(`🤖 Iniciando motor Baileys v${version.join('.')} (Última: ${isLatest})...`);
+  const version = [2, 3000, 1015901307];
+  console.log(`🤖 Iniciando motor Baileys v${version.join('.')} de forma instantánea...`);
 
   if (sock) {
     try {
