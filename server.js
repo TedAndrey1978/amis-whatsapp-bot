@@ -84,6 +84,10 @@ const client = new Client({
   authStrategy: new LocalAuth({
     dataPath: path.join(__dirname, '.wwebjs_auth')
   }),
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html'
+  },
   puppeteer: {
     executablePath: CHROME_PATH,
     headless: true,
@@ -113,6 +117,10 @@ const client = new Client({
   }
 });
 
+client.on('loading_screen', (percent, message) => {
+  console.log(`⏳ Sincronizando WhatsApp Web: ${percent}% (${message || 'cargando'})`);
+});
+
 client.on('qr', async (qr) => {
   currentQrData = qr;
   try {
@@ -131,6 +139,10 @@ client.on('authenticated', () => {
   currentQrDataUrl = null;
 });
 
+client.on('change_state', (state) => {
+  console.log(`⚡ Estado WhatsApp Web: ${state}`);
+});
+
 client.on('ready', () => {
   isClientReady = true;
   clientInfo = client.info;
@@ -140,7 +152,7 @@ client.on('ready', () => {
   console.log(`🟢 Línea Conectada: +${client.info?.wid?.user}`);
 });
 
-client.on('message_create', async (msg) => {
+async function processIncomingMessage(msg) {
   try {
     if (msg.fromMe) return;
     if (msg.from === 'status@broadcast') return;
@@ -214,7 +226,7 @@ client.on('message_create', async (msg) => {
         return;
       }
 
-      // Si no es un número de opción, va directo al Cerebro IA
+      // Si no es un número de opción, va directo al Asistente Conversacional / Cerebro
       let idleMedia = null;
       if (msg.hasMedia) {
         try { idleMedia = await msg.downloadMedia(); } catch (e) {}
@@ -252,7 +264,10 @@ client.on('message_create', async (msg) => {
   } catch (err) {
     console.error('Error procesando mensaje:', err);
   }
-});
+}
+
+client.on('message', processIncomingMessage);
+client.on('message_create', processIncomingMessage);
 
 // Servidor Web para Monitoreo y Código QR Visual
 const server = http.createServer((req, res) => {
