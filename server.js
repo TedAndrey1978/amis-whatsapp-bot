@@ -11,8 +11,11 @@ const makeWASocket = typeof pkg === 'function' ? pkg : (pkg.default || pkg.makeW
 const {
   useMultiFileAuthState,
   DisconnectReason,
-  fetchLatestBaileysVersion
+  BufferJSON,
+  initAuthCreds,
+  proto
 } = pkg;
+import { MongoClient } from 'mongodb';
 import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
@@ -21,6 +24,89 @@ import { fileURLToPath } from 'url';
 import QRCode from 'qrcode';
 import qrcodeTerminal from 'qrcode-terminal';
 import { generateConversationalReply } from './asistente_conversacional.js';
+
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tedandrey78_db_user:HYHCN2Utcqhdwn7a@cluster0.fe2xsa1.mongodb.net/amis_whatsapp?retryWrites=true&w=majority&appName=Cluster0';
+let mongoClient = null;
+let sessionCollection = null;
+
+async function useMongoAuthState() {
+  try {
+    if (!mongoClient) {
+      console.log('🍃 Conectando a MongoDB Atlas para persistencia de sesión 24/7...');
+      mongoClient = new MongoClient(MONGO_URI);
+      await mongoClient.connect();
+      const db = mongoClient.db('amis_whatsapp');
+      sessionCollection = db.collection('auth_session');
+      console.log('✅ MongoDB Atlas conectado exitosamente.');
+    }
+
+    const writeData = async (data, id) => {
+      try {
+        const serialized = JSON.stringify(data, BufferJSON.replacer);
+        await sessionCollection.replaceOne({ _id: id }, { _id: id, data: serialized }, { upsert: true });
+      } catch (err) {
+        console.error('Error guardando en MongoDB:', err.message);
+      }
+    };
+
+    const readData = async (id) => {
+      try {
+        const doc = await sessionCollection.findOne({ _id: id });
+        if (doc && doc.data) {
+          return JSON.parse(doc.data, BufferJSON.reviver);
+        }
+        return null;
+      } catch (err) {
+        return null;
+      }
+    };
+
+    const removeData = async (id) => {
+      try {
+        await sessionCollection.deleteOne({ _id: id });
+      } catch (err) {}
+    };
+
+    const creds = (await readData('creds')) || initAuthCreds();
+
+    return {
+      state: {
+        creds,
+        keys: {
+          get: async (type, ids) => {
+            const data = {};
+            await Promise.all(
+              ids.map(async (id) => {
+                let value = await readData(`${type}-${id}`);
+                if (type === 'app-state-sync-key' && value) {
+                  value = proto.Message.AppStateSyncKeyData.fromObject(value);
+                }
+                data[id] = value;
+              })
+            );
+            return data;
+          },
+          set: async (data) => {
+            const tasks = [];
+            for (const category in data) {
+              for (const id in data[category]) {
+                const value = data[category][id];
+                const key = `${category}-${id}`;
+                tasks.push(value ? writeData(value, key) : removeData(key));
+              }
+            }
+            await Promise.all(tasks);
+          }
+        }
+      },
+      saveCreds: () => writeData(creds, 'creds')
+    };
+  } catch (mongoErr) {
+    console.warn('⚠️ No se pudo conectar a MongoDB. Usando almacenamiento local de respaldo:', mongoErr.message);
+    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    return await useMultiFileAuthState(AUTH_DIR);
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -192,13 +278,9 @@ setInterval(() => {
 
 // Inicialización de Conexión Baileys Multi-Device
 async function startWhatsAppBot() {
-  if (!fs.existsSync(AUTH_DIR)) {
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
-  }
-
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { state, saveCreds } = await useMongoAuthState();
   const version = [2, 3000, 1015901307];
-  console.log(`🤖 Iniciando motor Baileys v${version.join('.')} de forma instantánea...`);
+  console.log(`🤖 Iniciando motor Baileys v${version.join('.')} con Sesión Persistente en MongoDB Atlas...`);
 
   if (sock) {
     try {
