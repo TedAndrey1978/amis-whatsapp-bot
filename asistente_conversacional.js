@@ -68,7 +68,24 @@ export async function generateConversationalReply(userText, authUser, mediaData 
   );
 
   if (isTed) {
-    // Si Ted Andrey hace una consulta libre, conectamos directo con el Cerebro Antigravity
+    const isGreeting = /^(hola|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|inicio|menu|men[uú])$/i.test(lower);
+    if (isGreeting) {
+      const now = new Date();
+      const dayName = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][now.getDay()];
+      const dayNum = now.getDate();
+      const monthName = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][now.getMonth()];
+      
+      return (
+        `¡Excelente día, Lic. Ted! 🫡\n\n` +
+        `🏗️ *Álamos del Río:* Fase de arranque en patio de maniobras (habilitado y pre-armados; esperando liberación del Día "D" por M2 Coseinver para colado monolítico).\n` +
+        `🟢 *Nómina y Personal AMIS:* Cuadrillas activas en habilitado de acero y pre-armados.\n` +
+        `📅 *Hoy ${dayName} ${dayNum} de ${monthName} de 2026:*\n` +
+        `• Conciliación de asistencias y dispersión de nómina AMIS.\n` +
+        `• Obligaciones fiscales SAT: Próximo vencimiento de pagos provisionales el 17 de ${monthName}.\n\n` +
+        `¿En qué frente o consulta técnica/fiscal nos enfocamos hoy, Licenciado?`
+      );
+    }
+    // Si es consulta libre, conectamos con el Cerebro Antigravity
     return await consultarCerebroAntigravity(text, mediaData);
   }
 
