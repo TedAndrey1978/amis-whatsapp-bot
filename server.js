@@ -1,8 +1,13 @@
 // G:\Mi unidad\Antigravity_Laboratorio\integraciones\whatsapp_cloud_server\server.js
 // Servidor en la Nube 24/7 · AMIS CONSTRUCTORA & Cerebro Antigravity
+// Motor de Conexión Nativa: Baileys Multi-Device (Ultra-Ligero · Sin Chromium)
 
-import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth, MessageMedia } = pkg;
+import makeWASocket, {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion
+} from '@whiskeysockets/baileys';
+import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
@@ -16,15 +21,13 @@ const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 10000;
 const CONFIG_PATH = path.join(__dirname, 'menu_config.json');
-const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || 
-  (process.platform === 'win32' && fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe') 
-    ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' 
-    : undefined);
+const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
 
+let sock = null;
 let currentQrData = null;
 let currentQrDataUrl = null;
 let isClientReady = false;
-let clientInfo = null;
+let connectedUser = null;
 const processedMsgIds = new Set();
 
 const SESSIONS_FILE = path.join(__dirname, 'active_user_sessions.json');
@@ -79,195 +82,186 @@ function buildMainMenu(authUser, config) {
   return menu;
 }
 
-// Configuración de Cliente WhatsApp optimizado para 512MB RAM en Render Free Tier
-const client = new Client({
-  authStrategy: new LocalAuth({
-    dataPath: path.join(__dirname, '.wwebjs_auth')
-  }),
-  webVersionCache: {
-    type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html'
-  },
-  puppeteer: {
-    executablePath: CHROME_PATH,
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--mute-audio',
-      '--hide-scrollbars',
-      '--disable-notifications',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-breakpad',
-      '--disable-renderer-backgrounding',
-      '--memory-pressure-off',
-      '--js-flags=--max-old-space-size=160'
-    ]
+// Inicialización de Conexión Baileys Multi-Device
+async function startWhatsAppBot() {
+  if (!fs.existsSync(AUTH_DIR)) {
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
   }
-});
 
-client.on('loading_screen', (percent, message) => {
-  console.log(`⏳ Sincronizando WhatsApp Web: ${percent}% (${message || 'cargando'})`);
-});
+  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307], isLatest: true }));
 
-client.on('qr', async (qr) => {
-  currentQrData = qr;
-  try {
-    currentQrDataUrl = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
-  } catch (e) {}
+  console.log(`🤖 Iniciando motor Baileys v${version.join('.')} (Última: ${isLatest})...`);
 
-  console.log('\n======================================================');
-  console.log('⚡ ESCANEA ESTE CÓDIGO QR EN WHATSAPP (Dispositivos Vinculados):');
-  console.log('======================================================\n');
-  qrcodeTerminal.generate(qr, { small: true });
-});
+  sock = makeWASocket({
+    version,
+    auth: state,
+    logger: pino({ level: 'silent' }),
+    printQRInTerminal: false,
+    browser: ['AMIS Torre Control', 'Chrome', '1.0.0'],
+    generateHighQualityLinkPreview: true
+  });
 
-client.on('authenticated', () => {
-  console.log('✅ Autenticación exitosa en WhatsApp Web.');
-  currentQrData = null;
-  currentQrDataUrl = null;
-});
+  sock.ev.on('creds.update', saveCreds);
 
-client.on('change_state', (state) => {
-  console.log(`⚡ Estado WhatsApp Web: ${state}`);
-});
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update;
 
-client.on('ready', () => {
-  isClientReady = true;
-  clientInfo = client.info;
-  console.log('\n======================================================');
-  console.log('🤖 AMIS CONSTRUCTORA · SERVIDOR 24/7 EN LA NUBE ACTIVO');
-  console.log('======================================================');
-  console.log(`🟢 Línea Conectada: +${client.info?.wid?.user}`);
-});
+    if (qr) {
+      currentQrData = qr;
+      try {
+        currentQrDataUrl = await QRCode.toDataURL(qr, { margin: 2, scale: 8 });
+      } catch (e) {}
 
-async function processIncomingMessage(msg) {
-  try {
-    if (msg.fromMe) return;
-    if (msg.from === 'status@broadcast') return;
-
-    const msgId = msg.id ? msg.id._serialized : null;
-    if (msgId) {
-      if (processedMsgIds.has(msgId)) return;
-      processedMsgIds.add(msgId);
-      if (processedMsgIds.size > 2000) processedMsgIds.clear();
+      console.log('\n======================================================');
+      console.log('⚡ ESCANEA ESTE CÓDIGO QR EN WHATSAPP (Dispositivos Vinculados):');
+      console.log('======================================================\n');
+      qrcodeTerminal.generate(qr, { small: true });
     }
 
-    const senderId = msg.from;
-    const body = (msg.body || '').trim();
-    console.log(`[WHATSAPP ENTRADA] De: ${senderId} | Texto: "${body}" | Media: ${msg.hasMedia}`);
-
-    const config = loadConfig();
-    let senderNumber = '';
-    try {
-      const contact = await msg.getContact();
-      senderNumber = contact.number || senderId.replace(/[^0-9]/g, '');
-    } catch (e) {
-      senderNumber = senderId.replace(/[^0-9]/g, '');
+    if (connection === 'open') {
+      isClientReady = true;
+      currentQrData = null;
+      currentQrDataUrl = null;
+      connectedUser = sock.user?.id?.split(':')[0] || '5216673545529';
+      console.log('\n======================================================');
+      console.log('🤖 AMIS CONSTRUCTORA · SERVIDOR BAILEYS 24/7 EN LA NUBE ACTIVO');
+      console.log('======================================================');
+      console.log(`🟢 Línea Conectada: +${connectedUser}`);
     }
 
-    const authUser = getAuthorizedUser(senderNumber, config);
+    if (connection === 'close') {
+      isClientReady = false;
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+      console.log(`⚠️ Conexión cerrada. Código: ${statusCode}. Reintentando: ${shouldReconnect}`);
 
-    // Mensaje de público si no es usuario registrado
-    if (!authUser) {
-      console.log(`[PÚBLICO] Contacto no registrado: +${senderNumber} ("${body}")`);
-      await client.sendMessage(senderId, config.public_greeting);
-      return;
+      if (shouldReconnect) {
+        setTimeout(startWhatsAppBot, 3000);
+      } else {
+        console.log('🛑 Sesión cerrada por el usuario. Esperando nuevo escaneo QR.');
+        try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (e) {}
+        setTimeout(startWhatsAppBot, 2000);
+      }
     }
+  });
 
-    const lowerBody = body.toLowerCase();
-    const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
-    const userState = userSessions[senderId] || { state: 'IDLE' };
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (!messages || messages.length === 0) return;
 
-    if (isReset) {
-      userSessions[senderId] = { state: 'IDLE', updatedAt: Date.now() };
-      saveSessions();
-      const menuText = buildMainMenu(authUser, config);
-      await client.sendMessage(senderId, menuText);
-      return;
-    }
+    for (const msg of messages) {
+      try {
+        if (!msg.message) continue;
+        if (msg.key.fromMe) continue;
+        if (msg.key.remoteJid === 'status@broadcast') continue;
 
-    const extractDigit = (str) => {
-      const match = str.match(/^[#*]*([0-9]+)/) || str.match(/([0-9]+)/);
-      return match ? match[1] : null;
-    };
-    const choiceDigit = extractDigit(body);
-
-    if (userState.state === 'IDLE') {
-      const selectedOpt = config.options.find(o => o.id === choiceDigit || o.id === body);
-      if (selectedOpt) {
-        if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
-          const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
-          await client.sendMessage(senderId, deniedMsg);
-          return;
+        const msgId = msg.key.id;
+        if (msgId) {
+          if (processedMsgIds.has(msgId)) continue;
+          processedMsgIds.add(msgId);
+          if (processedMsgIds.size > 2000) processedMsgIds.clear();
         }
 
-        if (selectedOpt.code === 'ATTENDANCE') {
-          userSessions[senderId] = { state: 'ATTENDANCE_MENU', updatedAt: Date.now() };
+        const remoteJid = msg.key.remoteJid;
+        const body = (
+          msg.message?.conversation ||
+          msg.message?.extendedTextMessage?.text ||
+          msg.message?.imageMessage?.caption ||
+          msg.message?.documentMessage?.caption ||
+          ''
+        ).trim();
+
+        const hasMedia = !!(msg.message?.imageMessage || msg.message?.documentMessage || msg.message?.audioMessage);
+        console.log(`[WHATSAPP ENTRADA] De: ${remoteJid} | Texto: "${body}" | Media: ${hasMedia}`);
+
+        const config = loadConfig();
+        const senderNumber = remoteJid.replace(/[^0-9]/g, '');
+        const authUser = getAuthorizedUser(senderNumber, config);
+
+        // Mensaje de bienvenida para público general no registrado
+        if (!authUser) {
+          console.log(`[PÚBLICO] Contacto no registrado: +${senderNumber} ("${body}")`);
+          await sock.sendMessage(remoteJid, { text: config.public_greeting });
+          continue;
+        }
+
+        const lowerBody = body.toLowerCase();
+        const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
+        const userState = userSessions[remoteJid] || { state: 'IDLE' };
+
+        if (isReset) {
+          userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
           saveSessions();
-          await client.sendMessage(senderId, selectedOpt.prompt);
-          return;
+          const menuText = buildMainMenu(authUser, config);
+          await sock.sendMessage(remoteJid, { text: menuText });
+          continue;
         }
 
-        userSessions[senderId] = { state: selectedOpt.code, optionId: selectedOpt.id, updatedAt: Date.now() };
-        saveSessions();
-        await client.sendMessage(senderId, selectedOpt.prompt);
-        return;
-      }
+        const extractDigit = (str) => {
+          const match = str.match(/^[#*]*([0-9]+)/) || str.match(/([0-9]+)/);
+          return match ? match[1] : null;
+        };
+        const choiceDigit = extractDigit(body);
 
-      // Si no es un número de opción, va directo al Asistente Conversacional / Cerebro
-      let idleMedia = null;
-      if (msg.hasMedia) {
-        try { idleMedia = await msg.downloadMedia(); } catch (e) {}
+        if (userState.state === 'IDLE') {
+          const selectedOpt = config.options.find(o => o.id === choiceDigit || o.id === body);
+          if (selectedOpt) {
+            if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
+              const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
+              await sock.sendMessage(remoteJid, { text: deniedMsg });
+              continue;
+            }
+
+            if (selectedOpt.code === 'ATTENDANCE') {
+              userSessions[remoteJid] = { state: 'ATTENDANCE_MENU', updatedAt: Date.now() };
+              saveSessions();
+              await sock.sendMessage(remoteJid, { text: selectedOpt.prompt });
+              continue;
+            }
+
+            userSessions[remoteJid] = { state: selectedOpt.code, optionId: selectedOpt.id, updatedAt: Date.now() };
+            saveSessions();
+            await sock.sendMessage(remoteJid, { text: selectedOpt.prompt });
+            continue;
+          }
+
+          // Si no es un número de opción, va directo al Cerebro / Asistente Ejecutivo
+          const replyText = await generateConversationalReply(body, authUser, null);
+          await sock.sendMessage(remoteJid, { text: replyText });
+          continue;
+        }
+
+        // Submenú de Asistencias y Personal
+        if (userState.state === 'ATTENDANCE_MENU') {
+          if (choiceDigit === '1') {
+            userSessions[remoteJid] = { state: 'ATTENDANCE_DAILY', updatedAt: Date.now() };
+            saveSessions();
+            await sock.sendMessage(remoteJid, { text: `📸 *Lista de Asistencia Diaria*\n\nPor favor adjunta la *foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._` });
+            continue;
+          } else if (choiceDigit === '2') {
+            userSessions[remoteJid] = { state: 'ATTENDANCE_ABSENCE', updatedAt: Date.now() };
+            saveSessions();
+            await sock.sendMessage(remoteJid, { text: `❌ *Reporte de Faltas / Bajas*\n\nPor favor escribe el *nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._` });
+            continue;
+          } else if (choiceDigit === '3') {
+            userSessions[remoteJid] = { state: 'ATTENDANCE_HIRE', updatedAt: Date.now() };
+            saveSessions();
+            await sock.sendMessage(remoteJid, { text: `🆕 *Registro de Nuevo Ingreso / Alta*\n\nPor favor escribe los *datos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy'_).\n\n_Escribe *menu* para cancelar._` });
+            continue;
+          }
+        }
+
+        // Procesar envío de texto u operación y regresar a IDLE
+        userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
+        saveSessions();
+        await sock.sendMessage(remoteJid, { text: `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._` });
+
+      } catch (err) {
+        console.error('Error procesando mensaje Baileys:', err);
       }
-      const aiReply = await generateConversationalReply(body, authUser, idleMedia);
-      await client.sendMessage(senderId, aiReply);
-      return;
     }
-
-    // Submenús y operaciones estándar
-    if (userState.state === 'ATTENDANCE_MENU') {
-      if (choiceDigit === '1') {
-        userSessions[senderId] = { state: 'ATTENDANCE_DAILY', updatedAt: Date.now() };
-        saveSessions();
-        await client.sendMessage(senderId, `📸 *Lista de Asistencia Diaria*\n\nPor favor adjunta la *foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._`);
-        return;
-      } else if (choiceDigit === '2') {
-        userSessions[senderId] = { state: 'ATTENDANCE_ABSENCE', updatedAt: Date.now() };
-        saveSessions();
-        await client.sendMessage(senderId, `❌ *Reporte de Faltas / Bajas*\n\nPor favor escribe el *nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._`);
-        return;
-      } else if (choiceDigit === '3') {
-        userSessions[senderId] = { state: 'ATTENDANCE_HIRE', updatedAt: Date.now() };
-        saveSessions();
-        await client.sendMessage(senderId, `🆕 *Registro de Nuevo Ingreso / Alta*\n\nPor favor escribe los *datos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy 09/Oct'_).\n\n_Escribe *menu* para cancelar._`);
-        return;
-      }
-    }
-
-    // Procesar envío de texto u operación y regresar a IDLE
-    userSessions[senderId] = { state: 'IDLE', updatedAt: Date.now() };
-    saveSessions();
-    await client.sendMessage(senderId, `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._`);
-
-  } catch (err) {
-    console.error('Error procesando mensaje:', err);
-  }
+  });
 }
-
-client.on('message', processIncomingMessage);
-client.on('message_create', processIncomingMessage);
 
 // Servidor Web para Monitoreo y Código QR Visual
 const server = http.createServer((req, res) => {
@@ -277,9 +271,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       ready: isClientReady,
-      authenticated: !currentQrData,
-      needsQr: !!currentQrData,
-      user: clientInfo?.wid?.user || null
+      authenticated: isClientReady,
+      needsQr: !isClientReady && !!currentQrData,
+      user: connectedUser || null
     }));
     return;
   }
@@ -308,21 +302,21 @@ const server = http.createServer((req, res) => {
     <body>
       <div class="card">
         <h1>🏢 Torre de Control AMIS</h1>
-        <p>Servidor 24/7 de WhatsApp y Cerebro Antigravity</p>
+        <p>Servidor Baileys 24/7 en la Nube · Cerebro Antigravity</p>
         ${isClientReady ? `
           <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-          <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${clientInfo?.wid?.user || '5216673545529'}</strong></p>
-          <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche.</p>
+          <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
+          <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
         ` : (currentQrDataUrl ? `
           <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
           <div class="qr-box">
             <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="280" height="280">
           </div>
           <p style="color:#cbd5e1;">Abre WhatsApp en tu teléfono → Dispositivos vinculados → Escanear.</p>
-          <script>setTimeout(() => location.reload(), 8000);</script>
+          <script>setTimeout(() => location.reload(), 6000);</script>
         ` : `
-          <div class="badge badge-qr">⏳ INICIALIZANDO SESIÓN...</div>
-          <p>Cargando navegador y credenciales...</p>
+          <div class="badge badge-qr">⏳ INICIALIZANDO SOCKET...</div>
+          <p>Cargando credenciales y enlace...</p>
           <script>setTimeout(() => location.reload(), 3000);</script>
         `)}
       </div>
@@ -335,4 +329,10 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 Servidor HTTP activo en 0.0.0.0:${PORT}`);
 });
 
-client.initialize();
+// Self Keep-Alive para evitar que Render entre en reposo
+setInterval(() => {
+  const appUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  http.get(`${appUrl}/status`, () => {}).on('error', () => {});
+}, 8 * 60 * 1000);
+
+startWhatsAppBot();
