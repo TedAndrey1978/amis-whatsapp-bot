@@ -326,10 +326,14 @@ async function startWhatsAppBot() {
         const senderNumber = remoteJid.replace(/[^0-9]/g, '');
         const authUser = getAuthorizedUser(senderNumber, config);
 
+        const targetJid = authUser && authUser.phone 
+          ? `${authUser.phone.replace(/[^0-9]/g, '').startsWith('52') ? authUser.phone.replace(/[^0-9]/g, '') : '521' + authUser.phone.replace(/[^0-9]/g, '')}@s.whatsapp.net`
+          : remoteJid;
+
         // Mensaje de bienvenida para público general no registrado
         if (!authUser) {
-          console.log(`[PÚBLICO] Contacto no registrado: +${senderNumber} ("${body}")`);
-          await sock.sendMessage(remoteJid, { text: config.public_greeting });
+          console.log(`[PÚBLICO] Contacto no registrado: +${senderNumber} ("${body}") -> Enviando a ${targetJid}`);
+          await sock.sendMessage(targetJid, { text: config.public_greeting });
           continue;
         }
 
@@ -341,7 +345,8 @@ async function startWhatsAppBot() {
           userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
           saveSessions();
           const menuText = buildMainMenu(authUser, config);
-          await sock.sendMessage(remoteJid, { text: menuText });
+          console.log(`[MENU] Enviando menú principal a ${authUser.name} (${targetJid})`);
+          await sock.sendMessage(targetJid, { text: menuText });
           continue;
         }
 
@@ -356,26 +361,28 @@ async function startWhatsAppBot() {
           if (selectedOpt) {
             if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
               const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
-              await sock.sendMessage(remoteJid, { text: deniedMsg });
+              await sock.sendMessage(targetJid, { text: deniedMsg });
               continue;
             }
 
             if (selectedOpt.code === 'ATTENDANCE') {
               userSessions[remoteJid] = { state: 'ATTENDANCE_MENU', updatedAt: Date.now() };
               saveSessions();
-              await sock.sendMessage(remoteJid, { text: selectedOpt.prompt });
+              await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
               continue;
             }
 
             userSessions[remoteJid] = { state: selectedOpt.code, optionId: selectedOpt.id, updatedAt: Date.now() };
             saveSessions();
-            await sock.sendMessage(remoteJid, { text: selectedOpt.prompt });
+            await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
             continue;
           }
 
           // Si no es un número de opción, va directo al Cerebro / Asistente Ejecutivo
+          console.log(`[AI] Generando respuesta para ${authUser.name}...`);
           const replyText = await generateConversationalReply(body, authUser, null);
-          await sock.sendMessage(remoteJid, { text: replyText });
+          console.log(`[AI RESPUESTA] Enviando a ${targetJid}:\n${replyText}`);
+          await sock.sendMessage(targetJid, { text: replyText });
           continue;
         }
 
@@ -384,17 +391,17 @@ async function startWhatsAppBot() {
           if (choiceDigit === '1') {
             userSessions[remoteJid] = { state: 'ATTENDANCE_DAILY', updatedAt: Date.now() };
             saveSessions();
-            await sock.sendMessage(remoteJid, { text: `📸 *Lista de Asistencia Diaria*\n\nPor favor adjunta la *foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._` });
+            await sock.sendMessage(targetJid, { text: `📸 *Lista de Asistencia Diaria*\n\nPor favor adjunta la *foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._` });
             continue;
           } else if (choiceDigit === '2') {
             userSessions[remoteJid] = { state: 'ATTENDANCE_ABSENCE', updatedAt: Date.now() };
             saveSessions();
-            await sock.sendMessage(remoteJid, { text: `❌ *Reporte de Faltas / Bajas*\n\nPor favor escribe el *nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._` });
+            await sock.sendMessage(targetJid, { text: `❌ *Reporte de Faltas / Bajas*\n\nPor favor escribe el *nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._` });
             continue;
           } else if (choiceDigit === '3') {
             userSessions[remoteJid] = { state: 'ATTENDANCE_HIRE', updatedAt: Date.now() };
             saveSessions();
-            await sock.sendMessage(remoteJid, { text: `🆕 *Registro de Nuevo Ingreso / Alta*\n\nPor favor escribe los *datos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy'_).\n\n_Escribe *menu* para cancelar._` });
+            await sock.sendMessage(targetJid, { text: `🆕 *Registro de Nuevo Ingreso / Alta*\n\nPor favor escribe los *datos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy'_).\n\n_Escribe *menu* para cancelar._` });
             continue;
           }
         }
@@ -402,7 +409,7 @@ async function startWhatsAppBot() {
         // Procesar envío de texto u operación y regresar a IDLE
         userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
         saveSessions();
-        await sock.sendMessage(remoteJid, { text: `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._` });
+        await sock.sendMessage(targetJid, { text: `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._` });
 
       } catch (err) {
         console.error('Error procesando mensaje Baileys:', err);
