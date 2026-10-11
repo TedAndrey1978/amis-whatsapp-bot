@@ -14,6 +14,7 @@ const DisconnectReason = baileys.DisconnectReason || BaileysModule.DisconnectRea
 const BufferJSON = baileys.BufferJSON || BaileysModule.BufferJSON;
 const initAuthCreds = baileys.initAuthCreds || BaileysModule.initAuthCreds;
 const proto = baileys.proto || BaileysModule.proto;
+const fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion || BaileysModule.fetchLatestBaileysVersion;
 import { MongoClient } from 'mongodb';
 import pino from 'pino';
 import fs from 'fs';
@@ -292,8 +293,21 @@ setInterval(() => {
 // Inicialización de Conexión Baileys Multi-Device
 async function startWhatsAppBot() {
   const { state, saveCreds } = await useMongoAuthState();
-  const version = [2, 3000, 1015901307];
-  console.log(`🤖 Iniciando motor Baileys v${version.join('.')} con Sesión Persistente en MongoDB Atlas...`);
+  
+  let version = undefined;
+  try {
+    if (fetchLatestBaileysVersion) {
+      const vData = await fetchLatestBaileysVersion();
+      if (vData && vData.version) {
+        version = vData.version;
+        console.log(`📡 Versión negociada con WhatsApp: v${version.join('.')}`);
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ No se pudo negociar versión dinámica, omitiendo para autodetección.');
+  }
+
+  console.log(`🤖 Iniciando motor Baileys con Sesión Persistente en MongoDB Atlas...`);
 
   if (sock) {
     try {
@@ -302,8 +316,7 @@ async function startWhatsAppBot() {
     } catch (e) {}
   }
 
-  sock = makeWASocket({
-    version,
+  const socketConfig = {
     auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
@@ -316,7 +329,10 @@ async function startWhatsAppBot() {
     keepAliveIntervalMs: 25000,
     emitOwnEvents: false,
     fireInitQueries: false
-  });
+  };
+  if (version) socketConfig.version = version;
+
+  sock = makeWASocket(socketConfig);
 
   sock.ev.on('creds.update', saveCreds);
 
