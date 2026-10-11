@@ -6,15 +6,14 @@ process.on('unhandledRejection', (reason) => {
   console.error('🛡️ [RECHAZO CAPTURADO]:', reason);
 });
 
-import pkg from '@whiskeysockets/baileys';
-const makeWASocket = typeof pkg === 'function' ? pkg : (pkg.default || pkg.makeWASocket || pkg);
-const {
-  useMultiFileAuthState,
-  DisconnectReason,
-  BufferJSON,
-  initAuthCreds,
-  proto
-} = pkg;
+import * as BaileysModule from '@whiskeysockets/baileys';
+const baileys = BaileysModule.default || BaileysModule;
+const makeWASocket = typeof baileys === 'function' ? baileys : (baileys.default || baileys.makeWASocket || BaileysModule.makeWASocket || baileys);
+const useMultiFileAuthState = baileys.useMultiFileAuthState || BaileysModule.useMultiFileAuthState;
+const DisconnectReason = baileys.DisconnectReason || BaileysModule.DisconnectReason;
+const BufferJSON = baileys.BufferJSON || BaileysModule.BufferJSON;
+const initAuthCreds = baileys.initAuthCreds || BaileysModule.initAuthCreds;
+const proto = baileys.proto || BaileysModule.proto;
 import { MongoClient } from 'mongodb';
 import pino from 'pino';
 import fs from 'fs';
