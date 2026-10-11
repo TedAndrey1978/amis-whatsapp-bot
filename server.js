@@ -25,9 +25,10 @@ import QRCode from 'qrcode';
 import qrcodeTerminal from 'qrcode-terminal';
 import { generateConversationalReply } from './asistente_conversacional.js';
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tedandrey78_db_user:HYHCN2Utcqhdwn7a@cluster0.fe2xsa1.mongodb.net/amis_whatsapp?retryWrites=true&w=majority&appName=Cluster0';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tedandrey78_db_user:HYHCN2Utcqhdwn7a@cluster0.fe2xsa1.mongodb.net/amis_whatsapp?authSource=admin&retryWrites=true&w=majority&appName=Cluster0';
 let mongoClient = null;
 let sessionCollection = null;
+let lastMongoError = null;
 
 async function useMongoAuthState() {
   try {
@@ -37,6 +38,7 @@ async function useMongoAuthState() {
       await mongoClient.connect();
       const db = mongoClient.db('amis_whatsapp');
       sessionCollection = db.collection('auth_session');
+      lastMongoError = null;
       console.log('✅ MongoDB Atlas conectado exitosamente.');
     }
 
@@ -44,6 +46,7 @@ async function useMongoAuthState() {
       try {
         const serialized = JSON.stringify(data, BufferJSON.replacer);
         await sessionCollection.replaceOne({ _id: id }, { _id: id, data: serialized }, { upsert: true });
+        console.log(`💾 [MONGO PERSISTENCIA] Clave guardada: ${id}`);
       } catch (err) {
         console.error('Error guardando en MongoDB:', err.message);
       }
@@ -102,7 +105,9 @@ async function useMongoAuthState() {
       saveCreds: () => writeData(creds, 'creds')
     };
   } catch (mongoErr) {
-    console.warn('⚠️ No se pudo conectar a MongoDB. Usando almacenamiento local de respaldo:', mongoErr.message);
+    lastMongoError = mongoErr.message;
+    console.error('❌ Error conectando a MongoDB Atlas:', mongoErr.message);
+    console.warn('⚠️ Usando almacenamiento local temporal mientras se reconecta MongoDB...');
     if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
     return await useMultiFileAuthState(AUTH_DIR);
   }
@@ -176,17 +181,26 @@ function buildMainMenu(authUser, config) {
 }
 
 // Iniciar Servidor HTTP inmediatamente para Render
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.url === '/status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
+    let docsCount = 0;
+    try {
+      if (sessionCollection) docsCount = await sessionCollection.countDocuments();
+    } catch (e) {}
     res.end(JSON.stringify({
       ready: isClientReady,
       authenticated: isClientReady,
       needsQr: !isClientReady && !!currentQrData,
       pairingCode: currentPairingCode || null,
-      user: connectedUser || null
+      user: connectedUser || null,
+      mongo: {
+        connected: !!sessionCollection,
+        error: lastMongoError,
+        docsCount: docsCount
+      }
     }));
     return;
   }
