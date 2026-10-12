@@ -138,6 +138,43 @@ function saveSessions() {
   try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8'); } catch (e) {}
 }
 
+async function guardarEnBuzonGastos(authUser, senderNumber, count, concepto, hasMedia) {
+  try {
+    if (mongoClient) {
+      const db = mongoClient.db('amis_whatsapp');
+      await db.collection('buzon_gastos').insertOne({
+        remitente_nombre: authUser?.name || 'Desconocido',
+        remitente_rol: authUser?.role || 'COLABORADOR',
+        remitente_telefono: senderNumber,
+        indice_comprobante: count,
+        justificacion_operativa: concepto || 'Sin descripción',
+        tiene_archivo: !!hasMedia,
+        fecha_registro: new Date(),
+        estatus: 'PENDIENTE_AUDITORIA'
+      });
+      console.log(`📥 [BUZÓN GASTOS] Registrado en Mongo: ${authUser?.name} | "${concepto}"`);
+    }
+  } catch (err) {
+    console.error('Error guardando en buzon_gastos:', err.message);
+  }
+}
+
+async function actualizarConceptoBuzon(senderNumber, count, concepto) {
+  try {
+    if (mongoClient) {
+      const db = mongoClient.db('amis_whatsapp');
+      await db.collection('buzon_gastos').updateOne(
+        { remitente_telefono: senderNumber, indice_comprobante: count },
+        { $set: { justificacion_operativa: concepto, fecha_actualizacion: new Date() } }
+      );
+      console.log(`📝 [BUZÓN GASTOS ACTUALIZADO] Tel: ${senderNumber} #${count} -> "${concepto}"`);
+    }
+  } catch (err) {
+    console.error('Error actualizando buzon_gastos:', err.message);
+  }
+}
+
+
 function loadConfig() {
   if (fs.existsSync(CONFIG_PATH)) {
     try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) {}
@@ -455,11 +492,74 @@ async function startWhatsAppBot() {
         const choiceDigit = extractDigit(body);
 
         if (userState.state === 'IDLE') {
+          // 1. Detección Inteligente de Comprobantes/Facturas en IDLE
+          const isExpenseIntent = hasMedia || /^(subir|adjunt|mando|envi|va|tengo|subo)\s*(la|una|las)?\s*(factura|comprobante|ticket|nota|gasto)/i.test(lowerBody);
+          if (isExpenseIntent) {
+            if (hasMedia) {
+              const currentCount = 1;
+              userSessions[remoteJid].state = 'EXPENSE';
+              userSessions[remoteJid].expenseCount = currentCount;
+              userSessions[remoteJid].updatedAt = Date.now();
+
+              let directAck = '';
+              if (body) {
+                userSessions[remoteJid].waitingConcept = false;
+                userSessions[remoteJid].lastExpenseConcept = body;
+                await guardarEnBuzonGastos(authUser, senderNumber, currentCount, body, hasMedia);
+
+                directAck = `🧾 *Comprobante / Factura #1 Registrada con Éxito*\n\n` +
+                  `📝 *Destino / Concepto:* "${body}"\n` +
+                  `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
+                  `📎 *Puedes enviar la siguiente factura directamente* (o escribe _'listo'_ cuando termines).\n\n` +
+                  `👉 _Escribe *menu* en cualquier momento para volver._`;
+              } else {
+                userSessions[remoteJid].waitingConcept = true;
+                userSessions[remoteJid].waitingIndex = currentCount;
+                await guardarEnBuzonGastos(authUser, senderNumber, currentCount, 'Sin descripción previa', hasMedia);
+
+                directAck = `🧾 *Comprobante / Factura #1 Registrada con Éxito*\n\n` +
+                  `✅ Archivo resguardado en la Mesa de Control de AMIS.\n\n` +
+                  `💡 *Dato opcional:* Si gustas, escribe brevemente para qué se utilizó o a qué vehículo/área corresponde (ej: _'Gasolina NP300'_, _'Pintura para molde torre A'_).\n` +
+                  `O si prefieres, *envía directamente la siguiente factura* o escribe _'listo'_.`;
+              }
+
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: directAck });
+              continue;
+            } else {
+              userSessions[remoteJid].state = 'EXPENSE';
+              userSessions[remoteJid].expenseCount = 0;
+              userSessions[remoteJid].waitingConcept = false;
+              userSessions[remoteJid].updatedAt = Date.now();
+              saveSessions();
+
+              const promptMsg = `🧾 *Recepción de Facturas y Comprobantes*\n\n` +
+                `¡Adelante, ${authUser.name}! 🫡 Adjunta los archivos PDF/XML o fotos de tus notas/facturas.\n` +
+                `💡 _Puedes agregar una breve nota con el destino del gasto (ej: 'Gasolina NP300' o 'Pintura para molde')._\n` +
+                `Puedes enviar varias de forma continua; se registrarán una por una en la Mesa de Control.\n\n` +
+                `_Escribe *menu* o *listo* cuando termines._`;
+
+              await sock.sendMessage(targetJid, { text: promptMsg });
+              continue;
+            }
+          }
+
+          // 2. Selección numérica del menú
           const selectedOpt = config.options.find(o => o.id === choiceDigit || o.id === body);
           if (selectedOpt) {
             if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
               const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
               await sock.sendMessage(targetJid, { text: deniedMsg });
+              continue;
+            }
+
+            if (selectedOpt.code === 'EXPENSE') {
+              userSessions[remoteJid].state = 'EXPENSE';
+              userSessions[remoteJid].expenseCount = 0;
+              userSessions[remoteJid].waitingConcept = false;
+              userSessions[remoteJid].updatedAt = Date.now();
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
               continue;
             }
 
@@ -479,13 +579,104 @@ async function startWhatsAppBot() {
             continue;
           }
 
-          // Si no es un número de opción, va directo al Cerebro / Asistente Ejecutivo
+          // 3. Conversación y Asistente Ejecutivo
           console.log(`[AI] Generando respuesta para ${authUser.name}...`);
           const replyText = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
           userSessions[remoteJid].updatedAt = Date.now();
           saveSessions();
           console.log(`[AI RESPUESTA] Enviando a ${targetJid}:\n${replyText}`);
           await sock.sendMessage(targetJid, { text: replyText });
+          continue;
+        }
+
+        // Módulo Continuo de Gastos y Facturas
+        if (userState.state === 'EXPENSE') {
+          // Si el usuario indica que terminó de subir comprobantes
+          if (['listo', 'ya', 'ya son todas', 'todas', 'termine', 'terminé', 'fin', 'ya quedo', 'ya quedó', 'seria todo', 'sería todo', 'gracias', 'ok', 'nada mas', 'nada más'].includes(lowerBody)) {
+            const count = userSessions[remoteJid].expenseCount || 0;
+            userSessions[remoteJid].state = 'IDLE';
+            userSessions[remoteJid].expenseCount = 0;
+            userSessions[remoteJid].waitingConcept = false;
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+
+            const doneMsg = `✅ *Recepción de Comprobantes Finalizada*\n\n` +
+              `📁 Se resguardaron exitosamente ${count > 0 ? count + ' comprobante(s)' : 'los comprobantes'} en la Mesa de Control para validación del Lic. Ted.\n\n` +
+              `_Escribe *menu* o continúa conversando si requieres revisar otro tema._`;
+
+            await sock.sendMessage(targetJid, { text: doneMsg });
+            continue;
+          }
+
+          // Si el usuario envía texto sin archivo y estábamos esperando la nota del comprobante anterior
+          if (!hasMedia && userSessions[remoteJid].waitingConcept) {
+            const targetIdx = userSessions[remoteJid].waitingIndex || userSessions[remoteJid].expenseCount || 1;
+            userSessions[remoteJid].waitingConcept = false;
+            userSessions[remoteJid].lastExpenseConcept = body;
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+
+            await actualizarConceptoBuzon(senderNumber, targetIdx, body);
+
+            const noteAck = `📝 *Destino / Concepto anotado para el Comprobante #${targetIdx}:*\n` +
+              `"${body}"\n\n` +
+              `✅ Información vinculada en la Mesa de Control.\n` +
+              `📎 *Puedes enviar la siguiente factura* (o escribe _'listo'_ para finalizar).`;
+
+            await sock.sendMessage(targetJid, { text: noteAck });
+            continue;
+          }
+
+          // Registrar un nuevo comprobante recibido (con archivo multimedia)
+          if (hasMedia) {
+            const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
+            userSessions[remoteJid].expenseCount = currentCount;
+            userSessions[remoteJid].updatedAt = Date.now();
+
+            let ackMsg = '';
+            if (body) {
+              userSessions[remoteJid].waitingConcept = false;
+              userSessions[remoteJid].lastExpenseConcept = body;
+              await guardarEnBuzonGastos(authUser, senderNumber, currentCount, body, hasMedia);
+
+              ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
+                `📝 *Destino / Concepto:* "${body}"\n` +
+                `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
+                `📎 *Puedes enviar la siguiente factura directamente* (o escribe _'listo'_ cuando termines).\n\n` +
+                `👉 _Escribe *menu* para volver al menú principal._`;
+            } else {
+              userSessions[remoteJid].waitingConcept = true;
+              userSessions[remoteJid].waitingIndex = currentCount;
+              await guardarEnBuzonGastos(authUser, senderNumber, currentCount, 'Sin descripción previa', hasMedia);
+
+              ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
+                `✅ Archivo resguardado en la Mesa de Control de AMIS.\n\n` +
+                `💡 *Dato opcional:* Si gustas, escribe brevemente para qué se utilizó o a qué vehículo/área corresponde (ej: _'Gasolina Silverado'_, _'Pintura para molde'_).\n` +
+                `O si prefieres, *envía directamente la siguiente factura* o escribe _'listo'_.`;
+            }
+
+            saveSessions();
+            await sock.sendMessage(targetJid, { text: ackMsg });
+            continue;
+          }
+
+          // Si envió texto sin archivo y NO estábamos esperando nota previa (registro de nota de gasto manual)
+          const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
+          userSessions[remoteJid].expenseCount = currentCount;
+          userSessions[remoteJid].waitingConcept = false;
+          userSessions[remoteJid].lastExpenseConcept = body;
+          userSessions[remoteJid].updatedAt = Date.now();
+          saveSessions();
+
+          await guardarEnBuzonGastos(authUser, senderNumber, currentCount, body, false);
+
+          const manualAck = `🧾 *Nota de Gasto #${currentCount} Registrada*\n\n` +
+            `📝 *Detalle / Concepto:* "${body}"\n` +
+            `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
+            `📎 *Puedes enviar el siguiente comprobante* (o escribe _'listo'_ cuando termines).\n\n` +
+            `👉 _Escribe *menu* para volver al menú principal._`;
+
+          await sock.sendMessage(targetJid, { text: manualAck });
           continue;
         }
 
@@ -509,7 +700,7 @@ async function startWhatsAppBot() {
           }
         }
 
-        // Procesar envío de texto u operación y regresar a IDLE
+        // Procesar cualquier otro envío general y regresar a IDLE
         userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
         saveSessions();
         await sock.sendMessage(targetJid, { text: `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._` });

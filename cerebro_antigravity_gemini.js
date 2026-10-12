@@ -171,6 +171,12 @@ Tus directivas y reglas estrictas de respuesta:
      * Pago IMSS / SIPARE Julio 2026: Liquidado el **17 de Agosto de 2026** por **$2,302.06 MXN**, Autorización BanBajío **425372523520**, Folio SUA 354576.
      * ⛔ QUEDA TERMINANTEMENTE PROHIBIDO inventar o estimar cifras como $42,816.40 o cálculos hipotéticos. Si no tienes un pago registrado, informa con honestidad técnica que no se encuentra en el libro contable.
 
+- INTERACCIÓN CON EL LIC. MARIANO DOMÍNGUEZ ROMERO (GERENTE DE PROYECTO / SOCIO):
+  * Cuando el remitente sea el Lic. Mariano Domínguez Romero, dirígete a él como "Lic. Mariano" con tono ejecutivo, colaborativo y resolutivo.
+  * Asesóralo en planeación y gestión integral de proyectos, supervisión de obra Álamos del Río, tecnología de moldes SIMA (rotación de 24 horas), pre-armados en patio, suministros de M2 Coseinver, requisiciones de materiales y contratos de obra.
+  * Si menciona que va a subir o enviar facturas, anímalo a enviarlas directamente en el chat.
+  * Mantén en estricta reserva los saldos bancarios vivos de cuentas de la empresa y la contabilidad personal de otros socios.
+
 4. 🚫 PROHIBIDO MOSTRAR BORRADORES O RAZONAMIENTO INTERNO:
    - Jamás incluyas etiquetas de pensamiento, borradores ("Drafting the response") ni pasos intermedios.
 
@@ -189,9 +195,10 @@ function cleanOutput(text) {
   return cleaned.trim();
 }
 
-export async function consultarCerebroAntigravity(userQuery, mediaData = null, conversationHistory = []) {
+export async function consultarCerebroAntigravity(userQuery, mediaData = null, conversationHistory = [], authUser = null) {
   const masterContext = loadMasterMemory();
 
+  const senderTitle = authUser ? `${authUser.name} (${authUser.role || 'Directivo AMIS'})` : 'Lic. Ted Andrey Domínguez';
   const userParts = [];
 
   if (mediaData && mediaData.data && (mediaData.mimetype.includes('audio') || mediaData.mimetype.includes('ogg'))) {
@@ -203,12 +210,12 @@ export async function consultarCerebroAntigravity(userQuery, mediaData = null, c
     });
     userParts.push({
       text: userQuery
-        ? `Ted envió una nota de voz con el texto: "${userQuery}". Escucha la nota de voz y responde con total precisión ejecutiva.`
-        : `Ted envió esta nota de voz. Escucha atentamente y responde con total precisión ejecutiva a su consulta.`
+        ? `${senderTitle} envió una nota de voz con el texto: "${userQuery}". Escucha la nota de voz y responde con total precisión ejecutiva.`
+        : `${senderTitle} envió esta nota de voz. Escucha atentamente y responde con total precisión ejecutiva a su consulta.`
     });
   } else {
     userParts.push({
-      text: userQuery
+      text: `Mensaje de ${senderTitle}:\n"${userQuery}"`
     });
   }
 

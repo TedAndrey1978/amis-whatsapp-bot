@@ -69,8 +69,8 @@ function isPureGreeting(text) {
   ];
   if (queryKeywords.some(k => lower.includes(k))) return false;
 
-  const pureGreetingRegex = /^(hola|hols|holi|holas|buen\s*d[ií]a|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|hey|qu[eé]\s*onda|buenas)$/i;
-  return pureGreetingRegex.test(lower) || (trimmed.length <= 15 && pureGreetingRegex.test(lower.split(/[\s,!.]+/)[0]));
+  const pureGreetingRegex = /^(hola|hols|holi|holas|buen\s*d[ií]a|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|hey|qu[eé]\s*onda|buenas)(\s+(buenas|tardes|d[ií]as|noches|amigo|lic|licenciado|mariano|ted))?$/i;
+  return pureGreetingRegex.test(lower) || (trimmed.length <= 30 && /^(hola|buen\s*d[ií]a|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|saludos|hey)/i.test(lower));
 }
 
 export async function generateConversationalReply(userText, authUser, mediaData = null, sessionState = null) {
@@ -78,7 +78,7 @@ export async function generateConversationalReply(userText, authUser, mediaData 
   const lower = text.toLowerCase();
 
   // -------------------------------------------------------------
-  // 👑 REGLA DE ACCESO TOTAL Y EXCLUSIVO PARA EL LIC. TED ANDREY
+  // 👑 REGLA DE ACCESO PARA DIRECTIVOS Y SOCIOS (TED Y MARIANO)
   // -------------------------------------------------------------
   const isTed = authUser && (
     (authUser.name && authUser.name.toLowerCase().includes('ted')) ||
@@ -88,11 +88,20 @@ export async function generateConversationalReply(userText, authUser, mediaData 
     )
   );
 
-  if (isTed) {
+  const isMariano = authUser && (
+    (authUser.name && authUser.name.toLowerCase().includes('mariano')) ||
+    ['6672526550'].some(p => 
+      (authUser.phone && authUser.phone.includes(p)) || 
+      (authUser.lid && authUser.lid.includes(p))
+    )
+  );
+
+  if (isTed || isMariano) {
     const isGreeting = isPureGreeting(text);
     const now = Date.now();
     const lastGreeting = sessionState?.lastGreetingTime || 0;
     const hasRecentGreeting = (now - lastGreeting) < (3 * 3600 * 1000); // 3 horas
+    const formalName = isTed ? 'Lic. Ted' : (isMariano ? 'Lic. Mariano' : (authUser?.name || 'Licenciado'));
 
     // Caso 1: Saludo inicial puro (sin preguntas) y no se ha saludado recientemente
     if (isGreeting && !hasRecentGreeting) {
@@ -102,14 +111,25 @@ export async function generateConversationalReply(userText, authUser, mediaData 
         sessionState.history.push({ role: 'user', text });
       }
 
-      const greetingReply = (
-        `¡Excelente día, Lic. Ted! 🫡\n\n` +
-        `Resumen ejecutivo al momento:\n` +
-        `• 🏗️ *Álamos del Río:* Habilitado y pre-armados en patio; en espera de la condición suspensiva del Día "D" para colado monolítico.\n` +
-        `• 🟢 *Personal AMIS:* Cuadrillas activas al 100% en habilitado de acero.\n` +
-        `• 📅 *Agenda Fiscal e IMSS:* Cuotas IMSS/SIPARE y pagos SAT en tiempo (fecha límite 17 de octubre).\n\n` +
-        `¿En qué frente o consulta técnica/fiscal nos enfocamos hoy, Licenciado?`
-      );
+      let greetingReply = '';
+      if (isTed) {
+        greetingReply = (
+          `¡Excelente día, Lic. Ted! 🫡\n\n` +
+          `Resumen ejecutivo al momento:\n` +
+          `• 🏗️ *Álamos del Río:* Habilitado y pre-armados en patio; en espera de la condición suspensiva del Día "D" para colado monolítico.\n` +
+          `• 🟢 *Personal AMIS:* Cuadrillas activas al 100% en habilitado de acero.\n` +
+          `• 📅 *Agenda Fiscal e IMSS:* Cuotas IMSS/SIPARE y pagos SAT en tiempo (fecha límite 17 de octubre).\n\n` +
+          `¿En qué frente o consulta técnica/fiscal nos enfocamos hoy, Licenciado?`
+        );
+      } else {
+        greetingReply = (
+          `¡Excelente día, Lic. Mariano! 🫡\n\n` +
+          `Resumen operativo de proyectos:\n` +
+          `• 🏗️ *Álamos del Río:* Cuadrillas en patio avanzando en habilitado de acero y pre-armados (esperando liberación del Día "D").\n` +
+          `• 📋 *Gestión de Obra:* Recepción de requisiciones, seguimiento a moldes SIMA (rotación 24 hrs) y contratos.\n\n` +
+          `¿En qué frente de proyecto o coordinación nos enfocamos hoy, Licenciado?`
+        );
+      }
 
       if (sessionState) {
         sessionState.history.push({ role: 'model', text: greetingReply });
@@ -118,14 +138,26 @@ export async function generateConversationalReply(userText, authUser, mediaData 
       return greetingReply;
     }
 
-    // Caso 2: Saludo repetido pero reciente (cortesía breve sin repetir resumen largo)
+    // Caso 2: Saludo repetido pero reciente
     if (isGreeting && hasRecentGreeting) {
-      return `¡A la orden, Lic. Ted! 🫡 ¿En qué consulta, pago o frente nos enfocamos?`;
+      return `¡A la orden, ${formalName}! 🫡 ¿En qué consulta, pago o frente nos enfocamos?`;
     }
 
-    // Caso 3: Consulta específica, pregunta de pagos/historial o seguimiento continuo
+    // Si es Mariano y pregunta por temas financieros restringidos
+    if (!isTed) {
+      for (const pattern of FORBIDDEN_PATTERNS) {
+        if (pattern.test(lower)) {
+          return (
+            `🛡️ *Información Restringida / Control Administrativo*\n\n` +
+            `Por políticas internas de control corporativo de AMIS Constructora, este tema financiero se consulta directamente con el Lic. Ted Andrey Domínguez (Gerente Administrativo).`
+          );
+        }
+      }
+    }
+
+    // Caso 3: Consulta específica, pregunta operativa o seguimiento continuo
     const history = sessionState?.history || [];
-    const reply = await consultarCerebroAntigravity(text, mediaData, history);
+    const reply = await consultarCerebroAntigravity(text, mediaData, history, authUser);
 
     if (sessionState) {
       if (!sessionState.history) sessionState.history = [];

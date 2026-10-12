@@ -1,6 +1,6 @@
 {
   "version": "2026.10.12",
-  "actualizado": "12 de Octubre de 2026",
+  "actualizado": "12 de Octubre de 2026 - Auditoría y Sincronización Completa",
   "proyectos": {
     "amis_constructora": {
       "razon_social": "AMIS CONSTRUCTORA, S.A. DE C.V.",
@@ -151,14 +151,8 @@
       "retencion_iva": 0,
       "total": 25600.01,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 25600.01,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 55,
@@ -177,14 +171,8 @@
       "retencion_iva": 0,
       "total": 8709.15,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 8709.15,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 74,
@@ -203,14 +191,8 @@
       "retencion_iva": 0,
       "total": 82.58,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 82.58,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 73,
@@ -229,14 +211,8 @@
       "retencion_iva": 0,
       "total": 720.75,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 720.75,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 72,
@@ -255,14 +231,8 @@
       "retencion_iva": 0,
       "total": 56.28,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 56.28,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 56,
@@ -281,14 +251,8 @@
       "retencion_iva": 0,
       "total": 1400,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1400,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 54,
@@ -307,14 +271,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 53,
@@ -333,14 +291,8 @@
       "retencion_iva": 0,
       "total": 34267.9,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 34267.9,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 52,
@@ -359,14 +311,108 @@
       "retencion_iva": 0,
       "total": 537037.04,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 537037.04,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 151,
+      "uuid": "cedc0e27-7715-48d6-aaf9-0f5ef13c0fb6",
+      "folio": "68221",
+      "serie": "4KHFFDI",
+      "fecha": "2026-10-12",
+      "emisor_rfc": "HDM001017AS1",
+      "emisor_nombre": "HOME DEPOT MEXICO",
+      "proyecto": "PRY-01-LOPE / Obra",
+      "concepto": "2 PZA Foco LED A19 Morado ($73.28 c/u) + 1 PZA Foco LED A19 Rojo (Desc 100%) - Material Eléctrico / Iluminación Obra",
+      "familia_insumo": "Materiales y Herramientas",
+      "subtotal": 146.55,
+      "iva_trasladado": 23.45,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 170,
+      "metodo_pago": "PUE",
+      "monto_pagado": 170,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 189,
+      "uuid": "9C8A869A-0680-423A-B13C-7BE4DC1A7B52",
+      "folio": "CFDI 9C8A869A",
+      "serie": "",
+      "fecha": "2026-10-10",
+      "emisor_rfc": "DORT780211CQ5",
+      "emisor_nombre": "TED ANDREY DOMINGUEZ ROMERO",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Servicio de consultoria y gestion (Operacion Puente para Pago de Servicios CFE Luz Ofna/Terreno y JAPAC Agua / Asesoria Tecnica)",
+      "familia_insumo": "General",
+      "subtotal": 9000,
+      "iva_trasladado": 1440,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 8580,
+      "metodo_pago": "PUE",
+      "monto_pagado": 8580,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 150,
+      "uuid": "9ADF13F4-05BF-4B26-A4BC-4629539E432C",
+      "folio": "14482725",
+      "serie": "POSM",
+      "fecha": "2026-10-10",
+      "emisor_rfc": "ODM950324V2A",
+      "emisor_nombre": "OFFICE DEPOT DE MEXICO",
+      "proyecto": "PRY-01-LOPE / Corporativo",
+      "concepto": "3 PZA Registrador OD Carta 700H Verde + 1 PZA Papel Premium Resma Carta + 1 PZA Cable RS USB Tipo A-C Mag 1M (Papelería y Accesorios Oficina)",
+      "familia_insumo": "Papelería y Oficina",
+      "subtotal": 340.51,
+      "iva_trasladado": 54.49,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 395,
+      "metodo_pago": "PUE",
+      "monto_pagado": 395,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 149,
+      "uuid": "9ce75da1-bd72-4fbd-98a3-cd9d1a6ae9de",
+      "folio": "41406",
+      "serie": "FHF",
+      "fecha": "2026-10-10",
+      "emisor_rfc": "PET0309111I2",
+      "emisor_nombre": "PETROPLAZAS",
+      "proyecto": "PRY-01-LOPE / SIMA_ALAMOS",
+      "concepto": "45.203 LTR Gasolina Regular (Despacho Petroplazas) - Combustible Operativo Obra",
+      "familia_insumo": "Combustibles / Operación",
+      "subtotal": 958.01,
+      "iva_trasladado": 149.01,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1107.02,
+      "metodo_pago": "PUE",
+      "monto_pagado": 1107.02,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 188,
+      "uuid": "FDB4CE33-848C-3341-8C4B-52E02A2DCD71",
+      "folio": "2387",
+      "serie": "",
+      "fecha": "2026-10-09",
+      "emisor_rfc": "AEMC7702261AA",
+      "emisor_nombre": "CARLOS ALEJANDRO AMEZQUITA MENDOZA",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Cargador Laptop Dell 19.5V 3.34A (.52) + Cable Convertidor HDMI a VGA (.34) (Equipo de Computo Ing. Samuel Dominguez / Caja Chica Emilio)",
+      "familia_insumo": "General",
+      "subtotal": 275.86,
+      "iva_trasladado": 44.14,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 320,
+      "metodo_pago": "PUE",
+      "monto_pagado": 320,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 146,
@@ -385,14 +431,8 @@
       "retencion_iva": 0,
       "total": 7029.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 7029.99,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 145,
@@ -411,14 +451,8 @@
       "retencion_iva": 0,
       "total": 52869.12,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 52869.12,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 144,
@@ -437,14 +471,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 143,
@@ -463,14 +491,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1000,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 50,
@@ -489,14 +511,8 @@
       "retencion_iva": 0,
       "total": 354960,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 354960,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 48,
@@ -515,14 +531,8 @@
       "retencion_iva": 0,
       "total": 99.01,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 99.01,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 47,
@@ -541,14 +551,8 @@
       "retencion_iva": 0,
       "total": 773.84,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 773.84,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 46,
@@ -567,14 +571,8 @@
       "retencion_iva": 0,
       "total": 2075.2,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 2075.2,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 45,
@@ -593,14 +591,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 140,
@@ -619,14 +611,48 @@
       "retencion_iva": 0,
       "total": 1000.01,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000.01,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 182,
+      "uuid": "80a9eff8-4489-42e6-bfdc-163049653445",
+      "folio": "FHF41314",
+      "serie": "",
+      "fecha": "2026-10-07",
+      "emisor_rfc": "PET0309111I2",
+      "emisor_nombre": "PETROPLAZAS",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Combustible Gasolina Regular (41.684 LTR a .7626/L) - Transaccion 0201250938 (Tarjeta Debito Empresa)",
+      "familia_insumo": "General",
+      "subtotal": 865.47,
+      "iva_trasladado": 134.53,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1000,
+      "metodo_pago": "PUE",
+      "monto_pagado": 1000,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 153,
+      "uuid": "A2B2A49B-9C10-45BE-8441-2AECB86C4955",
+      "folio": "3509",
+      "serie": "",
+      "fecha": "2026-10-07",
+      "emisor_rfc": "GABF690129JD9",
+      "emisor_nombre": "FRANCISCO JAVIER GAMEROS BENITEZ",
+      "proyecto": "CORPORATIVO / OFICINAS",
+      "concepto": "Servicio Anual Monitoreo Alarma 2026 (Oficina Amis y Casa Samuel Dominguez) - IMD Alarmas (Ret ISR RESICO: $128.54)",
+      "familia_insumo": "Seguridad y Vigilancia / Servicios Administrativos",
+      "subtotal": 10283.22,
+      "iva_trasladado": 1645.32,
+      "retencion_isr": 128.54,
+      "retencion_iva": 0,
+      "total": 11800,
+      "metodo_pago": "PUE",
+      "monto_pagado": 11800,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 142,
@@ -645,14 +671,8 @@
       "retencion_iva": 0,
       "total": 11738.01,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 11738.01,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 141,
@@ -671,14 +691,88 @@
       "retencion_iva": 0,
       "total": 11600,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
-      "monto_pagado": 0,
-      "saldo_pendiente": 11600,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "monto_pagado": 11600,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 183,
+      "uuid": "2753a130-a0a8-4c2e-ba85-f4fa5f35072b",
+      "folio": "JI 30379",
+      "serie": "",
+      "fecha": "2026-10-06",
+      "emisor_rfc": "CAN850110NR6",
+      "emisor_nombre": "COMERCIAL AUTOMOTRIZ DEL NOROESTE S.A. DE C.V. (NISSAN CONGRESO)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Mantenimiento Preventivo y Servicio 70,000 km Pick Up Nissan Frontier 2022 Blanca (Placas UL04176 / 61,448 km)",
+      "familia_insumo": "General",
+      "subtotal": 2887.93,
+      "iva_trasladado": 462.07,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 3350,
+      "metodo_pago": "PUE",
+      "monto_pagado": 3350,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 180,
+      "uuid": "ef6b1f32-b1d7-46e7-acf1-efdea7281a97",
+      "folio": "CFDI EF6B1F32",
+      "serie": "",
+      "fecha": "2026-10-06",
+      "emisor_rfc": "FOBS0103175C8",
+      "emisor_nombre": "SERGIO ARTURO FLORES BARBOSA",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "30 KG Remache conico de aluminio para cimbra y moldes de obra (Ret. ISR RESICO 1.25%: .25)",
+      "familia_insumo": "General",
+      "subtotal": 11700,
+      "iva_trasladado": 1872,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 13425.75,
+      "metodo_pago": "PUE",
+      "monto_pagado": 13425.75,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 179,
+      "uuid": "7fe69e7e-9431-4c81-8b61-0f5b5c489fe8",
+      "folio": "FN 164651",
+      "serie": "",
+      "fecha": "2026-10-06",
+      "emisor_rfc": "SAN990311RH7",
+      "emisor_nombre": "SERVICIOS DE ACERO DEL NOROESTE SA DE CV",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "10 PZA Perfil 172 Calibre 14 (26.00) 4.00\" X 1.50\" [ R-400 ] (260 kg)",
+      "familia_insumo": "General",
+      "subtotal": 6645.6,
+      "iva_trasladado": 1063.3,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 7708.9,
+      "metodo_pago": "PUE",
+      "monto_pagado": 7708.9,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 177,
+      "uuid": "b70c4010-2ac9-4dc2-bf3a-4f66edca063a",
+      "folio": "A - 56",
+      "serie": "",
+      "fecha": "2026-10-06",
+      "emisor_rfc": "CRO230627R70",
+      "emisor_nombre": "CONSTRUCTORA ROBLOCK S.A. DE C.V.",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "130 PZA Cemento CPC 30R (,200) + 70 PZA Varilla 3/8 (,600) + 133.51 KG Alambre (,472.72) - Cuenta Puente: Fierreros Ing Samuel ,000 + Gastos Mariano ,367.25 + Ayudantes ,250",
+      "familia_insumo": "General",
+      "subtotal": 48272.72,
+      "iva_trasladado": 7723.64,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 55996.36,
+      "metodo_pago": "PUE",
+      "monto_pagado": 55996.36,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 106,
@@ -697,14 +791,188 @@
       "retencion_iva": 0,
       "total": 18268.4,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 18268.4,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 187,
+      "uuid": "03A27D81-A2CC-4225-8EB4-9A4B30451972",
+      "folio": "FCUS 180670",
+      "serie": "",
+      "fecha": "2026-10-05",
+      "emisor_rfc": "CES020718D58",
+      "emisor_nombre": "COMPONENTES ELECTRONICOS DE SINALOA (STEREN)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "ESTACION DE CONEXION USB C 6 EN 1 (Adaptador HUB multipuertos para Laptop Dell Latitude Ing. Samuel Dominguez / Caja Chica Emilio)",
+      "familia_insumo": "General",
+      "subtotal": 343.97,
+      "iva_trasladado": 55.04,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 399.01,
+      "metodo_pago": "PUE",
+      "monto_pagado": 399.01,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 158,
+      "uuid": "PENDIENTE_UUID_A106609",
+      "folio": "A106609",
+      "serie": "",
+      "fecha": "2026-10-05",
+      "emisor_rfc": "UISM901005BE4",
+      "emisor_nombre": "MARTIN ALBERTO URIARTE SANCHEZ",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Pintura y recubrimientos para mantenimiento y proteccion de moldes de encofrado (Factura A106609)",
+      "familia_insumo": "General",
+      "subtotal": 3310.34,
+      "iva_trasladado": 529.65,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 3839.99,
+      "metodo_pago": "PUE",
+      "monto_pagado": 3839.99,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 157,
+      "uuid": "c0a97b3d-572a-4044-877d-92c7f9bdd5e0",
+      "folio": "PAW 6020",
+      "serie": "",
+      "fecha": "2026-10-05",
+      "emisor_rfc": "PAU110727RE8",
+      "emisor_nombre": "PIFCAN AUTOSERVICIOS",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Combustible Diesel Automotriz (25.660 LTR a .9039/L) - Despacho 3791462-0 (Caja Chica Ted / Tarjeta Debito 7000)",
+      "familia_insumo": "General",
+      "subtotal": 587.62,
+      "iva_trasladado": 92.01,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 679.63,
+      "metodo_pago": "PUE",
+      "monto_pagado": 679.63,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 155,
+      "uuid": "612a660c-573d-401e-87fc-2ede81a7dfec",
+      "folio": "C3 0036816",
+      "serie": "",
+      "fecha": "2026-10-05",
+      "emisor_rfc": "GIC060907GB8",
+      "emisor_nombre": "GRUPO INMOBILIARIO EL COMEDERO",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Gasolina regular Magna menor a 91 oct (34.582 LTR a .1938/L) - Ticket 5113257 Cosala",
+      "familia_insumo": "General",
+      "subtotal": 732.92,
+      "iva_trasladado": 113.99,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 846.91,
+      "metodo_pago": "PUE",
+      "monto_pagado": 846.91,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 152,
+      "uuid": "612A660C-573D-401E-87FC-2EDE81A7DFEC",
+      "folio": "36816",
+      "serie": "C3",
+      "fecha": "2026-10-05",
+      "emisor_rfc": "GIC060907GB8",
+      "emisor_nombre": "GRUPO INMOBILIARIO EL COMEDERO",
+      "proyecto": "PRY-01-LOPE / Obra",
+      "concepto": "34.582 LTR Gasolina Regular Magna ($21.19/L) - Combustible Operativo Obra Álamos (Serviexpress Cosalá)",
+      "familia_insumo": "Combustibles / Operación",
+      "subtotal": 732.92,
+      "iva_trasladado": 113.99,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 846.91,
+      "metodo_pago": "PUE",
+      "monto_pagado": 846.91,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 181,
+      "uuid": "91fbbb75-be9a-4a6b-b4b8-0f376a2b6f83",
+      "folio": "FHF41217",
+      "serie": "",
+      "fecha": "2026-10-03",
+      "emisor_rfc": "PET0309111I2",
+      "emisor_nombre": "PETROPLAZAS",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Combustible Gasolina Premium (58.774 LTR a .5995/L) - Transaccion 0201249611 (POS Tarjeta 2282)",
+      "familia_insumo": "General",
+      "subtotal": 1504.58,
+      "iva_trasladado": 233.95,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1738.53,
+      "metodo_pago": "PUE",
+      "monto_pagado": 1738.53,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 156,
+      "uuid": "c8d1cb91-59d9-4b56-b75c-bfa7f7a609d5",
+      "folio": "FN164566",
+      "serie": "",
+      "fecha": "2026-10-03",
+      "emisor_rfc": "SAN990311RH7",
+      "emisor_nombre": "SERVICIOS DE ACERO DEL NOROESTE SA DE CV",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Acero para cimbra y habilitado: 3 pzas Perfil 107 cal 14 + 3 pzas Solera 1/8x1-1/2 + 1 pza Angulo 1/8x2",
+      "familia_insumo": "General",
+      "subtotal": 1862.99,
+      "iva_trasladado": 298.09,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 2161.08,
+      "metodo_pago": "PUE",
+      "monto_pagado": 2161.08,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 178,
+      "uuid": "3c541d78-0312-47f8-aa65-ec380fd556dd",
+      "folio": "F - 6564",
+      "serie": "",
+      "fecha": "2026-10-02",
+      "emisor_rfc": "RURS781223KZ5",
+      "emisor_nombre": "SAUL IVAN RUBIO ROBLES (D GRABO)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "6 PZA Placas de aluminio personalizadas para identificacion de remolques de obra",
+      "familia_insumo": "General",
+      "subtotal": 1200,
+      "iva_trasladado": 192,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1392,
+      "metodo_pago": "PUE",
+      "monto_pagado": 1392,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 176,
+      "uuid": "bf3e0814-16b1-4871-bb9c-9b9d2c514dcb",
+      "folio": "855448",
+      "serie": "",
+      "fecha": "2026-10-02",
+      "emisor_rfc": "AME970109GW0",
+      "emisor_nombre": "AUTOZONE DE MEXICO",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "2 Galones anticongelante Rosa ShopPro + 1 Tapon radiador (Tundra)",
+      "familia_insumo": "General",
+      "subtotal": 601.73,
+      "iva_trasladado": 96.27,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 698,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 102,
@@ -723,14 +991,48 @@
       "retencion_iva": 0,
       "total": 87979.94,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 87979.94,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 165,
+      "uuid": "0f4507f1-4288-4be8-8027-f09e40749f9e",
+      "folio": "DB 10654",
+      "serie": "",
+      "fecha": "2026-09-30",
+      "emisor_rfc": "TOM850506EL9",
+      "emisor_nombre": "TOMACO S.A. DE C.V.",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "10 Cardas copa 4 pulg alambre trenzado 5/8 pulg + 1 Jgo Sujetador c/matraca para limpieza y aseguramiento",
+      "familia_insumo": "General",
+      "subtotal": 1714.34,
+      "iva_trasladado": 274.29,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1988.63,
+      "metodo_pago": "PUE",
+      "monto_pagado": 1988.63,
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 164,
+      "uuid": "197b20a6-6996-4221-b3e9-982d5031f81a",
+      "folio": "A 106552",
+      "serie": "",
+      "fecha": "2026-09-30",
+      "emisor_rfc": "UISM901005BE4",
+      "emisor_nombre": "MARTIN ALBERTO URIARTE SANCHEZ",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Thiner laker (2 pzas) para limpieza y desengrase de moldes de encofrado",
+      "familia_insumo": "General",
+      "subtotal": 1120.68,
+      "iva_trasladado": 179.31,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1299.99,
+      "metodo_pago": "PUE",
+      "monto_pagado": 1299.99,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 97,
@@ -749,14 +1051,28 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 163,
+      "uuid": "910fd0e2-a144-406a-8331-65a3cc57a391",
+      "folio": "DB 10634",
+      "serie": "",
+      "fecha": "2026-09-29",
+      "emisor_rfc": "TOM850506EL9",
+      "emisor_nombre": "TOMACO S.A. DE C.V.",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Pinza cortaperno 24 pulg, Cortaperno 36 pulg, Sujetador c/matraca y Grifa redonda dos bocas (Fierreros)",
+      "familia_insumo": "General",
+      "subtotal": 1793.6,
+      "iva_trasladado": 286.98,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 2080.58,
+      "metodo_pago": "PUE",
+      "monto_pagado": 2080.58,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 96,
@@ -775,14 +1091,8 @@
       "retencion_iva": 0,
       "total": 279,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 279,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 95,
@@ -801,14 +1111,8 @@
       "retencion_iva": 0,
       "total": 4060,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 4060,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 94,
@@ -827,14 +1131,48 @@
       "retencion_iva": 0,
       "total": 31926.62,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 31926.62,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 175,
+      "uuid": "77c2fa1d-30e8-4b5e-8ee2-9cbc700fcfc8",
+      "folio": "A 24551",
+      "serie": "",
+      "fecha": "2026-09-28",
+      "emisor_rfc": "VEOG7410285C8",
+      "emisor_nombre": "GABRIELA VELARDE OSUNA (SERVIMAK)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Refacciones y mantenimiento rotomartillo: Oring MO + Juego de carbones CB-262",
+      "familia_insumo": "General",
+      "subtotal": 387.93,
+      "iva_trasladado": 62.07,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 450,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 162,
+      "uuid": "7d8f9214-4112-4c21-9981-d1f8872bca55",
+      "folio": "FD 6826",
+      "serie": "",
+      "fecha": "2026-09-28",
+      "emisor_rfc": "GALO660525474",
+      "emisor_nombre": "OSCAR ARMANDO GARCIA LOPEZ (FERRETERIA DTODO)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Tiralineas 15m Pretul + Piola de seda Truper + Lapiz bicolor para trazo de cimentacion (Ticket 147972)",
+      "familia_insumo": "General",
+      "subtotal": 146.55,
+      "iva_trasladado": 23.45,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 170,
+      "metodo_pago": "PUE",
+      "monto_pagado": 170,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 93,
@@ -853,14 +1191,48 @@
       "retencion_iva": 0,
       "total": 6380,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 6380,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 174,
+      "uuid": "4e918231-5912-4c21-9981-d1f8872bca66",
+      "folio": "FD 6819",
+      "serie": "",
+      "fecha": "2026-09-26",
+      "emisor_rfc": "GALO660525474",
+      "emisor_nombre": "OSCAR ARMANDO GARCIA LOPEZ (FERRETERIA DTODO)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Cinta teflon + Niple galvanizado + Reduccion bushing galv",
+      "familia_insumo": "General",
+      "subtotal": 39.66,
+      "iva_trasladado": 6.34,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 46,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 161,
+      "uuid": "3c9e68b4-82a9-4672-9721-a1bf18f0a612",
+      "folio": "AA 17961",
+      "serie": "",
+      "fecha": "2026-09-26",
+      "emisor_rfc": "GBL131231LI3",
+      "emisor_nombre": "GRUPO BATERIAS LIZARRAGA",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Acumulador 35 GP1-35 para camioneta Tundra operativa de obra",
+      "familia_insumo": "General",
+      "subtotal": 2224.14,
+      "iva_trasladado": 355.86,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 2580,
+      "metodo_pago": "PUE",
+      "monto_pagado": 2580,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 92,
@@ -879,14 +1251,8 @@
       "retencion_iva": 0,
       "total": 5720,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 5720,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 91,
@@ -905,14 +1271,68 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 186,
+      "uuid": "ea2abd3e-7d00-4023-88f5-b1e1459a1e1b",
+      "folio": "FL-YK 4826",
+      "serie": "",
+      "fecha": "2026-09-25",
+      "emisor_rfc": "RAL000224CZ4",
+      "emisor_nombre": "RALSI (HORIZON GASOLINERAS)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Combustible Gasolina 87 Oct (48.980 LTR a .2021/L) - Despacho 728207",
+      "familia_insumo": "General",
+      "subtotal": 1038.48,
+      "iva_trasladado": 161.52,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1200,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 173,
+      "uuid": "b35d6505-6844-41d0-b0bc-faa713807242",
+      "folio": "FBR173777",
+      "serie": "",
+      "fecha": "2026-09-25",
+      "emisor_rfc": "PRT950411LC8",
+      "emisor_nombre": "PLASTICOS Y RESINAS TRES RIOS",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Bolsas para basura 70*30*120 c/300 (2 kg) para limpieza de obra",
+      "familia_insumo": "General",
+      "subtotal": 74.14,
+      "iva_trasladado": 11.86,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 86,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 160,
+      "uuid": "ac9a8f01-3345-429e-95df-2a888b1dfb14",
+      "folio": "O46655",
+      "serie": "",
+      "fecha": "2026-09-25",
+      "emisor_rfc": "SIA9309071A5",
+      "emisor_nombre": "SEGURIDAD INDUSTRIAL AMIGO, S.A. DE C.V.",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Bebida hidratante en polvo Mividra Uva (1 pza) y Limon (3 pzas) para cuadrillas de obra",
+      "familia_insumo": "General",
+      "subtotal": 482.76,
+      "iva_trasladado": 77.24,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 560,
+      "metodo_pago": "PUE",
+      "monto_pagado": 560,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 98,
@@ -931,14 +1351,8 @@
       "retencion_iva": 0,
       "total": 4408,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 4408,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 90,
@@ -957,14 +1371,8 @@
       "retencion_iva": 0,
       "total": 5089.26,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 5089.26,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 89,
@@ -983,14 +1391,8 @@
       "retencion_iva": 0,
       "total": 79246.95,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 79246.95,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 88,
@@ -1009,14 +1411,108 @@
       "retencion_iva": 0,
       "total": 22879.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 22879.99,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 172,
+      "uuid": "b001d900-b538-445e-90e6-527e02534575",
+      "folio": "DB 10554",
+      "serie": "",
+      "fecha": "2026-09-24",
+      "emisor_rfc": "TOM850506EL9",
+      "emisor_nombre": "TOMACO S.A. DE C.V.",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Manguera baja presion 10m + Niples soplete + Conexion + Empaques hule",
+      "familia_insumo": "General",
+      "subtotal": 436.86,
+      "iva_trasladado": 69.9,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 506.76,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 171,
+      "uuid": "53162c2c-8000-4568-af6c-3dc51c695675",
+      "folio": "A 106483",
+      "serie": "",
+      "fecha": "2026-09-24",
+      "emisor_rfc": "UISM901005BE4",
+      "emisor_nombre": "MARTIN ALBERTO URIARTE SANCHEZ",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "10 Coladores p/pintura + 2 Envases vacÃ­os 20 lts para moldes",
+      "familia_insumo": "General",
+      "subtotal": 107.76,
+      "iva_trasladado": 17.24,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 125,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 170,
+      "uuid": "f4d9ba54-b092-435f-b709-1a1a9c565290",
+      "folio": "DB 10555",
+      "serie": "",
+      "fecha": "2026-09-24",
+      "emisor_rfc": "TOM850506EL9",
+      "emisor_nombre": "TOMACO S.A. DE C.V.",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "2 Extensiones electricas uso rudo 30m cal 16 Maple Tools",
+      "familia_insumo": "General",
+      "subtotal": 674.72,
+      "iva_trasladado": 107.96,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 782.68,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 169,
+      "uuid": "e8f491d2-7431-419b-b091-a1e4e792c308",
+      "folio": "FD 6790",
+      "serie": "",
+      "fecha": "2026-09-23",
+      "emisor_rfc": "GALO660525474",
+      "emisor_nombre": "OSCAR ARMANDO GARCIA LOPEZ (FERRETERIA DTODO)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Pistola para pintar de gravedad Lion Tools + Conector hembra 1/4",
+      "familia_insumo": "General",
+      "subtotal": 264.66,
+      "iva_trasladado": 42.34,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 307,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 159,
+      "uuid": "462d2346-5b12-4922-bfe4-24063b0ede8e",
+      "folio": "A106479",
+      "serie": "",
+      "fecha": "2026-09-23",
+      "emisor_rfc": "UISM901005BE4",
+      "emisor_nombre": "MARTIN ALBERTO URIARTE SANCHEZ",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Primario estructura rojo oxido (2 pzas) y Thiner laker (2 pzas) para mantenimiento de moldes",
+      "familia_insumo": "General",
+      "subtotal": 5500,
+      "iva_trasladado": 880,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 6380,
+      "metodo_pago": "PUE",
+      "monto_pagado": 6380,
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 85,
@@ -1035,14 +1531,8 @@
       "retencion_iva": 0,
       "total": 6380,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 6380,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 84,
@@ -1061,14 +1551,48 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 168,
+      "uuid": "4bd3d930-429b-4737-bf65-6e6f874e6779",
+      "folio": "DB 10498",
+      "serie": "",
+      "fecha": "2026-09-22",
+      "emisor_rfc": "TOM850506EL9",
+      "emisor_nombre": "TOMACO S.A. DE C.V.",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "1 Cubrebocas c/50 + 5 Cardas copa 4 pulg + 4 Lentes de seguridad",
+      "familia_insumo": "General",
+      "subtotal": 854.91,
+      "iva_trasladado": 136.79,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 991.7,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 167,
+      "uuid": "89895f9e-285a-404b-b88b-34b17ec18f80",
+      "folio": "A 106440",
+      "serie": "",
+      "fecha": "2026-09-22",
+      "emisor_rfc": "UISM901005BE4",
+      "emisor_nombre": "MARTIN ALBERTO URIARTE SANCHEZ",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Thiner Laker (2 pzas) para mantenimiento y limpieza de moldes",
+      "familia_insumo": "General",
+      "subtotal": 1163.79,
+      "iva_trasladado": 186.21,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1350,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 83,
@@ -1087,14 +1611,48 @@
       "retencion_iva": 0,
       "total": 649,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 649,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 185,
+      "uuid": "0b21986f-35be-4175-a4b0-b184300d4412",
+      "folio": "CPA 31030",
+      "serie": "",
+      "fecha": "2026-09-21",
+      "emisor_rfc": "GCO030228CW8",
+      "emisor_nombre": "GASOLINERAS CORI",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Combustible Gasolina Magna (59.417 LTR a .8115/L) - Despacho 1382363",
+      "familia_insumo": "General",
+      "subtotal": 1177.14,
+      "iva_trasladado": 182.92,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 1360.06,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
+    },
+    {
+      "id": 184,
+      "uuid": "ba384899-8c76-4f59-b235-869cb087250f",
+      "folio": "FMCA 165546",
+      "serie": "",
+      "fecha": "2026-09-21",
+      "emisor_rfc": "PET0309111I2",
+      "emisor_nombre": "PETROPLAZAS (MAZATLAN)",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Combustible Gasolina Arco Regular (33.365 LTR a .7626/L) - Viaje Obra Mazatlan",
+      "familia_insumo": "General",
+      "subtotal": 692.74,
+      "iva_trasladado": 107.68,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 800.42,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 82,
@@ -1113,14 +1671,28 @@
       "retencion_iva": 0,
       "total": 3250,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 3250,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
+    },
+    {
+      "id": 166,
+      "uuid": "ce8ac37e-a551-4454-bc37-cecfafead2e56",
+      "folio": "FBR173507",
+      "serie": "",
+      "fecha": "2026-09-19",
+      "emisor_rfc": "PRT950411LC8",
+      "emisor_nombre": "PLASTICOS Y RESINAS TRES RIOS",
+      "proyecto": "SIMA_ALAMOS",
+      "concepto": "Polietileno negro 6 mts c/600 (9.58 kg) para curado y proteccion",
+      "familia_insumo": "General",
+      "subtotal": 507.91,
+      "iva_trasladado": 81.26,
+      "retencion_isr": 0,
+      "retencion_iva": 0,
+      "total": 589.17,
+      "metodo_pago": "PUE",
+      "monto_pagado": 0,
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 70,
@@ -1139,14 +1711,8 @@
       "retencion_iva": 0,
       "total": 2860,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 2860,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 87,
@@ -1165,14 +1731,8 @@
       "retencion_iva": 0,
       "total": 450,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 450,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 69,
@@ -1191,14 +1751,8 @@
       "retencion_iva": 0,
       "total": 23625.69,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 23625.69,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 68,
@@ -1217,14 +1771,8 @@
       "retencion_iva": 0,
       "total": 147685.19,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 147685.19,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 86,
@@ -1243,14 +1791,8 @@
       "retencion_iva": 0,
       "total": 54,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 54,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 80,
@@ -1269,14 +1811,8 @@
       "retencion_iva": 0,
       "total": 393.97,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 393.97,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 79,
@@ -1295,14 +1831,8 @@
       "retencion_iva": 0,
       "total": 319,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 319,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 67,
@@ -1321,14 +1851,8 @@
       "retencion_iva": 0,
       "total": 1856,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1856,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 65,
@@ -1347,14 +1871,8 @@
       "retencion_iva": 0,
       "total": 180,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 180,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 64,
@@ -1373,14 +1891,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 63,
@@ -1399,14 +1911,8 @@
       "retencion_iva": 0,
       "total": 299,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 299,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 66,
@@ -1425,14 +1931,8 @@
       "retencion_iva": 0,
       "total": 1294,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1294,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 81,
@@ -1451,14 +1951,8 @@
       "retencion_iva": 0,
       "total": 250,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 250,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 78,
@@ -1477,14 +1971,8 @@
       "retencion_iva": 0,
       "total": 277.98,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 277.98,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 77,
@@ -1503,14 +1991,8 @@
       "retencion_iva": 0,
       "total": 1228,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1228,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 76,
@@ -1529,14 +2011,8 @@
       "retencion_iva": 0,
       "total": 915,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 915,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 62,
@@ -1555,14 +2031,8 @@
       "retencion_iva": 0,
       "total": 533600,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 533600,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 61,
@@ -1581,14 +2051,8 @@
       "retencion_iva": 0,
       "total": 1200,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1200,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 60,
@@ -1607,14 +2071,8 @@
       "retencion_iva": 0,
       "total": 620,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 620,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 75,
@@ -1633,14 +2091,8 @@
       "retencion_iva": 0,
       "total": 406,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 406,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 58,
@@ -1659,14 +2111,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 59,
@@ -1685,14 +2131,8 @@
       "retencion_iva": 0,
       "total": 648.8,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 648.8,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 71,
@@ -1711,14 +2151,8 @@
       "retencion_iva": 0,
       "total": 407.76,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 407.76,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 51,
@@ -1737,14 +2171,8 @@
       "retencion_iva": 0,
       "total": 294640,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 294640,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 49,
@@ -1763,14 +2191,8 @@
       "retencion_iva": 0,
       "total": 22968,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 22968,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 44,
@@ -1789,14 +2211,8 @@
       "retencion_iva": 0,
       "total": 500,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 500,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 43,
@@ -1815,14 +2231,8 @@
       "retencion_iva": 0,
       "total": 3605.04,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 3605.04,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 42,
@@ -1841,14 +2251,8 @@
       "retencion_iva": 0,
       "total": 8166.91,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 8166.91,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 41,
@@ -1867,14 +2271,8 @@
       "retencion_iva": 0,
       "total": 183039.94,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 183039.94,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 39,
@@ -1893,14 +2291,8 @@
       "retencion_iva": 0,
       "total": 6840,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 6840,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 35,
@@ -1919,14 +2311,8 @@
       "retencion_iva": 0,
       "total": 1714,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1714,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 34,
@@ -1945,14 +2331,8 @@
       "retencion_iva": 0,
       "total": 32,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 32,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 36,
@@ -1971,14 +2351,8 @@
       "retencion_iva": 0,
       "total": 5720,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 5720,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 23,
@@ -1997,14 +2371,8 @@
       "retencion_iva": 0,
       "total": 500,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 500,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 22,
@@ -2023,14 +2391,8 @@
       "retencion_iva": 0,
       "total": 3008.7,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 3008.7,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 139,
@@ -2049,14 +2411,8 @@
       "retencion_iva": 0,
       "total": 1200,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1200,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 138,
@@ -2075,14 +2431,8 @@
       "retencion_iva": 0,
       "total": 1360.06,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1360.06,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 137,
@@ -2101,14 +2451,8 @@
       "retencion_iva": 0,
       "total": 800.42,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 800.42,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 136,
@@ -2127,14 +2471,8 @@
       "retencion_iva": 0,
       "total": 180,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 180,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 135,
@@ -2153,14 +2491,8 @@
       "retencion_iva": 0,
       "total": 3350,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 3350,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 134,
@@ -2179,14 +2511,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1000,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 133,
@@ -2205,14 +2531,8 @@
       "retencion_iva": 0,
       "total": 1738.53,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1738.53,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 132,
@@ -2231,14 +2551,8 @@
       "retencion_iva": 0,
       "total": 13425.75,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 13425.75,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 131,
@@ -2257,14 +2571,8 @@
       "retencion_iva": 0,
       "total": 7708.9,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 7708.9,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 130,
@@ -2283,14 +2591,8 @@
       "retencion_iva": 0,
       "total": 1392,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1392,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 129,
@@ -2309,14 +2611,8 @@
       "retencion_iva": 0,
       "total": 55996.36,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 55996.36,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 128,
@@ -2335,14 +2631,8 @@
       "retencion_iva": 0,
       "total": 698,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 698,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 127,
@@ -2361,14 +2651,8 @@
       "retencion_iva": 0,
       "total": 450,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 450,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 126,
@@ -2387,14 +2671,8 @@
       "retencion_iva": 0,
       "total": 46,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 46,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 125,
@@ -2413,14 +2691,8 @@
       "retencion_iva": 0,
       "total": 86,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 86,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 124,
@@ -2439,14 +2711,8 @@
       "retencion_iva": 0,
       "total": 506.76,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 506.76,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 123,
@@ -2465,14 +2731,8 @@
       "retencion_iva": 0,
       "total": 125,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 125,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 122,
@@ -2491,14 +2751,8 @@
       "retencion_iva": 0,
       "total": 782.68,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 782.68,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 121,
@@ -2517,14 +2771,8 @@
       "retencion_iva": 0,
       "total": 307,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 307,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 120,
@@ -2543,14 +2791,8 @@
       "retencion_iva": 0,
       "total": 991.7,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 991.7,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 119,
@@ -2569,14 +2811,8 @@
       "retencion_iva": 0,
       "total": 1350,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1350,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 118,
@@ -2595,14 +2831,8 @@
       "retencion_iva": 0,
       "total": 589.17,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 589.17,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 117,
@@ -2621,14 +2851,8 @@
       "retencion_iva": 0,
       "total": 1988.63,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1988.63,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 116,
@@ -2647,14 +2871,8 @@
       "retencion_iva": 0,
       "total": 1299.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 1299.99,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 115,
@@ -2673,14 +2891,8 @@
       "retencion_iva": 0,
       "total": 2080.58,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 2080.58,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 114,
@@ -2699,14 +2911,8 @@
       "retencion_iva": 0,
       "total": 170,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 170,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 113,
@@ -2725,14 +2931,8 @@
       "retencion_iva": 0,
       "total": 2580,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 2580,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 112,
@@ -2751,14 +2951,8 @@
       "retencion_iva": 0,
       "total": 560,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 560,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 111,
@@ -2777,14 +2971,8 @@
       "retencion_iva": 0,
       "total": 6380,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 6380,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 110,
@@ -2803,14 +2991,8 @@
       "retencion_iva": 0,
       "total": 3839.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 3839.99,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 109,
@@ -2829,14 +3011,8 @@
       "retencion_iva": 0,
       "total": 679.63,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 679.63,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 108,
@@ -2855,14 +3031,8 @@
       "retencion_iva": 0,
       "total": 2161.08,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 2161.08,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 107,
@@ -2881,14 +3051,8 @@
       "retencion_iva": 0,
       "total": 846.91,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 846.91,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 21,
@@ -2907,14 +3071,8 @@
       "retencion_iva": 0,
       "total": 465,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 465,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 20,
@@ -2933,14 +3091,8 @@
       "retencion_iva": 0,
       "total": 300,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 300,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 19,
@@ -2959,14 +3111,8 @@
       "retencion_iva": 0,
       "total": 300,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 300,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 18,
@@ -2985,14 +3131,8 @@
       "retencion_iva": 0,
       "total": 1400,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1400,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 17,
@@ -3011,14 +3151,8 @@
       "retencion_iva": 0,
       "total": 500,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 500,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 16,
@@ -3037,14 +3171,8 @@
       "retencion_iva": 0,
       "total": 93,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 93,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 15,
@@ -3063,14 +3191,8 @@
       "retencion_iva": 0,
       "total": 500,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 500,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 14,
@@ -3089,14 +3211,8 @@
       "retencion_iva": 0,
       "total": 139.8,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 139.8,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 13,
@@ -3115,14 +3231,8 @@
       "retencion_iva": 0,
       "total": 17159.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 17159.99,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 12,
@@ -3141,14 +3251,8 @@
       "retencion_iva": 0,
       "total": 1300,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1300,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 11,
@@ -3167,14 +3271,8 @@
       "retencion_iva": 0,
       "total": 1300,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1300,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 10,
@@ -3193,14 +3291,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 9,
@@ -3219,14 +3311,8 @@
       "retencion_iva": 0,
       "total": 473.87,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 473.87,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 8,
@@ -3245,14 +3331,8 @@
       "retencion_iva": 0,
       "total": 500,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 500,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 7,
@@ -3271,14 +3351,8 @@
       "retencion_iva": 0,
       "total": 400,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 400,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 6,
@@ -3297,14 +3371,8 @@
       "retencion_iva": 0,
       "total": 22879.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 22879.99,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 5,
@@ -3323,14 +3391,8 @@
       "retencion_iva": 0,
       "total": 28599.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 28599.99,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 4,
@@ -3349,14 +3411,8 @@
       "retencion_iva": 0,
       "total": 174,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 174,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 40,
@@ -3375,14 +3431,8 @@
       "retencion_iva": 0,
       "total": 11600,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 11600,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 38,
@@ -3401,14 +3451,8 @@
       "retencion_iva": 0,
       "total": 4060,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 4060,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 37,
@@ -3427,14 +3471,8 @@
       "retencion_iva": 0,
       "total": -15259.95,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": -15259.95,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 33,
@@ -3453,14 +3491,8 @@
       "retencion_iva": 0,
       "total": 502.2,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 502.2,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 31,
@@ -3479,14 +3511,8 @@
       "retencion_iva": 0,
       "total": 28599.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 28599.99,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 30,
@@ -3505,14 +3531,8 @@
       "retencion_iva": 0,
       "total": 15259.95,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 15259.95,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 29,
@@ -3531,14 +3551,8 @@
       "retencion_iva": 0,
       "total": 5600.02,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 5600.02,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 28,
@@ -3557,14 +3571,8 @@
       "retencion_iva": 0,
       "total": 6403.86,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 6403.86,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 32,
@@ -3583,14 +3591,8 @@
       "retencion_iva": 0,
       "total": 950.39,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 950.39,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 27,
@@ -3609,14 +3611,8 @@
       "retencion_iva": 0,
       "total": 53.36,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 53.36,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 26,
@@ -3635,14 +3631,8 @@
       "retencion_iva": 0,
       "total": 5220,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 5220,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 25,
@@ -3661,14 +3651,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 24,
@@ -3687,14 +3671,8 @@
       "retencion_iva": 0,
       "total": 102959.96,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 102959.96,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:44"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 3,
@@ -3713,14 +3691,8 @@
       "retencion_iva": 0,
       "total": 65.3,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 65.3,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 2,
@@ -3739,14 +3711,8 @@
       "retencion_iva": 0,
       "total": 1534.7,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1534.7,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 105,
@@ -3765,14 +3731,8 @@
       "retencion_iva": 0,
       "total": 5720,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 5720,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 104,
@@ -3791,14 +3751,8 @@
       "retencion_iva": 0,
       "total": 9259.26,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 0,
-      "saldo_pendiente": 9259.26,
-      "estatus_pago": "PENDIENTE",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PENDIENTE"
     },
     {
       "id": 103,
@@ -3817,14 +3771,8 @@
       "retencion_iva": 0,
       "total": 400,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 400,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 101,
@@ -3843,14 +3791,8 @@
       "retencion_iva": 0,
       "total": 479.8,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 479.8,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 1,
@@ -3869,14 +3811,8 @@
       "retencion_iva": 0,
       "total": 205.3,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 205.3,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:43"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 100,
@@ -3895,14 +3831,8 @@
       "retencion_iva": 0,
       "total": 1000,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 1000,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     },
     {
       "id": 99,
@@ -3921,14 +3851,8 @@
       "retencion_iva": 0,
       "total": 3839.99,
       "metodo_pago": "PUE",
-      "forma_pago": "03",
-      "uso_cfdi": "G03",
       "monto_pagado": 3839.99,
-      "saldo_pendiente": 0,
-      "estatus_pago": "PAGADA_TOTAL",
-      "ruta_xml": "",
-      "ruta_pdf": "",
-      "fecha_registro": "2026-10-09 16:45:45"
+      "estatus_pago": "PAGADA_TOTAL"
     }
   ],
   "destajos_y_subcontratistas": [
