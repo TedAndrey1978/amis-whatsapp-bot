@@ -1,4 +1,4 @@
-// C:\Users\Usuario\.antigravity_tools\whatsapp\asistente_conversacional.js
+// asistente_conversacional.js
 // Asistente Virtual Operativo AMIS CONSTRUCTORA · Con Módulo Ejecutivo Antigravity
 
 import { consultarCerebroAntigravity } from './cerebro_antigravity_gemini.js';
@@ -52,7 +52,28 @@ const FORBIDDEN_PATTERNS = [
   /socios/i
 ];
 
-export async function generateConversationalReply(userText, authUser, mediaData = null) {
+function isPureGreeting(text) {
+  const trimmed = (text || '').trim();
+  const lower = trimmed.toLowerCase();
+
+  // Si contiene signos de interrogación, no es saludo puro
+  if (/[?¿]/.test(lower)) return false;
+
+  // Palabras clave de consulta que indican una pregunta o instrucción
+  const queryKeywords = [
+    'pague', 'pagué', 'pagamos', 'pago', 'pagar', 'factura', 'cuanto', 'cuánto',
+    'que', 'qué', 'cuando', 'cuándo', 'quien', 'quién', 'como', 'cómo',
+    'donde', 'dónde', 'estatus', 'avance', 'saldo', 'destajo', 'nomina', 'nómina',
+    'imss', 'sat', 'alamos', 'álamos', 'parral', 'costo', 'proveedor', 'roblock',
+    'darnelix', 'jessica', 'otoniel', 'moises', 'aza', 'gasto', 'comprobante'
+  ];
+  if (queryKeywords.some(k => lower.includes(k))) return false;
+
+  const pureGreetingRegex = /^(hola|hols|holi|holas|buen\s*d[ií]a|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|hey|qu[eé]\s*onda|buenas)$/i;
+  return pureGreetingRegex.test(lower) || (trimmed.length <= 15 && pureGreetingRegex.test(lower.split(/[\s,!.]+/)[0]));
+}
+
+export async function generateConversationalReply(userText, authUser, mediaData = null, sessionState = null) {
   const text = (userText || '').trim();
   const lower = text.toLowerCase();
 
@@ -68,25 +89,54 @@ export async function generateConversationalReply(userText, authUser, mediaData 
   );
 
   if (isTed) {
-    const isGreeting = /^(hola|hols|holi|holas|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|inicio|menu|men[uú]|hey|que\s*onda|buenas)/i.test(lower);
-    if (isGreeting) {
-      const now = new Date();
-      const dayName = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][now.getDay()];
-      const dayNum = now.getDate();
-      const monthName = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][now.getMonth()];
-      
-      return (
+    const isGreeting = isPureGreeting(text);
+    const now = Date.now();
+    const lastGreeting = sessionState?.lastGreetingTime || 0;
+    const hasRecentGreeting = (now - lastGreeting) < (3 * 3600 * 1000); // 3 horas
+
+    // Caso 1: Saludo inicial puro (sin preguntas) y no se ha saludado recientemente
+    if (isGreeting && !hasRecentGreeting) {
+      if (sessionState) {
+        sessionState.lastGreetingTime = now;
+        if (!sessionState.history) sessionState.history = [];
+        sessionState.history.push({ role: 'user', text });
+      }
+
+      const greetingReply = (
         `¡Excelente día, Lic. Ted! 🫡\n\n` +
-        `🏗️ *Álamos del Río:* Fase de arranque en patio de maniobras (habilitado y pre-armados; esperando liberación del Día "D" por M2 Coseinver para colado monolítico).\n` +
-        `🟢 *Nómina y Personal AMIS:* Cuadrillas activas en habilitado de acero y pre-armados.\n` +
-        `📅 *Hoy ${dayName} ${dayNum} de ${monthName} de 2026:*\n` +
-        `• Conciliación de asistencias y dispersión de nómina AMIS.\n` +
-        `• Obligaciones fiscales SAT: Próximo vencimiento de pagos provisionales el 17 de ${monthName}.\n\n` +
+        `Resumen ejecutivo al momento:\n` +
+        `• 🏗️ *Álamos del Río:* Habilitado y pre-armados en patio; en espera de la condición suspensiva del Día "D" para colado monolítico.\n` +
+        `• 🟢 *Personal AMIS:* Cuadrillas activas al 100% en habilitado de acero.\n` +
+        `• 📅 *Agenda Fiscal e IMSS:* Cuotas IMSS/SIPARE y pagos SAT en tiempo (fecha límite 17 de octubre).\n\n` +
         `¿En qué frente o consulta técnica/fiscal nos enfocamos hoy, Licenciado?`
       );
+
+      if (sessionState) {
+        sessionState.history.push({ role: 'model', text: greetingReply });
+      }
+
+      return greetingReply;
     }
-    // Si es consulta libre, conectamos con el Cerebro Antigravity
-    return await consultarCerebroAntigravity(text, mediaData);
+
+    // Caso 2: Saludo repetido pero reciente (cortesía breve sin repetir resumen largo)
+    if (isGreeting && hasRecentGreeting) {
+      return `¡A la orden, Lic. Ted! 🫡 ¿En qué consulta, pago o frente nos enfocamos?`;
+    }
+
+    // Caso 3: Consulta específica, pregunta de pagos/historial o seguimiento continuo
+    const history = sessionState?.history || [];
+    const reply = await consultarCerebroAntigravity(text, mediaData, history);
+
+    if (sessionState) {
+      if (!sessionState.history) sessionState.history = [];
+      sessionState.history.push({ role: 'user', text });
+      sessionState.history.push({ role: 'model', text: reply });
+      if (sessionState.history.length > 12) {
+        sessionState.history = sessionState.history.slice(-12);
+      }
+    }
+
+    return reply;
   }
 
   // -------------------------------------------------------------

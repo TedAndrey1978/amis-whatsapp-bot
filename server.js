@@ -432,10 +432,15 @@ async function startWhatsAppBot() {
 
         const lowerBody = body.toLowerCase();
         const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
-        const userState = userSessions[remoteJid] || { state: 'IDLE' };
+        if (!userSessions[remoteJid]) {
+          userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now(), lastGreetingTime: 0, history: [] };
+        }
+        const userState = userSessions[remoteJid];
+        if (!userState.history) userState.history = [];
 
         if (isReset) {
-          userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
+          userSessions[remoteJid].state = 'IDLE';
+          userSessions[remoteJid].updatedAt = Date.now();
           saveSessions();
           const menuText = buildMainMenu(authUser, config);
           console.log(`[MENU] Enviando menú principal a ${authUser.name} (${targetJid})`);
@@ -459,13 +464,16 @@ async function startWhatsAppBot() {
             }
 
             if (selectedOpt.code === 'ATTENDANCE') {
-              userSessions[remoteJid] = { state: 'ATTENDANCE_MENU', updatedAt: Date.now() };
+              userSessions[remoteJid].state = 'ATTENDANCE_MENU';
+              userSessions[remoteJid].updatedAt = Date.now();
               saveSessions();
               await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
               continue;
             }
 
-            userSessions[remoteJid] = { state: selectedOpt.code, optionId: selectedOpt.id, updatedAt: Date.now() };
+            userSessions[remoteJid].state = selectedOpt.code;
+            userSessions[remoteJid].optionId = selectedOpt.id;
+            userSessions[remoteJid].updatedAt = Date.now();
             saveSessions();
             await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
             continue;
@@ -473,7 +481,9 @@ async function startWhatsAppBot() {
 
           // Si no es un número de opción, va directo al Cerebro / Asistente Ejecutivo
           console.log(`[AI] Generando respuesta para ${authUser.name}...`);
-          const replyText = await generateConversationalReply(body, authUser, null);
+          const replyText = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
+          userSessions[remoteJid].updatedAt = Date.now();
+          saveSessions();
           console.log(`[AI RESPUESTA] Enviando a ${targetJid}:\n${replyText}`);
           await sock.sendMessage(targetJid, { text: replyText });
           continue;

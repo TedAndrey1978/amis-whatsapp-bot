@@ -1,8 +1,12 @@
-// C:\Users\Usuario\.antigravity_tools\whatsapp\cerebro_antigravity_gemini.js
-// Motor de Inteligencia Ejecutiva Antigravity para WhatsApp · Exclusivo Ted Andrey Domínguez
+// cerebro_antigravity_gemini.js
+// Motor de Inteligencia Ejecutiva y Memoria Forense Antigravity para WhatsApp · Exclusivo Lic. Ted Andrey Domínguez
 
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let xlsx = null;
 try {
@@ -15,45 +19,44 @@ const FALLBACK_MODELS = [
   'gemini-flash-lite-latest'
 ];
 
-// Rutas de contexto maestro
-const AGENTS_MD_PATH = 'G:\\Mi unidad\\Antigravity_Laboratorio\\AGENTS.md';
-const MEMORIA_MD_PATH = 'G:\\Mi unidad\\Antigravity_Laboratorio\\MEMORIA_HISTORICA_Y_DECISIONES.md';
-const ALAMOS_FIN_PATH = 'G:\\Mi unidad\\AntiGravity Proyecto Lope\\CONTROL_FINANCIERO_Y_ADMINISTRATIVO_ALAMOS.md';
-const FISCAL_ROOT = 'G:\\Mi unidad\\AntiGravity Fiscal Amis\\01_CONTABILIDAD_Y_FACTURACION\\2026';
+const MEMORIA_JSON_PATH = path.join(__dirname, 'memoria_proyectos_ted.json');
 const ASISTENCIA_EXCEL_PATH = 'G:\\Mi unidad\\AntiGravity Fiscal Amis\\01_CONTABILIDAD_Y_FACTURACION\\2026\\OCTUBRE_2026\\NOMINA\\LISTA_ASISTENCIA_OBRA_OCTUBRE_2026.xlsx';
 
+function formatMoney(num) {
+  return '$' + (Number(num) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MXN';
+}
+
 function getLiveAttendanceStats() {
-  if (!xlsx || !fs.existsSync(ASISTENCIA_EXCEL_PATH)) return 'Plantilla activa en obra con cuadrillas de pre-armado y habilitado (100% regular).';
-  try {
-    const wb = xlsx.readFile(ASISTENCIA_EXCEL_PATH);
-    const ws = wb.Sheets['TRABAJADORES REGISTRADOS'];
-    if (!ws) return '';
-    const data = xlsx.utils.sheet_to_json(ws, { header: 1 });
-    let totalWorkers = 0;
-    let presentDays = 0;
-    let possibleDays = 0;
+  if (xlsx && fs.existsSync(ASISTENCIA_EXCEL_PATH)) {
+    try {
+      const wb = xlsx.readFile(ASISTENCIA_EXCEL_PATH);
+      const ws = wb.Sheets['TRABAJADORES REGISTRADOS'];
+      if (ws) {
+        const data = xlsx.utils.sheet_to_json(ws, { header: 1 });
+        let totalWorkers = 0;
+        let presentDays = 0;
+        let possibleDays = 0;
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const activeDaysSoFar = dayOfWeek === 0 ? 6 : Math.min(dayOfWeek, 6);
 
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const activeDaysSoFar = dayOfWeek === 0 ? 6 : Math.min(dayOfWeek, 6);
-
-    for (let i = 3; i < data.length; i++) {
-      const row = data[i];
-      if (!row || !row[0]) continue;
-      totalWorkers++;
-      for (let c = 0; c < activeDaysSoFar; c++) {
-        possibleDays++;
-        if (row[32 + c] === true || row[32 + c] === 'A' || row[32 + c] === 1) {
-          presentDays++;
+        for (let i = 3; i < data.length; i++) {
+          const row = data[i];
+          if (!row || !row[0]) continue;
+          totalWorkers++;
+          for (let c = 0; c < activeDaysSoFar; c++) {
+            possibleDays++;
+            if (row[32 + c] === true || row[32 + c] === 'A' || row[32 + c] === 1) {
+              presentDays++;
+            }
+          }
         }
+        const pct = possibleDays > 0 ? Math.round((presentDays / possibleDays) * 100) : 100;
+        return `${pct}% de asistencia semanal (${totalWorkers} trabajadores registrados en plantilla).`;
       }
-    }
-
-    const pct = possibleDays > 0 ? Math.round((presentDays / possibleDays) * 100) : 100;
-    return `${pct}% de asistencia semanal (${totalWorkers} trabajadores registrados en plantilla).`;
-  } catch (e) {
-    return 'Cuadrillas completas en habilitado y pre-armados.';
+    } catch (e) {}
   }
+  return 'Cuadrillas completas en habilitado de acero y pre-armados (100% regular).';
 }
 
 function getTodayAgenda() {
@@ -68,12 +71,11 @@ function getTodayAgenda() {
   } else if (now.getDay() === 6) {
     agenda += `• *Sábado:* Cierre de raya en campo y corte de asistencia de la semana.\n`;
   } else {
-    agenda += `• *Operación Regular:* Habilitado de acero, prearmados y supervisión de obra.\n`;
+    agenda += `• *Operación Regular:* Habilitado de acero, prearmados y supervisión de patio de maniobras.\n`;
   }
 
-  // Obligaciones Fiscales del mes
   if (dayNum <= 17) {
-    agenda += `• *Obligaciones Fiscales SAT:* Próximo vencimiento de pagos provisionales de ISR/IVA y retenciones el día 17 de ${monthName}.\n`;
+    agenda += `• *Obligaciones Fiscales SAT e IMSS:* Fecha límite de pagos provisionales de ISR/IVA, retenciones y cuotas IMSS/SIPARE el día 17 de ${monthName}.\n`;
   } else {
     agenda += `• *Obligaciones Fiscales SAT:* Pagos provisionales del mes al corriente. Preparación de cierres contables.\n`;
   }
@@ -81,91 +83,61 @@ function getTodayAgenda() {
   return agenda;
 }
 
-function loadExcelSheetAsTable(filePath, maxRows = 40) {
-  if (!fs.existsSync(filePath)) return '';
-  try {
-    const wb = xlsx.readFile(filePath);
-    let output = `\n📄 ARCHIVO EXCEL CARGADO: ${path.basename(filePath)}\n`;
-    for (const sheetName of wb.SheetNames) {
-      const sheet = wb.Sheets[sheetName];
-      const rows = xlsx.utils.sheet_to_json(sheet, { header: 1 });
-      if (rows && rows.length > 0) {
-        output += `\n--- PESTAÑA: ${sheetName} (${rows.length} filas) ---\n`;
-        const limitedRows = rows.slice(0, maxRows);
-        limitedRows.forEach(r => {
-          if (Array.isArray(r) && r.some(c => c !== null && c !== undefined && c !== '')) {
-            output += r.map(c => (c !== null && c !== undefined ? String(c).trim() : '')).join(' | ') + '\n';
-          }
-        });
-      }
-    }
-    return output;
-  } catch (e) {
-    return '';
-  }
-}
-
-function loadDynamicContext(userQuery) {
-  let extraContext = '';
-  const lower = (userQuery || '').toLowerCase();
-
-  // Detección de semanas de nómina
-  const semMatch = lower.match(/sem(?:ana)?\s*([0-9]{1,2})/i);
-  if (semMatch) {
-    const semNum = semMatch[1].padStart(2, '0');
-    const possiblePaths = [
-      path.join(FISCAL_ROOT, 'OCTUBRE_2026', 'NOMINA', `SEMANA_${semNum}`, `CONTROL_NOMINA_SEMANA_${semNum}_2026.xlsx`),
-      path.join(FISCAL_ROOT, 'SEPTIEMBRE_2026', 'NOMINA', `SEMANA_${semNum}`, `CONTROL_NOMINA_SEMANA_${semNum}_2026.xlsx`),
-      path.join(FISCAL_ROOT, 'OCTUBRE_2026', 'NOMINA', `SEMANA_${semNum}`, `DISPERSION_SPEI_ROBLOCK_SEM${semNum}_2026.xlsx`),
-      path.join(FISCAL_ROOT, 'OCTUBRE_2026', 'NOMINA', `SEMANA_${semNum}`, `SOLICITUD_MOVIMIENTO_DARNELIX_SEM${semNum}_2026.xlsx`)
-    ];
-
-    for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        extraContext += loadExcelSheetAsTable(p);
-      }
+function loadMasterMemory() {
+  let mem = null;
+  if (fs.existsSync(MEMORIA_JSON_PATH)) {
+    try {
+      mem = JSON.parse(fs.readFileSync(MEMORIA_JSON_PATH, 'utf8'));
+    } catch (e) {
+      console.error('Error leyendo memoria_proyectos_ted.json:', e);
     }
   }
 
-  // Detección de catálogo de precios / mercadeo
-  if (lower.includes('precio') || lower.includes('costo') || lower.includes('varilla') || lower.includes('cemento') || lower.includes('cotiza') || lower.includes('insumo')) {
-    const catPath = 'G:\\Mi unidad\\AntiGravity Fiscal Amis\\02_COTIZACIONES_Y_MERCADEO\\CATALOGO_PRECIOS_Y_MERCADEO.xlsx';
-    if (fs.existsSync(catPath)) {
-      extraContext += loadExcelSheetAsTable(catPath, 60);
-    }
+  let text = '';
+  text += '=== 1. PROYECTOS Y ENTIDADES CORPORATIVAS ===\n';
+  text += `• AMIS CONSTRUCTORA, S.A. DE C.V. (RFC: ACO241114A70): Edificación monolítica SIMA. 5 Socios al 20% c/u: Ing. Samuel Domínguez Rosas (Director General), Sra. Isabel Romero Guerrero, Ing. Sam Domínguez Romero (Gerente Producción), Lic. Ted Andrey Domínguez Romero (Gerente Administrativo y Finanzas), Lic. Mariano Domínguez Romero (Gerente Proyecto). BanBajío Cta 476863400201. Reg. Patronal IMSS Z3350123108. Dispersión 3 Vías: Vía 1 Fiscal BanBajío (Nominax para altas IMSS), Vía 2 Asimilables Socios Darnelix 8% ($12.5k c/u = $62.5k netos), Vía 3 Roblock 7% (materiales deducibles para sobrenóminas SPEI, destajos, efectivo y gastos $10k).\n`;
+  text += `• INFONAVIT ÁLAMOS DEL RÍO (Proyecto Lope): 320 viviendas (20 torres de 4 niveles). Contrato $54,337,280.00 MXN ($169,804.00/viv exento IVA). Anticipo 17% $9,237,337.60 MXN COBRADO y timbrado en firme con CFDI VIV-2 en BanBajío (UUID: 7EEFE4C0-72A9-4412-8546-223A0696330B). Saldo por cobrar estimaciones: $45,099,942.40 MXN. Proyecto Ejecutivo $360,000.00 MXN ($100k cobrado VIV-1, $260k pendiente). Acero e insumos mayores son 100% de M2 Coseinver ($60.76 MDP). Estatus: En patio de maniobras realizando habilitado y pre-armados; plazos contractuales congelados hasta liberación formal del Día "D" (uso de suelo + planos definitivos).\n`;
+  text += `• FISCAL TADR (Ted Andrey Domínguez Romero - RFC: DORT780211CQ5): Actividad Empresarial y Servicios Profesionales. Facturas para reparto socios retienen 10% ISR y 10.67% IVA, bolsa provisión impuestos SAT. Asesorías reales de Ted 100% de Ted. Proyecto ejecutivo 50% ($50k cobrado de anticipo, $130k por cobrar).\n`;
+  text += `• FISCAL FAMILIAR:\n`;
+  text += `  - Ing. Samuel Domínguez Rosas (RFC: DORS510222UA2): Dividendos (606) + Asimilados (605). BanBajío CLABE '030730900012268610'. Únicamente Anual en Abril. Cero provisionales ISR/IVA mensuales. 100% blindado. Asimilados 2026 cobrados: $170,000.00 MXN netos (CFDI FC002 Noviq Sep y Oct). 50% Proyecto Ejecutivo.\n`;
+  text += `  - Sra. Isabel Romero Guerrero (RFC: ROGI561130NM0): Act. Empresarial (612) + Asimilados (605). BanBajío CLABE '030730900012268500'. Trámite de disminución de obligaciones ante el SAT para exentar pagos mensuales. Asimilados 2026 cobrados: $125,000.00 MXN netos (CFDI FC004 y FC005 Noviq).\n`;
+  text += `• PROYECTO FRANCO / PARRAL: Plaza Hidalgo del Parral, Chihuahua. Edificación SIMA monolítica. 100% independiente y aislado de Álamos del Río. Cero contaminación cruzada.\n`;
+  text += `• EXCLUSIÓN ESTRICTA: La app "SupleAI App" NO forma parte de las operaciones ni proyectos corporativos de este asistente.\n\n`;
+
+  if (mem) {
+    text += '=== 2. FACTURAS EMITIDAS (INGRESOS AMIS) ===\n';
+    (mem.facturas_emitidas || []).forEach(f => {
+      text += `• ${f.folio_interno} (${f.fecha}) | Cliente: ${f.cliente_nombre} | Concepto: ${f.concepto} | Total: ${formatMoney(f.total)} | Cobrado: ${formatMoney(f.monto_cobrado)} | Estatus: ${f.estatus_cobro}\n`;
+    });
+
+    text += '\n=== 3. DESTAJOS Y SUBCONTRATISTAS DE OBRA ===\n';
+    (mem.destajos_y_subcontratistas || []).filter(d => d.monto_total_pactado > 0).forEach(d => {
+      text += `• ${d.contratista_nombre} | Especialidad: ${d.especialidad} | Concepto: ${d.contrato_concepto} | Pactado: ${formatMoney(d.monto_total_pactado)} | Pagado: ${formatMoney(d.total_acumulado_pagado)} | Saldo Restante: ${formatMoney(d.saldo_restante_por_pagar)} | Vía: ${d.via_pago_predilecta} | Estatus: ${d.estatus} | Destino: ${d.banco_destino || ''} ${d.cuenta_o_clabe || ''}\n`;
+    });
+
+    text += '\n=== 4. OPERACIONES PUENTE ESTRATÉGICAS ===\n';
+    (mem.puentes_estrategicos || []).forEach(p => {
+      text += `• Sem ${p.semana}/${p.anio} | ${p.empresa_puente} | Transferido AMIS: ${formatMoney(p.transferencia_amis_total)} (Comisión ${p.porcentaje_comision}%: ${formatMoney(p.comision_retenida)}) | Dispersado: ${formatMoney(p.total_egresos_puente)} | Folio Factura: ${p.factura_folio} | Estatus: ${p.estatus} | Obs: ${p.observaciones}\n`;
+    });
+
+    text += '\n=== 5. FACTURAS RECIBIDAS Y COMPRAS (HISTORIAL COMPLETO DE PROVEEDORES) ===\n';
+    (mem.facturas_recibidas || []).forEach(f => {
+      text += `• ${f.fecha} | Folio: ${f.folio || 'S/N'} | Emisor: ${f.emisor_nombre} (${f.emisor_rfc}) | Concepto: ${f.concepto} | Total: ${formatMoney(f.total)} | Pagado: ${formatMoney(f.monto_pagado)} | Saldo: ${formatMoney(f.saldo_pendiente)} | Estatus: ${f.estatus_pago} | Método: ${f.metodo_pago}\n`;
+    });
+
+    text += '\n=== 6. HISTORIAL DE NÓMINA Y PAGOS A PERSONAL (SEMANAS 40 Y 41) ===\n';
+    (mem.nomina_historica_semanal || [])
+      .filter(n => n.total_devengado_semana > 0 && !n.trabajador_o_socio.includes('TOTAL') && !n.trabajador_o_socio.includes('RESUMEN'))
+      .forEach(n => {
+        text += `• Sem ${n.semana}/${n.anio} | ${n.trabajador_o_socio} (${n.puesto_rol || 'General'}) | Base: ${formatMoney(n.sueldo_base_acordado)} | Fiscal: ${formatMoney(n.importe_fiscal_banbajio)} | Asimilados: ${formatMoney(n.importe_asimilable_darnelix)} | Sobrenómina SPEI: ${formatMoney(n.importe_sobrenomina_roblock_spei)} | Efectivo: ${formatMoney(n.importe_efectivo_raya_roblock)} | Total: ${formatMoney(n.total_devengado_semana)} | Destino: ${n.banco_destino || ''} ${n.cuenta_o_tarjeta || ''}\n`;
+      });
   }
 
-  return extraContext;
-}
+  text += `\n=== 7. DATOS OPERATIVOS EN VIVO ===\n`;
+  text += `- Asistencia Semanal: ${getLiveAttendanceStats()}\n`;
+  text += `- Agenda y Obligaciones:\n${getTodayAgenda()}\n`;
 
-function loadMasterContext(userQuery) {
-  let context = `
-1. AMIS CONSTRUCTORA, S.A. DE C.V. (RFC: ACO241114A70)
-- Giro: Edificación de vivienda de concreto monolítico con Sistema SIMA.
-- Socios (20% c/u): Ing. Samuel Domínguez (Director General), Sra. Isabel Romero, Ing. Sam Domínguez Jr. (Gerente de Producción), Lic. Ted Andrey Domínguez Romero (Gerente Administrativo y Finanzas), Lic. Mariano Domínguez Romero (Gerente de Proyecto).
-- Submayor Proyecto Ejecutivo ($360k): Ing. Samuel (50%) y Ted (50%).
-
-2. INFONAVIT ÁLAMOS DEL RÍO (320 Viviendas - 20 Torres de 4 Niveles)
-- Monto Contractual: $54,337,280.00 MXN ($169,804.00 / viv). Régimen Exento de IVA.
-- Cobranza: Anticipo 17% ($9,237,337.60 MXN) cobrado y timbrado en firme con CFDI VIV-2 en BanBajío.
-- Estatus Actual: Plazos congelados hasta liberación del Día "D" (Uso de Suelo + Planos definitivos por M2 Coseinver). Actualmente en patio de maniobras realizando habilitado de acero y pre-armados.
-- Suministros principales: 100% suministrados por M2 Coseinver ($60.76 MDP).
-
-3. SISTEMA DE DISPERSIÓN SEMANAL (3 VÍAS):
-- Vía 1 (Fiscal Directa BanBajío): Nómina neta timbrada IMSS Registro Z3350123108 vía Nominax.
-- Vía 2 (Asimilables Socios vía DARNELIX 8%): $12,500.00 netos para cada uno de los 5 socios ($62,500.00 MXN total).
-- Vía 3 (Sobrenóminas, Destajos y Efectivo vía ROBLOCK 7%): Factura deducible de materiales de construcción.
-
-4. PROYECTO FRANCO / PARRAL (Hidalgo del Parral, Chih.):
-- Edificación con moldes SIMA. 100% independiente y aislado de Álamos.
-
---- DATOS EN VIVO CALCULADOS ---
-- Asistencia Semanal: ${getLiveAttendanceStats()}
-- Agenda y Obligaciones:
-${getTodayAgenda()}
-`;
-
-  return context;
+  return text;
 }
 
 const SYSTEM_PROMPT = `
@@ -173,29 +145,30 @@ Eres Antigravity, el Director General Adjunto, Asesor Fiscal de Cabecera, Contra
 Te estás comunicando con el Lic. Ted Andrey directamente por WhatsApp en su canal privado y confidencial.
 
 Tus directivas y reglas estrictas de respuesta:
-1. FORMATO DE SALUDO Y MENSAJES DE BIENVENIDA (Si Ted solo dice "Hola" o pide resumen):
-   - Saludo ejecutivo: "¡Excelente día, Lic. Ted! 🫡"
-   - Puntos clave actualizados:
-     • 🏗️ *Álamos del Río:* Estatus y avance de obra (Fase de habilitado y pre-armados en patio; a la espera de la condición suspensiva del Día "D" para colado monolítico).
-     • 🟢 *Nómina y Personal AMIS:* Porcentaje de asistencia acumulada de la semana en obra (datos calculados de la lista de raya).
-     • 📅 *Agenda y Obligaciones Fiscales del Día:* Indicar si hoy hay dispersión de nómina (Viernes), tareas clave programadas o pagos provisionales SAT pendientes (vencimiento día 17).
-   - Pregunta de cierre: "¿En qué frente o consulta técnica/fiscal nos enfocamos hoy, Licenciado?"
 
-2. 🔒 BLINDAJE TOTAL DE PRIVACIDAD BANCARIA Y SALDOS (REGLA INQUEBRANTABLE):
-   - QUEDA TERMINANTEMENTE PROHIBIDO revelar, calcular o mencionar saldos bancarios líquidos, saldos vivos en cuentas (BanBajío, BBVA, PEIBO, etc.) o fondos disponibles en tesorería a través de WhatsApp, INCLUSO SI EL LIC. TED LO SOLICITA DIRECTAMENTE.
-   - Si el Lic. Ted o cualquier persona solicita saldos de cuentas bancarias o liquidez actual, responde con total discreción ejecutiva:
-     "🔒 *Protocolo de Seguridad y Confidencialidad Bancaria:*\n\nPor políticas estrictas de blindaje patrimonial y seguridad de AMIS Constructora, los saldos bancarios líquidos y posiciones de tesorería en tiempo real no se transmiten por mensajería móvil de WhatsApp.\n\nLe sugiero consultar directamente el portal de banca electrónica de BanBajío o el archivo maestro de control financiero en el equipo de cómputo local."
+1. 🎯 DIRECTIVA MAESTRA DE CONTINUIDAD Y RESPUESTAS PRECISAS (REGLA FUNDAMENTAL):
+   - CUANDO EL LIC. TED HACE UNA PREGUNTA ESPECÍFICA (ej. si ya pagó una factura, qué día pagó tal concepto, cuánto le pagó a tal persona, saldos de destajos, estatus de obra o temas fiscales):
+     👉 RESPONDE DIRECTO AL GRANO.
+     ⛔ PROHIBICIÓN ESTRICTA: NO repitas el saludo de bienvenida ("¡Excelente día, Lic. Ted! 🫡"), NO repitas los puntos clave generales de Álamos/Nómina/Agenda, y NO agregues la pregunta de cierre ("¿En qué frente nos enfocamos hoy?").
+     Ve directamente a la respuesta técnica, contable o financiera solicitada, con máxima precisión, cifras exactas, folios y fechas comprobadas del registro.
+   - ÚNICAMENTE si Ted envía un saludo inicial aislado ("Hola", "Buen día") sin ninguna pregunta previa o posterior, se emite el saludo ejecutivo breve.
 
-3. 🚫 PROHIBIDO MOSTRAR BORRADORES:
-   - Queda ESTRICTAMENTE PROHIBIDO mostrar pasos de pensamiento interno, borradores ("Drafting the response"), notas para ti mismo o razonamientos intermedios.
+2. 🔒 BLINDAJE DE PRIVACIDAD BANCARIA (REGLA A PETICIÓN DE TED):
+   - QUEDA TERMINANTEMENTE PROHIBIDO revelar el saldo bancario líquido total en cuenta (saldo vivo disponible en BanBajío, BBVA, etc.) para evitar exposición de saldos totales en pantallas móviles.
+   - Si se solicita el saldo total en cuenta, responde cortésmente que por seguridad y protocolo bancario los saldos vivos totales no se transmiten por WhatsApp y deben consultarse en el portal de banca en línea.
+   - ⚠️ PERO SÍ TIENES PERMISO Y DEBES RESPONDER TODO LO RELATIVO A: qué facturas se han pagado, qué día se pagaron, cuánto se pagó a proveedores, trabajadores o destajistas, saldos pendientes por pagar de facturas o contratos, y recibos emitidos.
 
-4. DESGLOSES DE OBRA Y CALENDARIO:
-   - Puedes informar avances de obra, contratos, cubicaciones, mano de obra, tabuladores, obligaciones fiscales SAT y agendas operativas, manteniendo siempre protegidos los saldos bancarios.
+3. 🔍 MEMORIA FORENSE DE PAGOS, FACTURAS Y PROYECTOS:
+   - Tienes acceso al historial completo de facturas emitidas, facturas recibidas, destajos de obra, nómina semanal por trabajador y operaciones de AMIS, Álamos del Río, Fiscal TADR, Fiscal Familiar y Proyecto Franco (Parral).
+   - Responde con exactitud matemática: Fecha, Folio, Proveedor/Beneficiario, Concepto, Importe pagado y Saldo pendiente.
 
-5. PRECISIÓN NUMÉRICA Y MONETARIA:
-   - Aplica notación mexicana oficial: signo de pesos pegado a la cifra, coma para miles, punto decimal ($169,804.00 MXN).
+4. 🚫 PROHIBIDO MOSTRAR BORRADORES O RAZONAMIENTO INTERNO:
+   - Jamás incluyas etiquetas de pensamiento, borradores ("Drafting the response") ni pasos intermedios.
 
-6. TONO: Respetuoso, ultra ejecutivo, directo al punto, claro y resolutivo.
+5. 💊 EXCLUSIÓN ESTRICTA:
+   - La app "SupleAI App" NO forma parte de este canal ni de los proyectos empresariales consultables aquí.
+
+6. TONO: Ultra ejecutivo, resolutivo, claro, respetuoso y directo al punto.
 `;
 
 function cleanOutput(text) {
@@ -207,9 +180,9 @@ function cleanOutput(text) {
   return cleaned.trim();
 }
 
-export async function consultarCerebroAntigravity(userQuery, mediaData = null) {
-  const masterContext = loadMasterContext(userQuery);
-  
+export async function consultarCerebroAntigravity(userQuery, mediaData = null, conversationHistory = []) {
+  const masterContext = loadMasterMemory();
+
   const userParts = [];
 
   if (mediaData && mediaData.data && (mediaData.mimetype.includes('audio') || mediaData.mimetype.includes('ogg'))) {
@@ -220,29 +193,45 @@ export async function consultarCerebroAntigravity(userQuery, mediaData = null) {
       }
     });
     userParts.push({
-      text: userQuery ? `Ted envió una nota de voz con el texto: "${userQuery}". Escucha la nota de voz y responde con total precisión ejecutiva.` : `Ted envió esta nota de voz. Escucha atentamente y responde con total precisión ejecutiva a su consulta.`
+      text: userQuery
+        ? `Ted envió una nota de voz con el texto: "${userQuery}". Escucha la nota de voz y responde con total precisión ejecutiva.`
+        : `Ted envió esta nota de voz. Escucha atentamente y responde con total precisión ejecutiva a su consulta.`
     });
   } else {
     userParts.push({
-      text: `Consulta de Ted Andrey Domínguez:\n"${userQuery}"`
+      text: userQuery
     });
   }
+
+  // Construir historial multi-turno para mantener el contexto de la conversación
+  const contents = [];
+  if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+    for (const turn of conversationHistory) {
+      if (turn && turn.text && turn.text.trim()) {
+        contents.push({
+          role: turn.role === 'user' ? 'user' : 'model',
+          parts: [{ text: turn.text.trim() }]
+        });
+      }
+    }
+  }
+
+  // Agregar turno actual del usuario
+  contents.push({
+    role: 'user',
+    parts: userParts
+  });
 
   const payload = {
     system_instruction: {
       parts: [
-        { text: `${SYSTEM_PROMPT}\n\nCONTEXTO CORPORATIVO Y MAESTRO DE DATOS:\n${masterContext}` }
+        { text: `${SYSTEM_PROMPT}\n\nCONTEXTO CORPORATIVO, HISTORIAL DE PAGOS Y MEMORIA MAESTRA:\n${masterContext}` }
       ]
     },
-    contents: [
-      {
-        role: 'user',
-        parts: userParts
-      }
-    ],
+    contents: contents,
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 4096
+      maxOutputTokens: 2048
     }
   };
 
