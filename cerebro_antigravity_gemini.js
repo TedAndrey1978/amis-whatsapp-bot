@@ -131,9 +131,13 @@ function loadMasterMemory() {
       .forEach(n => {
         text += `• Sem ${n.semana}/${n.anio} | ${n.trabajador_o_socio} (${n.puesto_rol || 'General'}) | Base: ${formatMoney(n.sueldo_base_acordado)} | Fiscal: ${formatMoney(n.importe_fiscal_banbajio)} | Asimilados: ${formatMoney(n.importe_asimilable_darnelix)} | Sobrenómina SPEI: ${formatMoney(n.importe_sobrenomina_roblock_spei)} | Efectivo: ${formatMoney(n.importe_efectivo_raya_roblock)} | Total: ${formatMoney(n.total_devengado_semana)} | Destino: ${n.banco_destino || ''} ${n.cuenta_o_tarjeta || ''}\n`;
       });
+    text += '\n=== 7. PAGOS DE SEGURIDAD SOCIAL E IMSS / SIPARE (CARGA SOCIAL AMIS) ===\n';
+    (mem.pagos_imss_sipare_carga_social || []).forEach(s => {
+      text += `• Periodo: ${s.periodo} | Concepto: ${s.tipo} | Fecha de Pago: ${s.fecha_pago} (a las ${s.hora_pago} hrs) | Monto Total Liquidado: ${formatMoney(s.importe_total)} | No. Autorización BanBajío: ${s.autorizacion_banbajio} | Folio SUA: ${s.folio_sua} | Línea de Captura: ${s.linea_captura} | Cuenta Cargo: ${s.cuenta_origen} | Estatus: ${s.estatus} | Comprobante Oficial: ${s.comprobante}\n`;
+    });
   }
 
-  text += `\n=== 7. DATOS OPERATIVOS EN VIVO ===\n`;
+  text += `\n=== 8. DATOS OPERATIVOS EN VIVO ===\n`;
   text += `- Asistencia Semanal: ${getLiveAttendanceStats()}\n`;
   text += `- Agenda y Obligaciones:\n${getTodayAgenda()}\n`;
 
@@ -147,7 +151,7 @@ Te estás comunicando con el Lic. Ted Andrey directamente por WhatsApp en su can
 Tus directivas y reglas estrictas de respuesta:
 
 1. 🎯 DIRECTIVA MAESTRA DE CONTINUIDAD Y RESPUESTAS PRECISAS (REGLA FUNDAMENTAL):
-   - CUANDO EL LIC. TED HACE UNA PREGUNTA ESPECÍFICA (ej. si ya pagó una factura, qué día pagó tal concepto, cuánto le pagó a tal persona, saldos de destajos, estatus de obra o temas fiscales):
+   - CUANDO EL LIC. TED HACE UNA PREGUNTA ESPECÍFICA (ej. si ya pagó una factura, qué día pagó tal concepto, cuánto le pagó a tal persona, saldos de destajos, pagos de IMSS/SIPARE, estatus de obra o temas fiscales):
      👉 RESPONDE DIRECTO AL GRANO.
      ⛔ PROHIBICIÓN ESTRICTA: NO repitas el saludo de bienvenida ("¡Excelente día, Lic. Ted! 🫡"), NO repitas los puntos clave generales de Álamos/Nómina/Agenda, y NO agregues la pregunta de cierre ("¿En qué frente nos enfocamos hoy?").
      Ve directamente a la respuesta técnica, contable o financiera solicitada, con máxima precisión, cifras exactas, folios y fechas comprobadas del registro.
@@ -156,11 +160,16 @@ Tus directivas y reglas estrictas de respuesta:
 2. 🔒 BLINDAJE DE PRIVACIDAD BANCARIA (REGLA A PETICIÓN DE TED):
    - QUEDA TERMINANTEMENTE PROHIBIDO revelar el saldo bancario líquido total en cuenta (saldo vivo disponible en BanBajío, BBVA, etc.) para evitar exposición de saldos totales en pantallas móviles.
    - Si se solicita el saldo total en cuenta, responde cortésmente que por seguridad y protocolo bancario los saldos vivos totales no se transmiten por WhatsApp y deben consultarse en el portal de banca en línea.
-   - ⚠️ PERO SÍ TIENES PERMISO Y DEBES RESPONDER TODO LO RELATIVO A: qué facturas se han pagado, qué día se pagaron, cuánto se pagó a proveedores, trabajadores o destajistas, saldos pendientes por pagar de facturas o contratos, y recibos emitidos.
+   - ⚠️ PERO SÍ TIENES PERMISO Y DEBES RESPONDER TODO LO RELATIVO A: qué facturas se han pagado, qué día se pagaron, cuánto se pagó a proveedores, trabajadores o destajistas, saldos pendientes por pagar de facturas o contratos, y pagos de seguridad social.
 
-3. 🔍 MEMORIA FORENSE DE PAGOS, FACTURAS Y PROYECTOS:
-   - Tienes acceso al historial completo de facturas emitidas, facturas recibidas, destajos de obra, nómina semanal por trabajador y operaciones de AMIS, Álamos del Río, Fiscal TADR, Fiscal Familiar y Proyecto Franco (Parral).
+3. 🔍 MEMORIA FORENSE DE PAGOS, FACTURAS Y PROYECTOS (CERO ALUCINACIONES):
+   - Tienes acceso al historial completo de facturas emitidas, facturas recibidas, destajos de obra, nómina semanal por trabajador, pagos de seguridad social IMSS/SIPARE y operaciones de AMIS, Álamos del Río, Fiscal TADR, Fiscal Familiar y Proyecto Franco (Parral).
    - Responde con exactitud matemática: Fecha, Folio, Proveedor/Beneficiario, Concepto, Importe pagado y Saldo pendiente.
+   - ⚠️ DATOS EXACTOS DE SEGURIDAD SOCIAL IMSS / SIPARE (REGISTRO PATRONAL Z3350123108):
+     * Pago IMSS / SIPARE Septiembre 2026: Fue liquidado el **09 de Octubre de 2026** (10:43 hrs) por EXACTAMENTE **$4,077.55 MXN** con cargo a cuenta BanBajío 476863400201, No. de Autorización BanBajío **7619834122978**, Folio SUA **326183**, Línea de Captura Z1JEKRJ84CC116ZON66210008QMJ0000000000000000000008X7A.
+     * Pago IMSS / SIPARE Agosto 2026 (Bimestral): Liquidado el **15 de Septiembre de 2026** por **$11,762.97 MXN** (IMSS: $2,302.06, RCV: $2,204.03, ACV Infonavit: $7,256.88), Autorización BanBajío **2192332323516**, Folio SUA 390160.
+     * Pago IMSS / SIPARE Julio 2026: Liquidado el **17 de Agosto de 2026** por **$2,302.06 MXN**, Autorización BanBajío **425372523520**, Folio SUA 354576.
+     * ⛔ QUEDA TERMINANTEMENTE PROHIBIDO inventar o estimar cifras como $42,816.40 o cálculos hipotéticos. Si no tienes un pago registrado, informa con honestidad técnica que no se encuentra en el libro contable.
 
 4. 🚫 PROHIBIDO MOSTRAR BORRADORES O RAZONAMIENTO INTERNO:
    - Jamás incluyas etiquetas de pensamiento, borradores ("Drafting the response") ni pasos intermedios.

@@ -6247,5 +6247,54 @@
       "notas": "NSS: OBRA GENERAL AMIS (ALAMOS DEL RIO) | CURP: PRODUCCION / FIERREROS | Puesto: Obra Determinada | Sueldo Sem: $0",
       "fecha_creacion": "2026-10-09 16:45:43"
     }
+  ],
+  "pagos_imss_sipare_carga_social": [
+    {
+      "periodo": "Septiembre 2026 (202609)",
+      "tipo": "Mensual Cuotas Obrero-Patronales (COP)",
+      "fecha_pago": "09-Oct-2026",
+      "hora_pago": "10:43:10",
+      "cuenta_origen": "BanBajío 476863400201",
+      "registro_patronal": "Z3350123108",
+      "linea_captura": "Z1JEKRJ84CC116ZON66210008QMJ0000000000000000000008X7A",
+      "folio_sua": "326183",
+      "importe_imss": 4077.55,
+      "importe_total": 4077.55,
+      "autorizacion_banbajio": "7619834122978",
+      "estatus": "PAGADO_Y_LIQUIDADO",
+      "comprobante": "SPEI_7619834122978_PagoIMSS_SIPARE_Sep2026_4077.55_09Oct26.pdf"
+    },
+    {
+      "periodo": "Agosto 2026 (202608)",
+      "tipo": "Bimestral (IMSS + RCV + ACV Infonavit)",
+      "fecha_pago": "15-Sep-2026",
+      "hora_pago": "12:08:32",
+      "cuenta_origen": "BanBajío 476863400201",
+      "registro_patronal": "Z3350123108",
+      "linea_captura": "Z1JEKRJ84CC018D1S65880004XMM0004Q2B0000000000FJY0Q73A",
+      "folio_sua": "390160",
+      "importe_imss": 2302.06,
+      "importe_rcv": 2204.03,
+      "importe_acv_infonavit": 7256.88,
+      "importe_total": 11762.97,
+      "autorizacion_banbajio": "2192332323516",
+      "estatus": "PAGADO_Y_LIQUIDADO",
+      "comprobante": "ComprobantePagoSIPARE_20260915120832.pdf"
+    },
+    {
+      "periodo": "Julio 2026 (202607)",
+      "tipo": "Mensual Cuotas Obrero-Patronales (COP)",
+      "fecha_pago": "17-Ago-2026",
+      "hora_pago": "14:13:26",
+      "cuenta_origen": "BanBajío 476863400201",
+      "registro_patronal": "Z3350123108",
+      "linea_captura": "Z1JEKRJ84CBZ17LLC65570004XMM0000000000000000000005HUA",
+      "folio_sua": "354576",
+      "importe_imss": 2302.06,
+      "importe_total": 2302.06,
+      "autorizacion_banbajio": "425372523520",
+      "estatus": "PAGADO_Y_LIQUIDADO",
+      "comprobante": "ComprobantePagoSIPARE_20260817141330.pdf"
+    }
   ]
 }
