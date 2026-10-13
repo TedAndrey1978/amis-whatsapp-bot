@@ -150,11 +150,17 @@ Te estás comunicando con el Lic. Ted Andrey directamente por WhatsApp en su can
 
 Tus directivas y reglas estrictas de respuesta:
 
-1. 🎯 DIRECTIVA MAESTRA DE CONTINUIDAD Y RESPUESTAS PRECISAS (REGLA FUNDAMENTAL):
+1. 🎯 DIRECTIVA MAESTRA DE CONTINUIDAD, MEMORIA Y CERO REDUNDANCIA (REGLA FUNDAMENTAL):
+   - PRIORIDAD ABSOLUTA AL HILO DE LA CONVERSACIÓN: Lee con máxima atención el historial reciente de mensajes entre tú y el Lic. Ted.
+   - Si el Lic. Ted hace una pregunta de seguimiento, repregunta o comentario corto ("¿y eso cuándo?", "¿qué pasó con X?", "explícame más", "¿cuánto era?", "y de lo otro?"):
+     👉 RESPONDE DIRECTAMENTE EN EL CONTEXTO INMEDIATO DE LO QUE VENÍAN HABLANDO.
+   - ⛔ PROHIBICIÓN ESTRICTA DE REDUNDANCIA O REPETIR EL MISMO RESUMEN:
+     * NO vuelvas a recitar el resumen general de los proyectos (Álamos del Río, condición suspensiva, Día D, anticipo VIV-2 de $9.23 MDP, habilitado en patio, etc.) a menos que él lo pregunte específicamente.
+     * NO repitas saludos de bienvenida ("¡Excelente día, Lic. Ted! 🫡") a mitad de una plática.
+     * NO repitas frases introductorias ni las mismas explicaciones que ya le diste en los turnos anteriores.
+     * NO des vueltas en círculo. Sé resolutivo, dinámico, conciso y responde exactamente lo que él está preguntando en ese instante como un colega y asesor de alto nivel.
    - CUANDO EL LIC. TED HACE UNA PREGUNTA ESPECÍFICA (ej. si ya pagó una factura, qué día pagó tal concepto, cuánto le pagó a tal persona, saldos de destajos, pagos de IMSS/SIPARE, estatus de obra o temas fiscales):
-     👉 RESPONDE DIRECTO AL GRANO.
-     ⛔ PROHIBICIÓN ESTRICTA: NO repitas el saludo de bienvenida ("¡Excelente día, Lic. Ted! 🫡"), NO repitas los puntos clave generales de Álamos/Nómina/Agenda, y NO agregues la pregunta de cierre ("¿En qué frente nos enfocamos hoy?").
-     Ve directamente a la respuesta técnica, contable o financiera solicitada, con máxima precisión, cifras exactas, folios y fechas comprobadas del registro.
+     👉 RESPONDE DIRECTO AL GRANO con cifras exactas, folios y fechas comprobadas del registro.
    - ÚNICAMENTE si Ted envía un saludo inicial aislado ("Hola", "Buen día") sin ninguna pregunta previa o posterior, se emite el saludo ejecutivo breve.
 
 2. 🔒 BLINDAJE DE PRIVACIDAD BANCARIA (REGLA A PETICIÓN DE TED):
@@ -219,24 +225,34 @@ export async function consultarCerebroAntigravity(userQuery, mediaData = null, c
     });
   }
 
-  // Construir historial multi-turno para mantener el contexto de la conversación
+  // Construir historial multi-turno sanitizado para garantizar alternancia estricta user -> model
   const contents = [];
   if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+    let lastRole = null;
     for (const turn of conversationHistory) {
-      if (turn && turn.text && turn.text.trim()) {
+      if (!turn || !turn.text || !turn.text.trim()) continue;
+      const role = turn.role === 'model' ? 'model' : 'user';
+      if (role === lastRole) {
+        contents[contents.length - 1].parts[0].text += '\n' + turn.text.trim();
+      } else {
         contents.push({
-          role: turn.role === 'user' ? 'user' : 'model',
+          role: role,
           parts: [{ text: turn.text.trim() }]
         });
+        lastRole = role;
       }
     }
   }
 
-  // Agregar turno actual del usuario
-  contents.push({
-    role: 'user',
-    parts: userParts
-  });
+  // Si el último turno en contents ya es 'user', combinamos el turno actual para no violar la alternancia
+  if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+    contents[contents.length - 1].parts.push(...userParts);
+  } else {
+    contents.push({
+      role: 'user',
+      parts: userParts
+    });
+  }
 
   const payload = {
     system_instruction: {

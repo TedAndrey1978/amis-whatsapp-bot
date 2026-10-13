@@ -101,12 +101,6 @@ export async function generateConversationalReply(userText, authUser, mediaData 
     const formalName = isTed ? 'Lic. Ted' : (isMariano ? 'Lic. Mariano' : (authUser?.name || 'Licenciado'));
 
     if (isGreeting && !hasRecentGreeting) {
-      if (sessionState) {
-        sessionState.lastGreetingTime = now;
-        if (!sessionState.history) sessionState.history = [];
-        sessionState.history.push({ role: 'user', text });
-      }
-
       let greetingReply = '';
       if (isTed) {
         greetingReply = (
@@ -126,6 +120,14 @@ export async function generateConversationalReply(userText, authUser, mediaData 
           `¿En qué frente o coordinación de obra te apoyo hoy?`
         );
       }
+
+      if (sessionState) {
+        sessionState.lastGreetingTime = now;
+        if (!sessionState.history) sessionState.history = [];
+        sessionState.history.push({ role: 'user', text });
+        sessionState.history.push({ role: 'model', text: greetingReply });
+      }
+
       return greetingReply;
     }
 

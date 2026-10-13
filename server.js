@@ -487,10 +487,13 @@ async function startWhatsAppBot() {
 
         const lowerBody = body.toLowerCase();
         const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
-        if (!userSessions[remoteJid]) {
-          userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now(), lastGreetingTime: 0, history: [] };
+        const sessionKey = authUser ? (authUser.phone || senderNumber) : senderNumber;
+        if (!userSessions[sessionKey]) {
+          userSessions[sessionKey] = { state: 'IDLE', updatedAt: Date.now(), lastGreetingTime: 0, history: [] };
         }
-        const userState = userSessions[remoteJid];
+        // Vinculación por referencia: comparte historial y estado entre LID y Teléfono
+        userSessions[remoteJid] = userSessions[sessionKey];
+        const userState = userSessions[sessionKey];
         if (!userState.history) userState.history = [];
 
         if (isReset) {
