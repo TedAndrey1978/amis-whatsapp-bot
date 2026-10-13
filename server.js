@@ -203,6 +203,21 @@ function getAuthorizedUser(rawNumber, config) {
 function buildMainMenu(authUser, config) {
   const name = authUser ? authUser.name : 'Colaborador';
   const role = authUser ? authUser.role : '';
+
+  if (role === 'GERENTE_ADMINISTRATIVO') {
+    return (
+      `🏛️ *TORRE DE CONTROL · LIC. TED ANDREY DOMÍNGUEZ*\n\n` +
+      `¡Excelente día, Lic. Ted! 🫡 ¿En qué frente estratégico nos enfocamos hoy?\n\n` +
+      `1️⃣ 🏗️ *Álamos del Río (Navolato)* · Obra gris SIMA, pre-armados y Día "D"\n` +
+      `2️⃣ 🏘️ *Sierra Bonita (Parral)* · Planos, prototipo, muros 12 cm y volumetrías\n` +
+      `3️⃣ 💼 *AMIS Contabilidad y Finanzas* · Dispersión 3 vías, proveedores y bancos\n` +
+      `4️⃣ ⚖️ *TADR Contabilidad y Finanzas* · Régimen personal, retenciones e impuestos\n` +
+      `5️⃣ 🧾 *Subir Recibo o Factura de Gasto* · Carga directa para auditoría contable\n` +
+      `6️⃣ 👷‍♂️ *Personal y Nómina en Obra* · Asistencias, incidencias y tabuladores\n\n` +
+      `💬 _Escribe el número (1️⃣ al 6️⃣), escribe tu consulta directamente o envía un audio._`
+    );
+  }
+
   let menu = config.menu_title.replace('{name}', name) + '\n\n';
   
   const userOptions = (config.options || []).filter(opt => {
@@ -514,7 +529,10 @@ async function startWhatsAppBot() {
 
         if (userState.state === 'IDLE') {
           // 1. Detección Inteligente de Comprobantes/Facturas en IDLE
-          const isExpenseIntent = hasMedia || /^(subir|adjunt|mando|envi|va|tengo|subo)\s*(la|una|las)?\s*(factura|comprobante|ticket|nota|gasto)/i.test(lowerBody);
+          const isExpenseIntent = hasMedia || 
+            /^(subir|adjunt|mando|envi|va|tengo|subo)\s*(la|una|las)?\s*(factura|comprobante|ticket|nota|gasto)/i.test(lowerBody) ||
+            (choiceDigit === '5' && authUser.role === 'GERENTE_ADMINISTRATIVO') ||
+            (choiceDigit === '1' && authUser.role !== 'GERENTE_ADMINISTRATIVO');
           if (isExpenseIntent) {
             if (hasMedia) {
               const currentCount = 1;
@@ -565,43 +583,45 @@ async function startWhatsAppBot() {
             }
           }
 
-          // 2. Selección numérica del menú según opciones autorizadas para su rol
-          const availableOptions = (config.options || []).filter(opt => {
-            if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
-            return opt.allowed_roles.includes(authUser.role);
-          });
-          const selectedOpt = availableOptions.find(o => o.id === choiceDigit || o.id === body);
-          if (selectedOpt) {
-            if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
-              const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
-              await sock.sendMessage(targetJid, { text: deniedMsg });
-              continue;
-            }
+          // 2. Selección numérica del menú según opciones autorizadas para su rol (roles operativos)
+          if (authUser.role !== 'GERENTE_ADMINISTRATIVO') {
+            const availableOptions = (config.options || []).filter(opt => {
+              if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
+              return opt.allowed_roles.includes(authUser.role);
+            });
+            const selectedOpt = availableOptions.find(o => o.id === choiceDigit || o.id === body);
+            if (selectedOpt) {
+              if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
+                const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
+                await sock.sendMessage(targetJid, { text: deniedMsg });
+                continue;
+              }
 
-            if (selectedOpt.code === 'EXPENSE') {
-              userSessions[remoteJid].state = 'EXPENSE';
-              userSessions[remoteJid].expenseCount = 0;
-              userSessions[remoteJid].waitingConcept = false;
+              if (selectedOpt.code === 'EXPENSE') {
+                userSessions[remoteJid].state = 'EXPENSE';
+                userSessions[remoteJid].expenseCount = 0;
+                userSessions[remoteJid].waitingConcept = false;
+                userSessions[remoteJid].updatedAt = Date.now();
+                saveSessions();
+                await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
+                continue;
+              }
+
+              if (selectedOpt.code === 'ATTENDANCE') {
+                userSessions[remoteJid].state = 'ATTENDANCE_MENU';
+                userSessions[remoteJid].updatedAt = Date.now();
+                saveSessions();
+                await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
+                continue;
+              }
+
+              userSessions[remoteJid].state = selectedOpt.code;
+              userSessions[remoteJid].optionId = selectedOpt.id;
               userSessions[remoteJid].updatedAt = Date.now();
               saveSessions();
               await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
               continue;
             }
-
-            if (selectedOpt.code === 'ATTENDANCE') {
-              userSessions[remoteJid].state = 'ATTENDANCE_MENU';
-              userSessions[remoteJid].updatedAt = Date.now();
-              saveSessions();
-              await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
-              continue;
-            }
-
-            userSessions[remoteJid].state = selectedOpt.code;
-            userSessions[remoteJid].optionId = selectedOpt.id;
-            userSessions[remoteJid].updatedAt = Date.now();
-            saveSessions();
-            await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
-            continue;
           }
 
           // 3. Conversación y Asistente Ejecutivo
