@@ -421,8 +421,11 @@ async function startWhatsAppBot() {
     }
   });
 
+  const recentUserMessages = new Map();
+
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (!messages || messages.length === 0) return;
+    if (type && type !== 'notify') return;
 
     for (const msg of messages) {
       try {
@@ -456,6 +459,21 @@ async function startWhatsAppBot() {
         const config = loadConfig();
         const senderNumber = remoteJid.replace(/[^0-9]/g, '');
         const authUser = getAuthorizedUser(senderNumber, config);
+
+        // Anti-Duplicados Estricto (Evita doble respuesta cuando WhatsApp emite por LID y por Phone JID a la vez)
+        const dedupUser = authUser ? (authUser.phone || senderNumber) : senderNumber;
+        const dedupKey = `${dedupUser}:${body.toLowerCase().trim()}`;
+        const now = Date.now();
+        if (recentUserMessages.has(dedupKey) && (now - recentUserMessages.get(dedupKey) < 4000)) {
+          console.log(`[DEDUP] Mensaje repetido ignorado para ${dedupUser} ("${body}") dentro de 4s.`);
+          continue;
+        }
+        recentUserMessages.set(dedupKey, now);
+        if (recentUserMessages.size > 2000) {
+          for (const [k, t] of recentUserMessages.entries()) {
+            if (now - t > 30000) recentUserMessages.delete(k);
+          }
+        }
 
         // Siempre responder exactamente al JID de donde provino el mensaje para que aparezca en el chat del usuario
         const targetJid = remoteJid;
@@ -544,8 +562,12 @@ async function startWhatsAppBot() {
             }
           }
 
-          // 2. Selección numérica del menú
-          const selectedOpt = config.options.find(o => o.id === choiceDigit || o.id === body);
+          // 2. Selección numérica del menú según opciones autorizadas para su rol
+          const availableOptions = (config.options || []).filter(opt => {
+            if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
+            return opt.allowed_roles.includes(authUser.role);
+          });
+          const selectedOpt = availableOptions.find(o => o.id === choiceDigit || o.id === body);
           if (selectedOpt) {
             if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
               const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
@@ -677,6 +699,25 @@ async function startWhatsAppBot() {
             `👉 _Escribe *menu* para volver al menú principal._`;
 
           await sock.sendMessage(targetJid, { text: manualAck });
+          continue;
+        }
+
+        // Módulo de Consultas Técnicas: Proyecto Franco / Parral (Ing. Samuel)
+        if (userState.state === 'CONSULTA_FRANCO') {
+          if (['menu', 'menú', 'cancelar', 'salir', 'inicio'].includes(lowerBody)) {
+            userSessions[remoteJid].state = 'IDLE';
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+            const menuText = buildMainMenu(authUser, config);
+            await sock.sendMessage(targetJid, { text: menuText });
+            continue;
+          }
+
+          console.log(`[FRANCO] Consulta técnica de ${authUser.name}: "${body}"`);
+          const replyFranco = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
+          userSessions[remoteJid].updatedAt = Date.now();
+          saveSessions();
+          await sock.sendMessage(targetJid, { text: replyFranco });
           continue;
         }
 

@@ -288,3 +288,121 @@ export async function consultarCerebroAntigravity(userQuery, mediaData = null, c
 
   return `⚠️ *Cerebro Antigravity:* Hubo una demora de conexión con los servidores de IA. Por favor reenvía tu consulta en un momento.`;
 }
+
+// =====================================================================
+// 🏘️ MÓDULO EXCLUSIVO: PROYECTO FRANCO / PARRAL (CHIHUAHUA)
+// Para atención directa y consultas del Ing. Samuel Domínguez Rosas
+// =====================================================================
+
+const SYSTEM_PROMPT_FRANCO = `
+Eres el Asistente Técnico de Ingeniería, Planos y Moldes SIMA de AMIS CONSTRUCTORA, asignado exclusivamente al PROYECTO FRANCO / PARRAL (Hidalgo del Parral, Chihuahua).
+Te estás comunicando vía WhatsApp directamente con el Ing. Samuel Domínguez Rosas (Director General y Director Técnico de AMIS).
+
+Tus directivas y reglas estrictas de respuesta:
+1. TRATO Y TONO:
+   - Trato muy respetuoso, formal, de ingeniería de obra civil ("Estimado Ing. Samuel", "Ingeniero", "A sus órdenes").
+   - Respuestas claras, directas, precisas y fundamentadas en planos, procedimientos de concreto monolítico y moldes SIMA.
+
+2. REGLA DE MENSAJE ÚNICO Y SIN BORRADORES:
+   - Emite SIEMPRE UN SOLO MENSAJE por respuesta.
+   - Jamás incluyas razonamientos intermedios, notas de pensamiento ("Drafting the response..."), ni fragmentos de depuración.
+
+3. ALCANCE TÉCNICO EXCLUSIVO (PROYECTO FRANCO / PARRAL):
+   - Prototipo Sierra Bonita (muros ajustados a 12 cm de espesor de concreto monolítico, lote tipo 14.04 m x 15.00 m).
+   - Sistema de moldes monolíticos SIMA, tiempos de rotación en ciclo diario de 24 horas.
+   - Volumetrías y cubicaciones de concreto premezclado y acero/mallas en Parral.
+   - Catálogo de conceptos, APUs de obra y rendimientos de cuadrillas locales de Parral.
+   - Suministros del cliente (concreto, acero, tuberías ahogadas) vs alcance de AMIS (mano de obra calificada, moldes SIMA, equipo de bombeo y vibrado).
+   - Centro de Costos AMIS: PRY-02-FRANCO.
+
+4. 🛡️ AISLAMIENTO ESTRICTO Y BLOQUEO PERIMETRAL (PROHIBICIÓN TOTAL):
+   - Si el Ing. Samuel consulta sobre Álamos del Río / Proyecto Lope, contratos de M2 Coseinver, anticipo de $9.23 MDP, saldos bancarios de AMIS en BanBajío, esquemas de dispersión con Roblock/Darnelix, utilidades, compensaciones a socios o contabilidad privada del Lic. Ted Andrey:
+     Debes responder con total amabilidad y respeto la respuesta estándar de bloqueo perimetral:
+     "Estimado Ing. Samuel: Mi alcance operativo en este canal de asistencia virtual está configurado exclusivamente para la coordinación técnica, ingeniería, planos y costos del *Proyecto Franco / Parral (Chihuahua)*. Para asuntos relativos a la tesorería corporativa general de AMIS, Álamos del Río o acuerdos administrativos, le solicito coordinarse directamente con la Gerencia Administrativa (Lic. Ted Andrey Domínguez)."
+
+5. PRECISIÓN DE FORMATO (es-MX):
+   - Notación mexicana: $#,##0.00 MXN. Muros en cm (12 cm), áreas en m², volúmenes en m³.
+`;
+
+export async function consultarCerebroProyectoFranco(userQuery, mediaData = null) {
+  let masterFrancoContext = `
+PROYECTO FRANCO / PARRAL (Hidalgo del Parral, Chihuahua)
+- Prototipo: Sierra Bonita
+- Espesor de muros monolíticos: 12 cm de concreto hidráulico
+- Dimensiones de lote tipo: 14.04 m de frente por 15.00 m de fondo
+- Sistema constructivo: Moldes monolíticos SIMA, ciclo de rotación 24 horas
+- Centro de costos AMIS: PRY-02-FRANCO
+- Planos técnicos: PLANTA07-10-26-Model Molde Parral.pdf
+- Estado: Presupuesto y revisión técnica de moldes. Aislamiento total de Álamos del Río.
+`;
+
+  const userParts = [];
+  if (mediaData && mediaData.data && (mediaData.mimetype.includes('audio') || mediaData.mimetype.includes('ogg'))) {
+    userParts.push({
+      inline_data: {
+        mime_type: mediaData.mimetype.includes('ogg') ? 'audio/ogg' : mediaData.mimetype,
+        data: mediaData.data
+      }
+    });
+    userParts.push({
+      text: userQuery ? `El Ing. Samuel Domínguez envió una nota de voz con el texto: "${userQuery}". Escuche la nota de voz y responda con precisión técnica de ingeniería.` : `El Ing. Samuel Domínguez envió esta nota de voz. Escuche atentamente y responda con precisión técnica sobre Proyecto Franco (Parral).`
+    });
+  } else {
+    userParts.push({
+      text: `Consulta técnica del Ing. Samuel Domínguez Rosas:\n"${userQuery}"`
+    });
+  }
+
+  const payload = {
+    system_instruction: {
+      parts: [
+        { text: `${SYSTEM_PROMPT_FRANCO}\n\nCONTEXTO TÉCNICO PROYECTO FRANCO (PARRAL):\n${masterFrancoContext}` }
+      ]
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: userParts
+      }
+    ],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 2048
+    }
+  };
+
+  const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const model of FALLBACK_MODELS) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          await wait(1000);
+          continue;
+        }
+
+        const data = await response.json();
+        const rawAnswer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawAnswer && rawAnswer.trim().length > 0) {
+          const finalAnswer = cleanOutput(rawAnswer);
+          if (finalAnswer.length > 0) {
+            return finalAnswer;
+          }
+        }
+      } catch (err) {
+        await wait(1000);
+      }
+    }
+    await wait(2000);
+  }
+
+  return `📐 *Proyecto Franco (Parral):* En este momento los servidores de IA presentan una demora de conexión. Por favor reenvíe su consulta técnica en un momento.`;
+}
+

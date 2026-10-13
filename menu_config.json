@@ -46,7 +46,7 @@
   ],
   "public_greeting": "👋 *Bienvenido a AMIS Constructora, S.A. de C.V.*\n\nGracias por comunicarte con nuestra línea oficial. ¿En qué podemos ayudarte el día de hoy?\n\n_Por favor déjanos tu nombre, empresa o el motivo de tu mensaje y un miembro de nuestro equipo te responderá a la brevedad._",
   "menu_title": "🏗️ *AMIS CONSTRUCTORA · Portal de Operaciones*\n\nHola {name}, selecciona una opción respondiendo con el número:",
-  "menu_footer": "\n👉 _Responde con el número (1️⃣, 2️⃣ o 3️⃣), o escribe *menu* en cualquier momento._",
+  "menu_footer": "\n👉 _Responde con el número de su opción disponible, o escribe *menu* en cualquier momento._",
   "options": [
     {
       "id": "1",
@@ -64,9 +64,19 @@
       "title": "📦 Solicitar Materiales o Herramienta",
       "folder": "MATERIALES",
       "prefix": "MAT",
-      "allowed_roles": ["GERENTE_ADMINISTRATIVO", "GERENTE_PROYECTO", "GERENTE_PRODUCCION", "DIRECTOR_GENERAL", "ENCARGADO_PREARMADOS", "ENCARGADO_MANTENIMIENTO_OBRA"],
+      "allowed_roles": ["GERENTE_ADMINISTRATIVO", "GERENTE_PROYECTO", "GERENTE_PRODUCCION", "ENCARGADO_PREARMADOS", "ENCARGADO_MANTENIMIENTO_OBRA"],
       "prompt": "📦 *Requisición de Materiales y Herramienta*\n\nPor favor escribe qué insumos requieres, la cantidad y para qué obra/torre es (ejemplo: _'20 bultos de cemento y 10 varillas 3/8 para Álamos Torre 3'_).",
       "success_message": "✅ *Requisición Registrada con Éxito*\n\n📋 *Folio:* `#{folio}`\n👤 *Solicitante:* {sender}\n📝 *Detalle:* {details}\n📩 _Tu solicitud ha sido enviada a Dirección para revisión y autorización._\n\n_Escribe *menu* para realizar otra operación._"
+    },
+    {
+      "id": "2",
+      "code": "CONSULTA_FRANCO",
+      "title": "🏘️ Consultar Proyecto Franco / Parral (Planos, Volumetrías y SIMA)",
+      "folder": "CONSULTAS",
+      "prefix": "FRANCO",
+      "allowed_roles": ["DIRECTOR_GENERAL"],
+      "prompt": "🏘️ *CONSULTA TÉCNICA · PROYECTO FRANCO (PARRAL)*\n\nEstimado Ing. Samuel:\nEscriba su consulta sobre volumetrías, planos (prototipo Sierra Bonita), espesores de muro (12 cm), moldes SIMA (rotación 24h) o especificaciones de Parral.\n\n_Escriba su pregunta directamente o escriba *menu* para volver._",
+      "success_message": "✅ *Consulta Registrada*\n\n_Escribe *menu* para realizar otra operación._"
     },
     {
       "id": "3",

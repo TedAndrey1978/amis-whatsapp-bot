@@ -1,7 +1,7 @@
 // asistente_conversacional.js
 // Asistente Virtual Operativo AMIS CONSTRUCTORA · Con Módulo Ejecutivo Antigravity
 
-import { consultarCerebroAntigravity } from './cerebro_antigravity_gemini.js';
+import { consultarCerebroAntigravity, consultarCerebroProyectoFranco } from './cerebro_antigravity_gemini.js';
 
 const KNOWLEDGE_BASE = {
   fiscal: {
@@ -55,11 +55,8 @@ const FORBIDDEN_PATTERNS = [
 function isPureGreeting(text) {
   const trimmed = (text || '').trim();
   const lower = trimmed.toLowerCase();
-
-  // Si contiene signos de interrogación, no es saludo puro
   if (/[?¿]/.test(lower)) return false;
 
-  // Palabras clave de consulta que indican una pregunta o instrucción
   const queryKeywords = [
     'pague', 'pagué', 'pagamos', 'pago', 'pagar', 'factura', 'cuanto', 'cuánto',
     'que', 'qué', 'cuando', 'cuándo', 'quien', 'quién', 'como', 'cómo',
@@ -69,7 +66,7 @@ function isPureGreeting(text) {
   ];
   if (queryKeywords.some(k => lower.includes(k))) return false;
 
-  const pureGreetingRegex = /^(hola|hols|holi|holas|buen\s*d[ií]a|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|hey|qu[eé]\s*onda|buenas)(\s+(buenas|tardes|d[ií]as|noches|amigo|lic|licenciado|mariano|ted))?$/i;
+  const pureGreetingRegex = /^(hola|hols|holi|holas|buen\s*d[ií]a|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|qu[eé]\s*hay|saludos|hey|qu[eé]\s*onda|buenas)(\s+(buenas|tardes|d[ií]as|noches|amigo|lic|licenciado|mariano|ted|samuel))?$/i;
   return pureGreetingRegex.test(lower) || (trimmed.length <= 30 && /^(hola|buen\s*d[ií]a|buenos\s*d[ií]as|buenas\s*tardes|buenas\s*noches|saludos|hey)/i.test(lower));
 }
 
@@ -78,7 +75,7 @@ export async function generateConversationalReply(userText, authUser, mediaData 
   const lower = text.toLowerCase();
 
   // -------------------------------------------------------------
-  // 👑 REGLA DE ACCESO PARA DIRECTIVOS Y SOCIOS (TED Y MARIANO)
+  // 👑 REGLA DE ACCESO TOTAL Y EXCLUSIVO PARA EL LIC. TED ANDREY
   // -------------------------------------------------------------
   const isTed = authUser && (
     (authUser.name && authUser.name.toLowerCase().includes('ted')) ||
@@ -100,10 +97,9 @@ export async function generateConversationalReply(userText, authUser, mediaData 
     const isGreeting = isPureGreeting(text);
     const now = Date.now();
     const lastGreeting = sessionState?.lastGreetingTime || 0;
-    const hasRecentGreeting = (now - lastGreeting) < (3 * 3600 * 1000); // 3 horas
+    const hasRecentGreeting = (now - lastGreeting) < (3 * 3600 * 1000);
     const formalName = isTed ? 'Lic. Ted' : (isMariano ? 'Lic. Mariano' : (authUser?.name || 'Licenciado'));
 
-    // Caso 1: Saludo inicial puro (sin preguntas) y no se ha saludado recientemente
     if (isGreeting && !hasRecentGreeting) {
       if (sessionState) {
         sessionState.lastGreetingTime = now;
@@ -118,34 +114,24 @@ export async function generateConversationalReply(userText, authUser, mediaData 
           `Resumen ejecutivo al momento:\n` +
           `• 🏗️ *Álamos del Río:* Habilitado y pre-armados en patio; en espera de la condición suspensiva del Día "D" para colado monolítico.\n` +
           `• 🟢 *Personal AMIS:* Cuadrillas activas al 100% en habilitado de acero.\n` +
-          `• 📅 *Agenda Fiscal e IMSS:* Cuotas IMSS/SIPARE y pagos SAT en tiempo (fecha límite 17 de octubre).\n\n` +
-          `¿En qué frente o consulta técnica/fiscal nos enfocamos hoy, Licenciado?`
+          `• ⚖️ *Control Fiscal:* Blindaje tributario al día.\n\n` +
+          `¿En qué tema estratégico requieres apoyo o información hoy?`
         );
       } else {
         greetingReply = (
           `¡Excelente día, Lic. Mariano! 🫡\n\n` +
-          `Resumen operativo de proyectos:\n` +
-          `• 🏗️ *Álamos del Río:* Cuadrillas en patio avanzando en habilitado de acero y pre-armados (esperando liberación del Día "D").\n` +
-          `• 📋 *Gestión de Obra:* Recepción de requisiciones, seguimiento a moldes SIMA (rotación 24 hrs) y contratos.\n\n` +
-          `¿En qué frente de proyecto o coordinación nos enfocamos hoy, Licenciado?`
+          `Resumen operativo al momento:\n` +
+          `• 🏗️ *Álamos del Río:* Cuadrillas en patio avanzando en armado de acero y preparación de moldes SIMA.\n` +
+          `• 📋 *Requisiciones:* Insumos y destajos en flujo normal con visto bueno administrativo.\n\n` +
+          `¿En qué frente o coordinación de obra te apoyo hoy?`
         );
       }
-
-      if (sessionState) {
-        sessionState.history.push({ role: 'model', text: greetingReply });
-      }
-
       return greetingReply;
     }
 
-    // Caso 2: Saludo repetido pero reciente
-    if (isGreeting && hasRecentGreeting) {
-      return `¡A la orden, ${formalName}! 🫡 ¿En qué consulta, pago o frente nos enfocamos?`;
-    }
-
-    // Si es Mariano y pregunta por temas financieros restringidos
-    if (!isTed) {
-      for (const pattern of FORBIDDEN_PATTERNS) {
+    if (isMariano) {
+      const blockedTopicsMariano = [/saldo/i, /cuenta\s*bancaria/i, /baj[ií]o/i, /darnelix/i, /roblock/i, /utilidad/i, /ganancia/i, /reparto/i];
+      for (const pattern of blockedTopicsMariano) {
         if (pattern.test(lower)) {
           return (
             `🛡️ *Información Restringida / Control Administrativo*\n\n` +
@@ -155,7 +141,6 @@ export async function generateConversationalReply(userText, authUser, mediaData 
       }
     }
 
-    // Caso 3: Consulta específica, pregunta operativa o seguimiento continuo
     const history = sessionState?.history || [];
     const reply = await consultarCerebroAntigravity(text, mediaData, history, authUser);
 
@@ -169,6 +154,124 @@ export async function generateConversationalReply(userText, authUser, mediaData 
     }
 
     return reply;
+  }
+
+  // -------------------------------------------------------------
+  // 🏛️ PERFIL EXCLUSIVO: ING. SAMUEL DOMÍNGUEZ (DIRECTOR GENERAL)
+  // Permitido: 1. Gastos | 2. Consultas Proyecto Franco | 3. RFC
+  // PROHIBICIÓN: Solicitar materiales por bot, Álamos y Tesorería
+  // -------------------------------------------------------------
+  const isSamuel = authUser && (
+    (authUser.role === 'DIRECTOR_GENERAL') ||
+    (authUser.name && authUser.name.toLowerCase().includes('samuel')) ||
+    ['6672230733'].some(p => 
+      (authUser.phone && authUser.phone.includes(p)) || 
+      (authUser.lid && authUser.lid.includes(p))
+    )
+  );
+
+  if (isSamuel) {
+    // A. Solicitud de RFC o Datos Fiscales
+    if (lower.includes('rfc') || lower.includes('factura') || lower.includes('razon social') || lower.includes('razón social') || lower.includes('datos fiscales') || lower.includes('cfdi')) {
+      return (
+        `🏛️ *DATOS FISCALES PARA FACTURACIÓN · AMIS CONSTRUCTORA*\n\n` +
+        `• *Razón Social:* ${KNOWLEDGE_BASE.fiscal.razon_social}\n` +
+        `• *RFC:* \`${KNOWLEDGE_BASE.fiscal.rfc}\`\n` +
+        `• *Régimen Fiscal:* ${KNOWLEDGE_BASE.fiscal.regimen}\n` +
+        `• *Uso de CFDI:* ${KNOWLEDGE_BASE.fiscal.uso_cfdi}\n` +
+        `• *Código Postal:* Culiacán, Sin.\n\n` +
+        `_Escriba *menu* para ver las opciones disponibles._`
+      );
+    }
+
+    // B. Prohibición estricta de solicitar materiales por el bot
+    if (lower.includes('material') || lower.includes('herramienta') || lower.includes('requisicion') || lower.includes('requisición') || lower.includes('pedir') || lower.includes('solicitar') || lower.includes('cemento') || lower.includes('varilla') || lower.includes('bulto') || lower.includes('insumo') || lower.includes('equipo')) {
+      return (
+        `📦 *Requisiciones de Materiales y Herramienta en Obra*\n\n` +
+        `Estimado Ing. Samuel:\n` +
+        `El levantamiento y solicitud de insumos, materiales y herramienta de campo se coordina directamente a través del Encargado de Pre-Armados (Ing. Emilio Peñuelas) y Mantenimiento de Obra (Bladimir Beltrán), con visto bueno de Gerencia Administrativa (Lic. Ted Andrey).\n\n` +
+        `👤 _Para cualquier consulta técnica sobre especificaciones de insumos o cubicaciones de Proyecto Franco (Parral), con gusto puedo orientarle._`
+      );
+    }
+
+    // C. Saludo Simple o Bienvenida: UN SOLO MENSAJE LIMPIO
+    const isGreeting = ['hola', 'buen dia', 'buen día', 'buenos dias', 'buenos días', 'buenas tardes', 'buenas noches', 'saludos', 'que tal', 'qué tal'].some(g => lower.startsWith(g) || lower === g);
+    if (isGreeting || lower === '') {
+      return (
+        `🤖 *Asistente Virtual AMIS · Dirección General*\n\n` +
+        `Hola Ing. Samuel. Gusto en saludarle.\n\n` +
+        `¿En qué puedo orientarle hoy?\n` +
+        `1️⃣ *Subir ticket o factura de gasto*\n` +
+        `2️⃣ *Consultar Proyecto Franco / Parral* (Planos, prototipo Sierra Bonita, volumetrías y moldes SIMA)\n` +
+        `🏛️ *Consultar RFC y datos fiscales:* escriba *RFC*\n\n` +
+        `👉 _Puede responder con el número (1️⃣ o 2️⃣), escribir su duda técnica sobre Parral o escribir RFC._`
+      );
+    }
+
+    // D. Candado y Bloqueo Perimetral Estricto (Álamos del Río, Tesorería AMIS, Cuentas Personales Ted)
+    const isBlockedTopic = [
+      /alamos/i, /álamos/i, /lope/i, /coseinver/i, /viv-2/i,
+      /saldo/i, /cuenta\s*bancaria/i, /cuentas/i, /banco/i, /baj[ií]o/i,
+      /transferencia/i, /utilidad/i, /ganancia/i, /reparto/i,
+      /darnelix/i, /roblock/i, /comisi[oó]n/i, /honorarios/i
+    ].some(pat => pat.test(lower));
+
+    if (isBlockedTopic) {
+      return (
+        `🛡️ *Alcance Operativo de Consulta*\n\n` +
+        `Estimado Ing. Samuel:\n` +
+        `Mi alcance operativo en este canal de asistencia virtual está configurado exclusivamente para la coordinación técnica, ingeniería, planos y costos del *Proyecto Franco / Parral (Chihuahua)*.\n\n` +
+        `Para asuntos relativos a la tesorería corporativa general de AMIS, Álamos del Río o acuerdos administrativos, le solicito coordinarse directamente con la Gerencia Administrativa (Lic. Ted Andrey Domínguez).`
+      );
+    }
+
+    // E. Consultas Técnicas Directas de Proyecto Franco (Parral)
+    if (lower.includes('muro') || lower.includes('espesor') || lower.includes('sierra bonita') || lower.includes('prototipo')) {
+      return (
+        `📐 *PROYECTO FRANCO (PARRAL) · PROTOTIPO SIERRA BONITA*\n\n` +
+        `Estimado Ing. Samuel:\n` +
+        `• *Espesor de Muros:* Ajustado a **12 cm** de concreto monolítico.\n` +
+        `• *Dimensiones de Lote Tipo:* **14.04 m** de frente por **15.00 m** de fondo.\n` +
+        `• *Sistema Constructivo:* Moldes monolíticos SIMA con ciclo de rotación diario de **24 horas**.\n` +
+        `• *Centro de Costos AMIS:* \`PRY-02-FRANCO\`.\n\n` +
+        `_¿Desea consultar algún detalle sobre cubicaciones o planos?_`
+      );
+    }
+
+    if (lower.includes('lote') || lower.includes('dimension') || lower.includes('dimensión') || lower.includes('medida') || lower.includes('terreno')) {
+      return (
+        `📐 *PROYECTO FRANCO (PARRAL) · DIMENSIONES DE LOTE*\n\n` +
+        `Estimado Ing. Samuel:\n` +
+        `• *Lote Tipo:* **14.04 m de frente x 15.00 m de fondo**.\n` +
+        `• *Prototipo:* Sierra Bonita con muros monolíticos de 12 cm de espesor.\n` +
+        `• *Ubicación:* Hidalgo del Parral, Chihuahua.\n\n` +
+        `_A sus órdenes para cualquier consulta adicional._`
+      );
+    }
+
+    if (lower.includes('suministro') || lower.includes('alcance')) {
+      return (
+        `📋 *MATRIZ DE SUMINISTROS Y ALCANCES · PROYECTO FRANCO*\n\n` +
+        `Estimado Ing. Samuel:\n` +
+        `• *Suministros del Desarrollador (Franco):* Concreto premezclado, acero de refuerzo, malla electrosoldada y tuberías ahogadas en muros.\n` +
+        `• *Alcance de AMIS / SIMA:* Mano de obra calificada (habilitado, armado, encofrado, colado, desencofrado), equipo de vibrado/bombeo y tecnología de moldes monolíticos SIMA.\n\n` +
+        `_Escriba su consulta técnica o *menu* para volver._`
+      );
+    }
+
+    if (lower.includes('sima') || lower.includes('molde') || lower.includes('rotacion') || lower.includes('rotación') || lower.includes('ciclo') || lower.includes('colado')) {
+      return (
+        `🏗️ *SISTEMA SIMA · PROYECTO FRANCO (PARRAL)*\n\n` +
+        `Estimado Ing. Samuel:\n` +
+        `• *Tecnología:* Moldes monolíticos SIMA para colado simultáneo de muros y losa.\n` +
+        `• *Ciclo de Rotación:* **24 horas** (desencofrado matutino, armado a mediodía, encofrado vespertino y colado).\n` +
+        `• *Espesor de Muros:* 12 cm en Prototipo Sierra Bonita.\n\n` +
+        `_A sus órdenes para cualquier otra consulta técnica._`
+      );
+    }
+
+    // F. Consultas Libres Adicionales a través del Cerebro de Proyecto Franco
+    return await consultarCerebroProyectoFranco(text, mediaData);
   }
 
   // -------------------------------------------------------------

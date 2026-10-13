@@ -82,6 +82,14 @@
     "proyecto_franco_parral": {
       "plaza": "Hidalgo del Parral, Chihuahua",
       "alcance": "Edificación de vivienda con moldes SIMA de concreto monolítico.",
+      "prototipo": "Sierra Bonita",
+      "espesor_muros": "12 cm de concreto monolítico",
+      "dimensiones_lote_tipo": "14.04 m de frente por 15.00 m de fondo",
+      "moldes": "Moldes monolíticos SIMA con rotación diaria de 24 horas",
+      "centro_costos_amis": "PRY-02-FRANCO",
+      "suministros_desarrollador": "Concreto premezclado, acero de refuerzo, tuberías ahogadas",
+      "alcance_amis": "Mano de obra especializada, habilitado, armado, encofrado, colado, desencofrado y moldes SIMA",
+      "acceso_autorizado": "Ing. Samuel Domínguez Rosas (Director General y Técnico) autorizado para planos, prototipo Sierra Bonita, cubicaciones y costos de Parral.",
       "blindaje": "100% independiente y aislado de Álamos del Río. Presupuestos, cubicaciones, mano de obra e insumos completamente estancos (cero contaminación cruzada)."
     }
   },
