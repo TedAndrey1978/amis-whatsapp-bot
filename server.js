@@ -538,17 +538,41 @@ async function startWhatsAppBot() {
             console.log(`[COACH GROUP] Mensaje en grupo personal: "${body}"`);
             const lowerBody = body.toLowerCase().trim();
 
-            // 1. Si pide carrera, métricas, ayer, pulso, ritmo, etc.
-            if (/carrera|running|entren|ayer|km|ritmo|pulso|garmin|m[eé]tricas|reporte|reloj/i.test(lowerBody) || lowerBody === '1') {
-              const reply = `🏃‍♂️ *Tu Coach IA de Running (Garmin Fēnix 5X + HRM-Pro)*\n\n` +
-                `📅 *Última Sesión Registrada:* Culiacán - Sesión JR Tranqu\n` +
-                `📏 *Distancia:* 3.64 km\n` +
-                `⏱️ *Ritmo Promedio:* 6:53 min/km | ⏱️ *Tiempo:* 25:06 min\n` +
-                `❤️ *FC Promedio:* 151 ppm | 🔴 *FC Máxima:* 169 ppm\n` +
-                `👟 *Cadencia:* 153 spm | 🏆 *Training Effect:* 3.0 Aeróbico (Umbral)\n\n` +
-                `💡 *Dictamen del Coach:*\n` +
-                `Completaste una sólida base aeróbica. Para tu siguiente sesión, busca aumentar gradualmente la cadencia hacia los 160-165 spm acortando levemente la zancada para proteger articulaciones. ¡Excelente trabajo y a seguir sumando!`;
-              await sock.sendMessage(targetJid, { text: reply });
+            // 1. Si pide carrera, análisis, métricas, ayer, pulso, ritmo, etc.
+            if (/analisis|análisis|carrera|running|entren|ayer|sesi[oó]n|rutina|km|ritmo|pulso|garmin|m[eé]tricas|reporte|reloj|consejo/i.test(lowerBody) || lowerBody === '1') {
+              const fullReport = `🏃‍♂️ *DICTAMEN DEL COACH IA: RUNNING & FISIOLOGÍA DEPORTIVA*\n` +
+                `👤 *Atleta:* Lic. Ted Andrey Domínguez | *Dispositivo:* Garmin Fēnix 5X + HRM-Pro Plus\n` +
+                `📍 *Ubicación:* Culiacán, Sin. (30.7 °C) | 📅 *Sesión:* Martes 20 Oct (19:52 hrs)\n` +
+                `🏷️ *Actividad:* _Culiacán - Sesion JR Tranqu_\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `📊 *1. TELEMETRÍA DE LA SESIÓN*\n` +
+                `• *Distancia Principal:* 3.64 km (Total acumulado con enfriamiento: 6.26 km)\n` +
+                `• *Tiempo Activo:* 24m 56s\n` +
+                `• *Ritmo Medio:* 6:53 min/km (Pico en series: 5:08 min/km)\n` +
+                `• *Frecuencia Cardíaca Media:* 151 ppm (~78% FC Máx - Zona 3 media)\n` +
+                `• *Frecuencia Cardíaca Máxima:* 169 ppm (~88% FC Máx - Zona 4 Umbral)\n` +
+                `• *Cadencia Promedio:* 152.8 spm (Pico: 166 spm)\n` +
+                `• *Longitud de Zancada:* 0.95 m (94.8 cm)\n` +
+                `• *Training Effect:* 🏆 *3.0 Aeróbico* (Mejora sustancial en Umbral de Lactato)\n` +
+                `• *Gasto Calórico:* 298 kcal\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `🔬 *2. ANÁLISIS BIOMECÁNICO Y EFICIENCIA*\n` +
+                `• *Cadencia (153 spm):* Tu frecuencia de paso fue algo pausada para el ritmo de 6:53 min/km. Al pasar más milisegundos en contacto con el suelo, el impacto se absorbe en articulaciones (rodillas/lumbares) en vez de aprovechar el rebote elástico del tendón de Aquiles.\n` +
+                `• *Ajuste Técnico:* No necesitas correr más rápido; la clave es *acortar ligeramente la zancada* (a ~0.88-0.90 m) y subir tu cadencia a *165-170 spm*. Esto reduce el impacto articular entre 15% y 20% y baja tus pulsaciones a la misma velocidad.\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `❤️ *3. FISIOLOGÍA Y FACTOR CLIMA (CULIACÁN)*\n` +
+                `• *Termorregulación a 30.7 °C:* Correr con calor y humedad obliga al corazón a bombear sangre para impulsar los músculos y enfriar la piel por sudoración. Eso explica la deriva cardíaca hasta 169 ppm.\n` +
+                `• *Enfriamiento Impecable:* Cerrar con 2 km a ritmo 7:13 min/km con pulso de 134 ppm (Zona 2 pura) fue un acierto total para barrer el lactato residual y acelerar la regeneración muscular.\n\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `💡 *4. PRESCRIPCIÓN DEL COACH: A CUÁNTO Y CÓMO CORRER*\n` +
+                `1️⃣ *Para Hoy/Mañana:* Tu cuerpo ya completó las 24h de supercompensación del estímulo de umbral (TE 3.0).\n` +
+                `2️⃣ *Ritmo Prescrito:* \n` +
+                `   • *Tirada Base/Regenerativa:* Corre entre *7:10 y 7:30 min/km*.\n` +
+                `   • *Zona Cardíaca Objetivo:* Mantén el pulso en *Zona 2 estricta (125 a 138 ppm)*. Si el calor de Culiacán te sube a más de 142 ppm, reduce el ritmo sin dudar.\n` +
+                `3️⃣ *Herramienta en tu Fēnix 5X:* Activa el *metrónomo sonoro o por vibración a 165 bpm* para coordinar una pisada más ágil y reactiva.\n` +
+                `4️⃣ *Hidratación:* Repón sales minerales (sodio/magnesio) por la alta sudoración.\n\n` +
+                `_¿Quieres profundizar en algún punto o consultar tu próximo entrenamiento?_`;
+              await sock.sendMessage(targetJid, { text: fullReport });
               continue;
             }
 
@@ -579,7 +603,7 @@ async function startWhatsAppBot() {
             if (/^(hola|buen(as|os)?|que tal|q tal|inicio|menu|ayuda|hi|hello)/i.test(lowerBody) || !body) {
               const greetingCoach = `🏃‍♂️ *¡Hola Lic. Ted!* Aquí tu Coach IA de Running y Asistente Personal.\n\n` +
                 `¿Qué deseas revisar hoy?\n` +
-                `1️⃣ *Consultar última carrera en Garmin*\n` +
+                `1️⃣ *Consultar última carrera en Garmin (Análisis completo)*\n` +
                 `2️⃣ *Objetivos de cadencia y zonas cardíacas*\n` +
                 `3️⃣ *Revisar agenda y pendientes personales*\n\n` +
                 `💬 _Escribe directamente el número (1 al 3) o pregúntame lo que gustes._`;
