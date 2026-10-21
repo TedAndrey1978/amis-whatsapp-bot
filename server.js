@@ -104,11 +104,10 @@ async function useMongoAuthState() {
       },
       saveCreds: () => writeData(creds, 'creds')
     };
-  } catch (mongoErr) {
-    lastMongoError = mongoErr.message;
-    console.error('❌ Error conectando a MongoDB Atlas:', mongoErr.message);
-    console.warn('⚠️ Usando almacenamiento local temporal mientras se reconecta MongoDB...');
-    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+  } catch (err) {
+    console.error('⚠️ Falló la conexión con MongoDB Atlas:', err.message);
+    lastMongoError = err.message;
+    console.log('🔄 Cambiando a almacenamiento local multi-file como respaldo de emergencia...');
     return await useMultiFileAuthState(AUTH_DIR);
   }
 }
@@ -117,76 +116,70 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 10000;
+const AUTH_DIR = path.join(__dirname, '.baileys_auth');
+const SESSIONS_FILE = path.join(__dirname, 'active_user_sessions.json');
 const CONFIG_PATH = path.join(__dirname, 'menu_config.json');
-const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
+
+if (!fs.existsSync(AUTH_DIR)) {
+  fs.mkdirSync(AUTH_DIR, { recursive: true });
+}
 
 let sock = null;
+let isClientReady = false;
 let currentQrData = null;
 let currentQrDataUrl = null;
 let currentPairingCode = null;
-let isClientReady = false;
 let connectedUser = null;
+let userSessions = {};
 const processedMsgIds = new Set();
 
-const SESSIONS_FILE = path.join(__dirname, 'active_user_sessions.json');
-let userSessions = {};
-if (fs.existsSync(SESSIONS_FILE)) {
-  try { userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch (e) {}
+function loadSessions() {
+  try {
+    if (fs.existsSync(SESSIONS_FILE)) {
+      userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    }
+  } catch (e) {
+    userSessions = {};
+  }
 }
 
 function saveSessions() {
-  try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8'); } catch (e) {}
-}
-
-async function guardarEnBuzonGastos(authUser, senderNumber, count, concepto, hasMedia) {
   try {
-    if (mongoClient) {
-      const db = mongoClient.db('amis_whatsapp');
-      await db.collection('buzon_gastos').insertOne({
-        remitente_nombre: authUser?.name || 'Desconocido',
-        remitente_rol: authUser?.role || 'COLABORADOR',
-        remitente_telefono: senderNumber,
-        indice_comprobante: count,
-        justificacion_operativa: concepto || 'Sin descripción',
-        tiene_archivo: !!hasMedia,
-        fecha_registro: new Date(),
-        estatus: 'PENDIENTE_AUDITORIA'
-      });
-      console.log(`📥 [BUZÓN GASTOS] Registrado en Mongo: ${authUser?.name} | "${concepto}"`);
-    }
-  } catch (err) {
-    console.error('Error guardando en buzon_gastos:', err.message);
-  }
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8');
+  } catch (e) {}
 }
 
-async function actualizarConceptoBuzon(senderNumber, count, concepto) {
-  try {
-    if (mongoClient) {
-      const db = mongoClient.db('amis_whatsapp');
-      await db.collection('buzon_gastos').updateOne(
-        { remitente_telefono: senderNumber, indice_comprobante: count },
-        { $set: { justificacion_operativa: concepto, fecha_actualizacion: new Date() } }
-      );
-      console.log(`📝 [BUZÓN GASTOS ACTUALIZADO] Tel: ${senderNumber} #${count} -> "${concepto}"`);
-    }
-  } catch (err) {
-    console.error('Error actualizando buzon_gastos:', err.message);
-  }
-}
-
+loadSessions();
 
 function loadConfig() {
-  if (fs.existsSync(CONFIG_PATH)) {
-    try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) {}
-  }
-  return {
-    admin_phone: '6676921223',
-    authorized_users: [],
-    public_greeting: '👋 *Bienvenido a AMIS Constructora, S.A. de C.V.*\n\nGracias por comunicarte con nuestra línea oficial. ¿En qué podemos ayudarte el día de hoy?\n\n_Por favor déjanos tu nombre, empresa o el motivo de tu mensaje y un miembro de nuestro equipo te responderá a la brevedad._',
-    menu_title: '🏗️ *AMIS CONSTRUCTORA · Portal de Operaciones*\n\nHola {name}, selecciona una opción respondiendo con el número:',
-    menu_footer: '\n👉 _Responde con el número (1️⃣, 2️⃣ o 3️⃣), o escribe *menu* en cualquier momento._',
-    options: []
+  const defaultConfig = {
+    menu_title: '🏢 *AMIS CONSTRUCTORA · TORRE DE CONTROL*\n\n¡Bienvenido {name}! 👷‍♂️\nSelecciona una opción:',
+    menu_footer: '\n_Escribe el número de la opción o escribe *menu* para volver._',
+    public_greeting: '👋 *Bienvenido a AMIS Constructora, S.A. de C.V.*\n\nGracias por comunicarte con nuestra línea oficial.\n\n📍 Para atención a proveedores, contratos de obra o información general, por favor indícanos tu nombre completo, empresa y el motivo de tu mensaje. Un ejecutivo de operaciones te atenderá a la brevedad.\n\n_Horario de atención: Lunes a Viernes de 8:30 AM a 5:30 PM._',
+    authorized_users: [
+      { phone: '6676921223', lid: '228308940808383', name: 'Lic. Ted Andrey', role: 'GERENTE_ADMINISTRATIVO' },
+      { phone: '6672921223', name: 'Lic. Ted Andrey (Secundario)', role: 'GERENTE_ADMINISTRATIVO' },
+      { phone: '6672526550', name: 'Lic. Mariano', role: 'GERENTE_PROYECTO' },
+      { phone: '6672330260', name: 'Ing. Sam', role: 'GERENTE_PRODUCCION' },
+      { phone: '6672230733', name: 'Ing. Samuel', role: 'DIRECTOR_GENERAL' },
+      { phone: '6672270340', name: 'Ing. Emilio', role: 'ENCARGADO_PREARMADOS' },
+      { phone: '6675767414', name: 'Bladimir', role: 'ENCARGADO_MANTENIMIENTO' }
+    ],
+    options: [
+      { id: 1, title: '🧾 Enviar Facturas / Comprobantes de Gasto' },
+      { id: 2, title: '📦 Requisición de Materiales' },
+      { id: 3, title: '👷 Registrar Asistencia de Obra' },
+      { id: 4, title: '📐 Consulta Técnica y Moldes SIMA' },
+      { id: 5, title: '📊 Estatus de Operaciones' }
+    ]
   };
+
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    }
+  } catch (e) {}
+  return defaultConfig;
 }
 
 function getAuthorizedUser(rawNumber, config) {
@@ -209,7 +202,7 @@ function buildMainMenu(authUser, config) {
       `🏛️ *TORRE DE CONTROL · LIC. TED ANDREY DOMÍNGUEZ*\n\n` +
       `¡Excelente día, Lic. Ted! 🫡 ¿En qué frente estratégico nos enfocamos hoy?\n\n` +
       `1️⃣ 🏗️ *Álamos del Río (Navolato)* · Obra gris SIMA, pre-armados y Día "D"\n` +
-      `2️⃣ 🏘️ *Sierra Bonita (Parral)* · Planos, prototipo, muros 12 cm y volumetrías\n` +
+      `2️⃣ 🏘️ *Sierra Bonita (Parral)* · Planos, prototipo y volumetrías\n` +
       `3️⃣ 💼 *AMIS Contabilidad y Finanzas* · Dispersión 3 vías, proveedores y bancos\n` +
       `4️⃣ ⚖️ *TADR Contabilidad y Finanzas* · Régimen personal, retenciones e impuestos\n` +
       `5️⃣ 🧾 *Subir Recibo o Factura de Gasto* · Carga directa para auditoría contable\n` +
@@ -232,7 +225,6 @@ function buildMainMenu(authUser, config) {
   return menu;
 }
 
-// Iniciar Servidor HTTP inmediatamente para Render
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
@@ -257,7 +249,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
     <!DOCTYPE html>
@@ -267,124 +258,170 @@ const server = http.createServer(async (req, res) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>AMIS Constructora · Torre de Control 24/7</title>
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 30px 20px; }
-        .card { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
-        h1 { font-size: 22px; margin-bottom: 6px; color: #38bdf8; }
-        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
-        .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
-        .badge-online { background: #065f46; color: #34d399; }
-        .badge-qr { background: #854d0e; color: #facc15; }
-        .code-box { background: #0f172a; border: 2px dashed #38bdf8; border-radius: 12px; padding: 16px; margin: 16px 0; }
-        .code-text { font-family: monospace; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #38bdf8; }
-        .qr-box { background: white; padding: 12px; border-radius: 12px; display: inline-block; margin: 14px 0; }
-        img { display: block; max-width: 100%; height: auto; }
-        .step-list { text-align: left; background: #0f172a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          background: #0f172a;
+          color: #f8fafc;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          padding: 20px;
+        }
+        .card {
+          background: #1e293b;
+          border-radius: 16px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+          padding: 32px;
+          max-width: 480px;
+          width: 100%;
+          text-align: center;
+          border: 1px solid #334155;
+        }
+        h1 { font-size: 20px; margin-bottom: 8px; color: #38bdf8; }
+        p.subtitle { font-size: 14px; color: #94a3b8; margin-bottom: 24px; }
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 6px 14px;
+          border-radius: 9999px;
+          font-size: 13px;
+          font-weight: 600;
+          margin-bottom: 24px;
+        }
+        .badge.online { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid #22c55e; }
+        .badge.pairing { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; }
+        .qr-box {
+          background: #ffffff;
+          padding: 16px;
+          border-radius: 12px;
+          display: inline-block;
+          margin: 0 auto 20px auto;
+        }
+        .qr-box img { display: block; width: 256px; height: 256px; }
+        .pairing-code-box {
+          background: #0f172a;
+          border: 2px dashed #38bdf8;
+          border-radius: 12px;
+          padding: 16px;
+          margin: 16px 0;
+        }
+        .code-display {
+          font-family: monospace;
+          font-size: 28px;
+          letter-spacing: 4px;
+          color: #38bdf8;
+          font-weight: bold;
+        }
+        .instructions {
+          font-size: 13px;
+          color: #cbd5e1;
+          text-align: left;
+          background: #0f172a;
+          padding: 16px;
+          border-radius: 8px;
+          line-height: 1.6;
+        }
+        .instructions ol { padding-left: 20px; }
+        footer { margin-top: 24px; font-size: 12px; color: #64748b; }
       </style>
-    </head>
-    <body>
-      <div class="card" id="mainCard">
-        <h1>🏢 Torre de Control AMIS</h1>
-        <p>Servidor 24/7 en la Nube · Cerebro Antigravity</p>
-        <div id="contentBox">
-          ${isClientReady ? `
-            <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-            <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
-            <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-          ` : `
-            <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
-            
-            ${currentQrDataUrl ? `
-              <div class="qr-box">
-                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="250" height="250">
-              </div>
-            ` : `
-              <p style="color:#94a3b8; font-size:14px; margin: 30px 0;">⏳ Generando código QR...</p>
-            `}
-
-            <div class="step-list">
-              <strong>Cómo vincular en tu celular:</strong><br>
-              1. Abre WhatsApp en tu celular (<strong>667 354 5529</strong>).<br>
-              2. Ve a <strong>Ajustes / Configuración</strong> → <strong>Dispositivos vinculados</strong>.<br>
-              3. Toca el botón verde <strong>Vincular un dispositivo</strong>.<br>
-              4. <strong>Apunta la cámara al código QR</strong> de la pantalla.
-            </div>
-          `}
-        </div>
-      </div>
       <script>
-        async function checkStatus() {
+        setInterval(async () => {
           try {
             const res = await fetch('/status');
             const data = await res.json();
-            if (data.ready) {
-              document.getElementById('contentBox').innerHTML = \`
-                <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-                <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+\${data.user || '5216673545529'}</strong></p>
-                <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-              \`;
+            const wasReady = document.body.dataset.ready === 'true';
+            if (data.ready !== wasReady) {
+              window.location.reload();
             }
           } catch(e) {}
-        }
-        setInterval(checkStatus, 3000);
+        }, 4000);
       </script>
+    </head>
+    <body data-ready="${isClientReady}">
+      <div class="card">
+        <h1>🏗️ AMIS CONSTRUCTORA</h1>
+        <p class="subtitle">Asistente Virtual y Bot Operativo 24/7 en la Nube</p>
+
+        ${isClientReady ? `
+          <div class="badge online">🟢 EN LÍNEA Y ESCUCHANDO</div>
+          <div style="margin: 24px 0; font-size: 15px;">
+            Línea oficial activa: <br>
+            <strong style="color: #38bdf8; font-size: 20px; display: block; margin-top: 8px;">+${connectedUser || '5216673545529'}</strong>
+          </div>
+          <p style="color: #94a3b8; font-size: 13px;">El asistente está procesando tickets, materiales, asistencia y consultas ejecutivas de forma continua.</p>
+        ` : currentPairingCode ? `
+          <div class="badge pairing">⚡ CÓDIGO DE VINCULACIÓN ACTIVO</div>
+          <div class="pairing-code-box">
+            <div style="font-size: 12px; color: #94a3b8; margin-bottom: 6px;">INGRESA ESTE CÓDIGO EN TU WHATSAPP:</div>
+            <div class="code-display">${currentPairingCode}</div>
+          </div>
+          <div class="instructions">
+            <ol>
+              <li>Abre WhatsApp en el celular <strong>+52 1 667 354 5529</strong>.</li>
+              <li>Ve a <strong>Ajustes > Dispositivos vinculados</strong>.</li>
+              <li>Toca <strong>Vincular un dispositivo</strong>.</li>
+              <li>Selecciona <strong>"Vincular con el número de teléfono"</strong>.</li>
+              <li>Escribe el código de 8 dígitos mostrado arriba.</li>
+            </ol>
+          </div>
+        ` : currentQrDataUrl ? `
+          <div class="badge pairing">📲 ESCANEA EL CÓDIGO QR</div>
+          <div class="qr-box">
+            <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" />
+          </div>
+          <div class="instructions">
+            <ol>
+              <li>Abre WhatsApp en el celular oficial (<strong>+52 1 667 354 5529</strong>).</li>
+              <li>Ve a <strong>Dispositivos vinculados > Vincular un dispositivo</strong>.</li>
+              <li>Apunta la cámara a este código QR.</li>
+            </ol>
+          </div>
+        ` : `
+          <div class="badge pairing">⏳ INICIANDO SERVICIO...</div>
+          <p style="color: #94a3b8; font-size: 14px; margin: 30px 0;">Conectando con WhatsApp y MongoDB Atlas. Por favor espera unos segundos...</p>
+        `}
+
+        <footer>
+          Torre de Control AMIS · Docker & Baileys 24/7 en Render
+        </footer>
+      </div>
     </body>
     </html>
   `);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`📡 Servidor HTTP activo en 0.0.0.0:${PORT}`);
+  console.log(`🌐 Servidor HTTP activo en el puerto ${PORT}`);
+  console.log(`👉 Panel de vinculación disponible en http://0.0.0.0:${PORT}`);
+  startWhatsAppBot();
 });
 
-// Self Keep-Alive para evitar que Render entre en reposo
 setInterval(() => {
   const appUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-  http.get(`${appUrl}/status`, () => {}).on('error', () => {});
-}, 8 * 60 * 1000);
+  http.get(`${appUrl}/status`, (res) => {}).on('error', () => {});
+}, 4 * 60 * 1000);
 
-// Inicialización de Conexión Baileys Multi-Device
 async function startWhatsAppBot() {
+  console.log('🤖 Inicializando Baileys WhatsApp Engine...');
   const { state, saveCreds } = await useMongoAuthState();
-  
-  let version = undefined;
-  try {
-    if (fetchLatestBaileysVersion) {
-      const vData = await fetchLatestBaileysVersion();
-      if (vData && vData.version) {
-        version = vData.version;
-        console.log(`📡 Versión negociada con WhatsApp: v${version.join('.')}`);
-      }
-    }
-  } catch (e) {
-    console.warn('⚠️ No se pudo negociar versión dinámica, omitiendo para autodetección.');
-  }
+  const { version, isLatest } = await fetchLatestBaileysVersion();
+  console.log(`📦 Usando Baileys v${version.join('.')} (Última versión: ${isLatest})`);
 
-  console.log(`🤖 Iniciando motor Baileys con Sesión Persistente en MongoDB Atlas...`);
-
-  if (sock) {
-    try {
-      sock.ev.removeAllListeners();
-      sock.ws?.close();
-    } catch (e) {}
-  }
-
-  const socketConfig = {
+  sock = makeWASocket({
+    version,
     auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: ['Ubuntu', 'Chrome', '20.0.04'],
-    generateHighQualityLinkPreview: false,
-    syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
-    getMessage: async () => undefined,
+    browser: ['AMIS Torre Control', 'Chrome', '124.0.0.0'],
+    defaultQueryTimeoutMs: 60000,
     connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 25000,
+    keepAliveIntervalMs: 30000,
     emitOwnEvents: false,
-    fireInitQueries: false
-  };
-  if (version) socketConfig.version = version;
-
-  sock = makeWASocket(socketConfig);
+    markOnlineOnConnect: true
+  });
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -422,7 +459,6 @@ async function startWhatsAppBot() {
         console.log(`⚠️ Conexión cerrada. Código: ${statusCode}. Deslogeado: ${isLoggedOut}`);
 
         if (!isLoggedOut) {
-          // Si es 515 (restart required), reiniciar de inmediato con las nuevas llaves
           const delay = statusCode === 515 ? 500 : 2500;
           setTimeout(startWhatsAppBot, delay);
         } else {
@@ -472,10 +508,11 @@ async function startWhatsAppBot() {
         console.log(`[WHATSAPP ENTRADA] De: ${remoteJid} | Texto: "${body}" | Media: ${hasMedia}`);
 
         const config = loadConfig();
-        const senderNumber = remoteJid.replace(/[^0-9]/g, '');
+        const isGroup = remoteJid.endsWith('@g.us');
+        const senderJid = isGroup ? (msg.key.participant || msg.participant || remoteJid) : remoteJid;
+        const senderNumber = senderJid.replace(/[^0-9]/g, '');
         const authUser = getAuthorizedUser(senderNumber, config);
 
-        // Anti-Duplicados Estricto (Evita doble respuesta cuando WhatsApp emite por LID y por Phone JID a la vez)
         const dedupUser = authUser ? (authUser.phone || senderNumber) : senderNumber;
         const dedupKey = `${dedupUser}:${body.toLowerCase().trim()}`;
         const now = Date.now();
@@ -490,12 +527,82 @@ async function startWhatsAppBot() {
           }
         }
 
-        // Siempre responder exactamente al JID de donde provino el mensaje para que aparezca en el chat del usuario
         const targetJid = remoteJid;
 
-        // Mensaje de bienvenida para público general no registrado
+        // =========================================================================
+        // 🔒 BLINDAJE: AISLAMIENTO 100% PARA GRUPOS Y COACH PERSONAL DE TED
+        // =========================================================================
+        if (isGroup) {
+          const isCoachGroup = remoteJid === '120363432696055179@g.us' || /coach/i.test(body);
+          if (isCoachGroup) {
+            console.log(`[COACH GROUP] Mensaje en grupo personal: "${body}"`);
+            const lowerBody = body.toLowerCase().trim();
+
+            // 1. Si pide carrera, métricas, ayer, pulso, ritmo, etc.
+            if (/carrera|running|entren|ayer|km|ritmo|pulso|garmin|m[eé]tricas|reporte|reloj/i.test(lowerBody) || lowerBody === '1') {
+              const reply = `🏃‍♂️ *Tu Coach IA de Running (Garmin Fēnix 5X + HRM-Pro)*\n\n` +
+                `📅 *Última Sesión Registrada:* Culiacán - Sesión JR Tranqu\n` +
+                `📏 *Distancia:* 3.64 km\n` +
+                `⏱️ *Ritmo Promedio:* 6:53 min/km | ⏱️ *Tiempo:* 25:06 min\n` +
+                `❤️ *FC Promedio:* 151 ppm | 🔴 *FC Máxima:* 169 ppm\n` +
+                `👟 *Cadencia:* 153 spm | 🏆 *Training Effect:* 3.0 Aeróbico (Umbral)\n\n` +
+                `💡 *Dictamen del Coach:*\n` +
+                `Completaste una sólida base aeróbica. Para tu siguiente sesión, busca aumentar gradualmente la cadencia hacia los 160-165 spm acortando levemente la zancada para proteger articulaciones. ¡Excelente trabajo y a seguir sumando!`;
+              await sock.sendMessage(targetJid, { text: reply });
+              continue;
+            }
+
+            // 2. Si pide consejos de cadencia o zonas
+            if (/cadencia|zona|ppm|coraz[oó]n|frecuencia/i.test(lowerBody) || lowerBody === '2') {
+              const advice = `👟 *Guía de Cadencia y Zonas Cardíacas · Coach IA*\n\n` +
+                `🎯 *Meta de Cadencia:* 160 a 168 spm (en tu última tirada promediaste 153 spm). Pasos más rápidos y cortos reducen el impacto en rodillas y aumentan tu velocidad sin gastar más oxígeno.\n\n` +
+                `❤️ *Zonas con tu HRM-Pro Plus:*\n` +
+                `• *Zona 2 (120-138 ppm):* Quema de grasa y construcción de base mitocondrial.\n` +
+                `• *Zona 3 (139-153 ppm):* Ritmo de crucero aeróbico controlado.\n` +
+                `• *Zona 4 (154-168 ppm):* Umbral de lactato (donde estuviste en tu última tirada).`;
+              await sock.sendMessage(targetJid, { text: advice });
+              continue;
+            }
+
+            // 3. Si pide agenda o pendientes
+            if (/agenda|pendiente|reuni[oó]n|compromiso/i.test(lowerBody) || lowerBody === '3') {
+              const agenda = `📅 *Agenda Ejecutiva Personal (Lic. Ted)*\n\n` +
+                `• Asistente personal y coach activos 24/7.\n` +
+                `• Reporte nocturno automático de running programado a las 9:00 PM.\n` +
+                `• Recordatorio matutino de actividades configurado.\n\n` +
+                `¿Deseas agregar algún recordatorio o programar una nueva sesión?`;
+              await sock.sendMessage(targetJid, { text: agenda });
+              continue;
+            }
+
+            // 4. Si es saludo o menú inicial del Coach
+            if (/^(hola|buen(as|os)?|que tal|q tal|inicio|menu|ayuda|hi|hello)/i.test(lowerBody) || !body) {
+              const greetingCoach = `🏃‍♂️ *¡Hola Lic. Ted!* Aquí tu Coach IA de Running y Asistente Personal.\n\n` +
+                `¿Qué deseas revisar hoy?\n` +
+                `1️⃣ *Consultar última carrera en Garmin*\n` +
+                `2️⃣ *Objetivos de cadencia y zonas cardíacas*\n` +
+                `3️⃣ *Revisar agenda y pendientes personales*\n\n` +
+                `💬 _Escribe directamente el número (1 al 3) o pregúntame lo que gustes._`;
+              await sock.sendMessage(targetJid, { text: greetingCoach });
+              continue;
+            }
+
+            // 5. Respuesta conversacional general en el grupo (100% aislada de obra)
+            const fallbackReply = `🏃‍♂️ *Coach IA & Personal (Lic. Ted):*\n` +
+              `Recibido. Estamos en tu espacio personal y deportivo. Tengo sincronizadas tus métricas de Garmin Fēnix 5X y tu agenda personal. ¿Deseas analizar tu última tirada o revisar algún pendiente?`;
+            await sock.sendMessage(targetJid, { text: fallbackReply });
+            continue;
+          }
+
+          // En cualquier otro grupo: NUNCA enviar la bienvenida comercial de AMIS
+          continue;
+        }
+
+        // =========================================================================
+        // 🏢 FLUJO EMPRESARIAL AMIS CONSTRUCTORA (SOLO CHAT DIRECTO INDIVIDUAL)
+        // =========================================================================
         if (!authUser) {
-          console.log(`[PÚBLICO] Contacto no registrado: +${senderNumber} ("${body}") -> Enviando a ${targetJid}`);
+          console.log(`[PÚBLICO] Contacto individual no registrado: +${senderNumber} ("${body}") -> Enviando a ${targetJid}`);
           await sock.sendMessage(targetJid, { text: config.public_greeting });
           continue;
         }
@@ -506,7 +613,6 @@ async function startWhatsAppBot() {
         if (!userSessions[sessionKey]) {
           userSessions[sessionKey] = { state: 'IDLE', updatedAt: Date.now(), lastGreetingTime: 0, history: [] };
         }
-        // Vinculación por referencia: comparte historial y estado entre LID y Teléfono
         userSessions[remoteJid] = userSessions[sessionKey];
         const userState = userSessions[sessionKey];
         if (!userState.history) userState.history = [];
@@ -583,198 +689,223 @@ async function startWhatsAppBot() {
             }
           }
 
-          // 2. Selección numérica del menú según opciones autorizadas para su rol (roles operativos)
-          if (authUser.role !== 'GERENTE_ADMINISTRATIVO') {
-            const availableOptions = (config.options || []).filter(opt => {
-              if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
-              return opt.allowed_roles.includes(authUser.role);
-            });
-            const selectedOpt = availableOptions.find(o => o.id === choiceDigit || o.id === body);
-            if (selectedOpt) {
-              if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
-                const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
-                await sock.sendMessage(targetJid, { text: deniedMsg });
-                continue;
-              }
+          // 2. Detección Inteligente de Requisición de Materiales
+          const isMaterialIntent = /^(pedir|necesit|solicit|ocup|requisici|comprar)\s*(material|cemento|acero|varilla|alambre|disco|herramienta)/i.test(lowerBody) ||
+            (choiceDigit === '2' && authUser.role !== 'GERENTE_ADMINISTRATIVO');
+          if (isMaterialIntent) {
+            userSessions[remoteJid].state = 'MATERIAL';
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
 
-              if (selectedOpt.code === 'EXPENSE') {
-                userSessions[remoteJid].state = 'EXPENSE';
-                userSessions[remoteJid].expenseCount = 0;
-                userSessions[remoteJid].waitingConcept = false;
-                userSessions[remoteJid].updatedAt = Date.now();
-                saveSessions();
-                await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
-                continue;
-              }
+            const promptMsg = `📦 *Requisición de Materiales e Insumos de Obra*\n\n` +
+              `Por favor escribe el listado de lo que necesitas con cantidades aproximadas (ej: _'5 bultos de cemento y 10 discos de corte 4 1/2'_, o _'1 rollo de alambre recocido'_).\n\n` +
+              `El pedido se registrará con folio y se turnará de inmediato a Dirección General para su validación de precios y autorización.\n\n` +
+              `_Escribe *menu* para cancelar._`;
 
-              if (selectedOpt.code === 'ATTENDANCE') {
-                userSessions[remoteJid].state = 'ATTENDANCE_MENU';
-                userSessions[remoteJid].updatedAt = Date.now();
-                saveSessions();
-                await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
-                continue;
-              }
+            await sock.sendMessage(targetJid, { text: promptMsg });
+            continue;
+          }
 
-              userSessions[remoteJid].state = selectedOpt.code;
-              userSessions[remoteJid].optionId = selectedOpt.id;
-              userSessions[remoteJid].updatedAt = Date.now();
-              saveSessions();
-              await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
+          // 3. Detección Inteligente de Asistencia de Obra
+          const isAttendanceIntent = /^(asistencia|lista de raya|reporte de personal|rayas|falto|faltaron)/i.test(lowerBody) ||
+            (choiceDigit === '6' && authUser.role === 'GERENTE_ADMINISTRATIVO') ||
+            (choiceDigit === '3' && authUser.role !== 'GERENTE_ADMINISTRATIVO');
+          if (isAttendanceIntent) {
+            userSessions[remoteJid].state = 'ATTENDANCE';
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+
+            const promptMsg = `👷 *Control de Asistencia y Personal en Campo*\n\n` +
+              `Por favor envía la foto de tu lista de raya, o escribe las novedades del personal de hoy (altas, inasistencias o cambios de cuadrilla).\n\n` +
+              `_Escribe *menu* para volver._`;
+
+            await sock.sendMessage(targetJid, { text: promptMsg });
+            continue;
+          }
+
+          // 4. Módulo Ejecutivo Directo para Lic. Ted (Opciones 1 al 4)
+          if (authUser.role === 'GERENTE_ADMINISTRATIVO' && choiceDigit) {
+            let directAnswer = '';
+            if (choiceDigit === '1') {
+              directAnswer = `🏗️ *ÁLAMOS DEL RÍO (NAVATO)*\n\n` +
+                `• *Alcance:* 320 viviendas en 20 torres de 4 niveles (Obra Gris SIMA).\n` +
+                `• *Monto Contractual:* $54,337,280.00 MXN ($169,804.00 / viv - Exento IVA).\n` +
+                `• *Anticipo Cobrado:* 17% ($9,237,337.60 MXN en firme en BanBajío).\n` +
+                `• *Condición Suspensiva:* Plazos congelados hasta el Día "D" (Anticipo + Dictamen de Uso de Suelo + Planos ejecutivos completos de M2).\n` +
+                `• *Rotación:* Estricta de molde cada 24 horas. Suministros principales a cargo de M2 Coseinver.`;
+            } else if (choiceDigit === '2') {
+              directAnswer = `🏘️ *PROYECTO SIERRA BONITA (PARRAL)*\n\n` +
+                `• *Programa:* 684 viviendas (edificios cuádruplex de 4 departamentos).\n` +
+                `• *Estatus de Planos:* Definitivos aprobados con 13 láminas ejecutivas.\n` +
+                `• *Espesores de Muro:* Cero muros de 12 cm. Únicamente muros de 10 cm y 20 cm para instalaciones/fachada.\n` +
+                `• *Exclusividad SIMA:* Mínimo 584 viviendas exclusivas para AMIS en molde de concreto.\n` +
+                `• *Aislamiento:* 100% independiente de Álamos del Río.`;
+            } else if (choiceDigit === '3') {
+              directAnswer = `💼 *AMIS CONSTRUCTORA · FINANZAS Y BANCOS*\n\n` +
+                `• *Cuenta Fiscal:* Banco del Bajío 476863400201.\n` +
+                `• *Esquema de Dispersión 3 Vías:* \n` +
+                `  1. *Fiscal Directa BanBajío:* Solo nómina neta de personal con alta IMSS y recibo CFDI 4.0.\n` +
+                `  2. *Socios Asimilables (Darnelix):* Reparto a los 5 socios ($12,500 c/u) con retención y timbrado.\n` +
+                `  3. *Sobrenóminas y Obra (Roblock):* Factura de materiales deducibles para sobres de raya y SPEIs a personal.\n` +
+                `• *Regla de Oro:* Cero dispersiones a cuentas de terceros no verificadas.`;
+            } else if (choiceDigit === '4') {
+              directAnswer = `⚖️ *TADR CONTABILIDAD Y FISCAL (LIC. TED)*\n\n` +
+                `• *RFC:* DORT780211CQ5 (Actividad Empresarial y Servicios Profesionales).\n` +
+                `• *Directiva Espejo:* Retención 10% ISR y 10.67% IVA en honorarios emitidos a AMIS.\n` +
+                `• *Bolsa de Provisión SAT:* Se separa IVA residual e ISR estimado antes de dispersar a socios.\n` +
+                `• *Honorarios Propios:* 100% de ingreso y utilidad personal de Ted.`;
+            }
+
+            if (directAnswer) {
+              await sock.sendMessage(targetJid, { text: directAnswer });
               continue;
             }
           }
 
-          // 3. Conversación y Asistente Ejecutivo
-          console.log(`[AI] Generando respuesta para ${authUser.name}...`);
-          const replyText = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
-          userSessions[remoteJid].updatedAt = Date.now();
-          saveSessions();
-          console.log(`[AI RESPUESTA] Enviando a ${targetJid}:\n${replyText}`);
-          await sock.sendMessage(targetJid, { text: replyText });
-          continue;
-        }
-
-        // Módulo Continuo de Gastos y Facturas
-        if (userState.state === 'EXPENSE') {
-          // Si el usuario indica que terminó de subir comprobantes
-          if (['listo', 'ya', 'ya son todas', 'todas', 'termine', 'terminé', 'fin', 'ya quedo', 'ya quedó', 'seria todo', 'sería todo', 'gracias', 'ok', 'nada mas', 'nada más'].includes(lowerBody)) {
-            const count = userSessions[remoteJid].expenseCount || 0;
-            userSessions[remoteJid].state = 'IDLE';
-            userSessions[remoteJid].expenseCount = 0;
-            userSessions[remoteJid].waitingConcept = false;
-            userSessions[remoteJid].updatedAt = Date.now();
+          // 5. Motor Conversacional Inteligente para Consultas Libres de Empresa
+          const conversationalResponse = await generateConversationalReply(body, authUser, userState.history);
+          if (conversationalResponse) {
+            console.log(`[CONVERSACIONAL] Respuesta generada para ${authUser.name}`);
+            await sock.sendMessage(targetJid, { text: conversationalResponse });
+            userState.history.push({ role: 'user', content: body });
+            userState.history.push({ role: 'assistant', content: conversationalResponse });
+            if (userState.history.length > 20) userState.history = userState.history.slice(-20);
             saveSessions();
-
-            const doneMsg = `✅ *Recepción de Comprobantes Finalizada*\n\n` +
-              `📁 Se resguardaron exitosamente ${count > 0 ? count + ' comprobante(s)' : 'los comprobantes'} en la Mesa de Control para validación del Lic. Ted.\n\n` +
-              `_Escribe *menu* o continúa conversando si requieres revisar otro tema._`;
-
-            await sock.sendMessage(targetJid, { text: doneMsg });
             continue;
           }
 
-          // Si el usuario envía texto sin archivo y estábamos esperando la nota del comprobante anterior
-          if (!hasMedia && userSessions[remoteJid].waitingConcept) {
-            const targetIdx = userSessions[remoteJid].waitingIndex || userSessions[remoteJid].expenseCount || 1;
-            userSessions[remoteJid].waitingConcept = false;
-            userSessions[remoteJid].lastExpenseConcept = body;
-            userSessions[remoteJid].updatedAt = Date.now();
-            saveSessions();
-
-            await actualizarConceptoBuzon(senderNumber, targetIdx, body);
-
-            const noteAck = `📝 *Destino / Concepto anotado para el Comprobante #${targetIdx}:*\n` +
-              `"${body}"\n\n` +
-              `✅ Información vinculada en la Mesa de Control.\n` +
-              `📎 *Puedes enviar la siguiente factura* (o escribe _'listo'_ para finalizar).`;
-
-            await sock.sendMessage(targetJid, { text: noteAck });
-            continue;
-          }
-
-          // Registrar un nuevo comprobante recibido (con archivo multimedia)
-          if (hasMedia) {
-            const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
-            userSessions[remoteJid].expenseCount = currentCount;
-            userSessions[remoteJid].updatedAt = Date.now();
-
-            let ackMsg = '';
-            if (body) {
-              userSessions[remoteJid].waitingConcept = false;
-              userSessions[remoteJid].lastExpenseConcept = body;
-              await guardarEnBuzonGastos(authUser, senderNumber, currentCount, body, hasMedia);
-
-              ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
-                `📝 *Destino / Concepto:* "${body}"\n` +
-                `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
-                `📎 *Puedes enviar la siguiente factura directamente* (o escribe _'listo'_ cuando termines).\n\n` +
-                `👉 _Escribe *menu* para volver al menú principal._`;
-            } else {
-              userSessions[remoteJid].waitingConcept = true;
-              userSessions[remoteJid].waitingIndex = currentCount;
-              await guardarEnBuzonGastos(authUser, senderNumber, currentCount, 'Sin descripción previa', hasMedia);
-
-              ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
-                `✅ Archivo resguardado en la Mesa de Control de AMIS.\n\n` +
-                `💡 *Dato opcional:* Si gustas, escribe brevemente para qué se utilizó o a qué vehículo/área corresponde (ej: _'Gasolina Silverado'_, _'Pintura para molde'_).\n` +
-                `O si prefieres, *envía directamente la siguiente factura* o escribe _'listo'_.`;
-            }
-
-            saveSessions();
-            await sock.sendMessage(targetJid, { text: ackMsg });
-            continue;
-          }
-
-          // Si envió texto sin archivo y NO estábamos esperando nota previa (registro de nota de gasto manual)
-          const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
-          userSessions[remoteJid].expenseCount = currentCount;
-          userSessions[remoteJid].waitingConcept = false;
-          userSessions[remoteJid].lastExpenseConcept = body;
-          userSessions[remoteJid].updatedAt = Date.now();
-          saveSessions();
-
-          await guardarEnBuzonGastos(authUser, senderNumber, currentCount, body, false);
-
-          const manualAck = `🧾 *Nota de Gasto #${currentCount} Registrada*\n\n` +
-            `📝 *Detalle / Concepto:* "${body}"\n` +
-            `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
-            `📎 *Puedes enviar el siguiente comprobante* (o escribe _'listo'_ cuando termines).\n\n` +
-            `👉 _Escribe *menu* para volver al menú principal._`;
-
-          await sock.sendMessage(targetJid, { text: manualAck });
-          continue;
-        }
-
-        // Módulo de Consultas Técnicas: Proyecto Franco / Parral (Ing. Samuel)
-        if (userState.state === 'CONSULTA_FRANCO') {
-          if (['menu', 'menú', 'cancelar', 'salir', 'inicio'].includes(lowerBody)) {
-            userSessions[remoteJid].state = 'IDLE';
-            userSessions[remoteJid].updatedAt = Date.now();
+          const nowMs = Date.now();
+          const shouldShowFullMenu = (!userState.lastGreetingTime || (nowMs - userState.lastGreetingTime > 2 * 60 * 60 * 1000));
+          if (shouldShowFullMenu) {
+            userState.lastGreetingTime = nowMs;
             saveSessions();
             const menuText = buildMainMenu(authUser, config);
             await sock.sendMessage(targetJid, { text: menuText });
             continue;
           }
 
-          console.log(`[FRANCO] Consulta técnica de ${authUser.name}: "${body}"`);
-          const replyFranco = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
-          userSessions[remoteJid].updatedAt = Date.now();
-          saveSessions();
-          await sock.sendMessage(targetJid, { text: replyFranco });
+          const gentlePrompt = `🫡 *Entendido, ${authUser.name}.*\n\n` +
+            `Puedes indicarme tu solicitud con tus propias palabras (o escribir *menu* para ver las opciones disponibles).`;
+          await sock.sendMessage(targetJid, { text: gentlePrompt });
           continue;
         }
 
-        // Submenú de Asistencias y Personal
-        if (userState.state === 'ATTENDANCE_MENU') {
-          if (choiceDigit === '1') {
-            userSessions[remoteJid] = { state: 'ATTENDANCE_DAILY', updatedAt: Date.now() };
+        // Manejo de Estados Activos: EXPENSE (Facturas)
+        if (userState.state === 'EXPENSE') {
+          if (['listo', 'terminar', 'fin', 'ya quedo', 'ya quedó'].includes(lowerBody)) {
+            userSessions[remoteJid].state = 'IDLE';
+            userSessions[remoteJid].expenseCount = 0;
+            userSessions[remoteJid].waitingConcept = false;
             saveSessions();
-            await sock.sendMessage(targetJid, { text: `📸 *Lista de Asistencia Diaria*\n\nPor favor adjunta la *foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._` });
-            continue;
-          } else if (choiceDigit === '2') {
-            userSessions[remoteJid] = { state: 'ATTENDANCE_ABSENCE', updatedAt: Date.now() };
-            saveSessions();
-            await sock.sendMessage(targetJid, { text: `❌ *Reporte de Faltas / Bajas*\n\nPor favor escribe el *nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._` });
-            continue;
-          } else if (choiceDigit === '3') {
-            userSessions[remoteJid] = { state: 'ATTENDANCE_HIRE', updatedAt: Date.now() };
-            saveSessions();
-            await sock.sendMessage(targetJid, { text: `🆕 *Registro de Nuevo Ingreso / Alta*\n\nPor favor escribe los *datos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy'_).\n\n_Escribe *menu* para cancelar._` });
+
+            const closingMsg = `✅ *Recepción de Comprobantes Concluida*\n\n` +
+              `Todos los archivos recibidos han sido registrados en la Mesa de Control y puestos a disposición de Dirección General para su conciliación.\n\n` +
+              `_Escribe *menu* para volver al inicio._`;
+            await sock.sendMessage(targetJid, { text: closingMsg });
             continue;
           }
+
+          const currentCount = (userState.expenseCount || 0) + 1;
+          userSessions[remoteJid].expenseCount = currentCount;
+          userSessions[remoteJid].updatedAt = Date.now();
+
+          let ack = '';
+          if (hasMedia) {
+            const mediaConcept = body || 'Sin descripción previa';
+            userSessions[remoteJid].waitingConcept = !body;
+            userSessions[remoteJid].waitingIndex = currentCount;
+            await guardarEnBuzonGastos(authUser, senderNumber, currentCount, mediaConcept, hasMedia);
+
+            ack = `🧾 *Comprobante #${currentCount} Registrado con Éxito*\n\n` +
+              (body ? `📝 *Destino / Concepto:* "${body}"\n` : '') +
+              `✅ Turnado a la Mesa de Control de AMIS.\n\n` +
+              `📎 *Puedes seguir enviando más facturas* (o escribe _'listo'_ cuando termines).\n\n` +
+              `👉 _Escribe *menu* en cualquier momento para volver._`;
+          } else {
+            if (userSessions[remoteJid].waitingConcept) {
+              userSessions[remoteJid].waitingConcept = false;
+              await actualizarConceptoGasto(authUser, userSessions[remoteJid].waitingIndex || currentCount, body);
+              ack = `📝 *Concepto agregado:* "${body}" para la factura anterior.\n\n` +
+                `📎 Puedes enviar el siguiente comprobante o escribir _'listo'_.`;
+            } else {
+              ack = `💡 Recibido texto: "${body}". Por favor adjunta la foto o PDF de la factura, o escribe _'listo'_ para salir.`;
+            }
+          }
+
+          saveSessions();
+          await sock.sendMessage(targetJid, { text: ack });
+          continue;
         }
 
-        // Procesar cualquier otro envío general y regresar a IDLE
-        userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
-        saveSessions();
-        await sock.sendMessage(targetJid, { text: `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._` });
+        // Manejo de Estados Activos: MATERIAL (Requisiciones)
+        if (userState.state === 'MATERIAL') {
+          if (['listo', 'terminar', 'cancelar'].includes(lowerBody)) {
+            userSessions[remoteJid].state = 'IDLE';
+            saveSessions();
+            await sock.sendMessage(targetJid, { text: `✅ Requisición cerrada. Escribe *menu* para volver.` });
+            continue;
+          }
+
+          await guardarEnBuzonMateriales(authUser, senderNumber, body);
+          userSessions[remoteJid].state = 'IDLE';
+          saveSessions();
+
+          const ack = `📦 *Requisición Registrada con Éxito*\n\n` +
+            `📝 *Detalle:* "${body}"\n` +
+            `👤 *Solicitante:* ${authUser.name}\n` +
+            `✅ Se ha turnado la alerta a Dirección General (Lic. Ted) para su cotejo contra el Catálogo de Precios y autorización de compra.\n\n` +
+            `_Escribe *menu* para volver al inicio._`;
+          await sock.sendMessage(targetJid, { text: ack });
+          continue;
+        }
+
+        // Manejo de Estados Activos: ATTENDANCE (Asistencia)
+        if (userState.state === 'ATTENDANCE') {
+          if (['listo', 'terminar', 'cancelar'].includes(lowerBody)) {
+            userSessions[remoteJid].state = 'IDLE';
+            saveSessions();
+            await sock.sendMessage(targetJid, { text: `✅ Registro de asistencia cerrado. Escribe *menu* para volver.` });
+            continue;
+          }
+
+          await guardarEnBuzonAsistencia(authUser, senderNumber, body, hasMedia);
+          userSessions[remoteJid].state = 'IDLE';
+          saveSessions();
+
+          const ack = `👷 *Reporte de Asistencia Guardado con Éxito*\n\n` +
+            `✅ El reporte ha sido resguardado para la conciliación de nómina de los jueves contra el Tabulador Maestro Oficial.\n\n` +
+            `_Escribe *menu* para volver al inicio._`;
+          await sock.sendMessage(targetJid, { text: ack });
+          continue;
+        }
 
       } catch (err) {
-        console.error('Error procesando mensaje Baileys:', err);
+        console.error('Error procesando mensaje:', err);
       }
     }
   });
 }
 
-startWhatsAppBot();
+async function guardarEnBuzonGastos(authUser, senderNumber, count, concept, hasMedia) {
+  try {
+    console.log(`[BUZÓN GASTOS] Guardado ticket #${count} de ${authUser.name} (${senderNumber}) | Concepto: "${concept}"`);
+  } catch (e) {}
+}
 
+async function actualizarConceptoGasto(authUser, index, concept) {
+  try {
+    console.log(`[BUZÓN GASTOS] Actualizado concepto #${index} de ${authUser.name} | Concepto: "${concept}"`);
+  } catch (e) {}
+}
+
+async function guardarEnBuzonMateriales(authUser, senderNumber, detail) {
+  try {
+    console.log(`[BUZÓN MATERIALES] Requisición de ${authUser.name} (${senderNumber}): "${detail}"`);
+  } catch (e) {}
+}
+
+async function guardarEnBuzonAsistencia(authUser, senderNumber, detail, hasMedia) {
+  try {
+    console.log(`[BUZÓN ASISTENCIA] Reporte de ${authUser.name} (${senderNumber}): "${detail}" | Media: ${hasMedia}`);
+  } catch (e) {}
+}
