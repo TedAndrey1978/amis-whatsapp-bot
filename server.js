@@ -20,6 +20,7 @@ import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
+import https from 'https';
 import { fileURLToPath } from 'url';
 import QRCode from 'qrcode';
 import qrcodeTerminal from 'qrcode-terminal';
@@ -404,6 +405,184 @@ setInterval(() => {
   http.get(`${appUrl}/status`, (res) => {}).on('error', () => {});
 }, 4 * 60 * 1000);
 
+// =========================================================================
+// 🏃‍♂️ MOTOR DE INTELIGENCIA DEPORTIVA: COACH IA DE RUNNING & FISIOLOGÍA
+// =========================================================================
+async function responderCoachIA(query, history = []) {
+  const q = (query || '').toLowerCase().trim();
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  // 1. Si hay API Key de Gemini configurada y no revocada, generar respuesta con IA generativa
+  if (apiKey && apiKey.length > 20 && !apiKey.includes('leaked')) {
+    try {
+      const systemPrompt = `Eres el Coach Deportivo Personal de Running del Lic. Ted Andrey Domínguez Romero.
+Te estás comunicando vía WhatsApp en su grupo privado de entrenamiento.
+
+PERFIL DEL ATLETA:
+- Atleta: Lic. Ted Andrey Domínguez Romero.
+- Equipamiento: Reloj Garmin Fēnix 5X Sapphire + Banda de pecho Garmin HRM-Pro Plus.
+- Ubicación: Culiacán, Sinaloa (clima muy cálido y húmedo, 30°C+ nocturnos).
+- Perfil: Corredor metódico que busca salud cardiovascular, longevidad articular y eficiencia metabólica.
+- Telemetría de su última sesión (20 Oct):
+  * 3.64 km @ 6:53 min/km (Pico en series 5:08 min/km). Total con enfriamiento: 6.26 km.
+  * FC Media: 151 ppm (Zona 3) | FC Máxima: 169 ppm (Zona 4 Umbral).
+  * Cadencia Media: 152.8 spm (Pico 166 spm). Objetivo: 165-170 spm.
+  * Zancada Media: 0.95 m (Objetivo: 0.88-0.90 m con pasos más cortos y reactivos).
+  * Training Effect: 3.0 Aeróbico (Impacto en Umbral de Lactato).
+  * VO2 Max estimado: 40 ml/kg/min.
+- Objetivos prioritarios:
+  1. Aumentar cadencia a 165-170 spm para reducir un 15-20% el impacto en rodillas y gastar menos oxígeno.
+  2. Rodajes en Zona 2 estricta (125-138 ppm) a ritmo 7:10-7:30 min/km para construir base aeróbica mitocondrial.
+  3. Activar el metrónomo sonoro/vibración del Fēnix 5X a 165 bpm.
+
+DIRECTIVAS:
+- Tono: Profesional, motivador, empático, basado en fisiología y biomecánica deportiva real.
+- Estilo: WhatsApp (emojis 🏃‍♂️, 👟, ❤️, ⏱️, 💡, párrafos directos, viñetas claras).
+- Responde directamente a lo que pregunte Ted (dolores, molestias, clima, zapatillas, horarios, hidratación, metrónomo, descansos). Mantén la continuidad del diálogo.`;
+
+      const contents = [];
+      contents.push({ role: 'user', parts: [{ text: systemPrompt + '\n\nConfirma rol.' }] });
+      contents.push({ role: 'model', parts: [{ text: '¡Entendido! Soy el Coach IA de Running del Lic. Ted Andrey.' }] });
+
+      if (Array.isArray(history) && history.length > 0) {
+        for (const item of history.slice(-6)) {
+          contents.push({
+            role: item.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: item.content }]
+          });
+        }
+      }
+      contents.push({ role: 'user', parts: [{ text: query }] });
+
+      const postData = JSON.stringify({ contents, generationConfig: { temperature: 0.7, maxOutputTokens: 900 } });
+
+      const resText = await new Promise((resolve, reject) => {
+        const req = https.request(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }, (res) => {
+          let data = '';
+          res.on('data', c => data += c);
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                const parsed = JSON.parse(data);
+                const txt = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (txt) return resolve(txt);
+              } catch(e) {}
+            }
+            reject(new Error(`Status ${res.statusCode}: ${data.slice(0, 100)}`));
+          });
+        });
+        req.on('error', reject);
+        req.write(postData);
+        req.end();
+      });
+
+      if (resText) return resText;
+    } catch(err) {
+      console.log('[COACH GEMINI] Error en llamada API:', err.message);
+    }
+  }
+
+  // 2. Motor Experto de Respaldo Fisiológico y Biomecánico Continuo
+  if (/gemelo|pantorrilla|soleo|s[oó]leo|aquiles|tal[oó]n|dolor|molestia|pierna|cargar|cargado/i.test(q)) {
+    return `🦵 *Consejo del Coach: Alivio y Gestión de Gemelos / Sóleo*\n\n` +
+      `En tu tirada del martes promediaste *152.8 spm*. A esa cadencia, el pie pasa demasiados milisegundos apoyado en el asfalto, obligando al tríceps sural (gemelo y sóleo) a soportar todo tu peso corporal en fase de frenado.\n\n` +
+      `💡 *Plan de Acción Inmediato:*\n` +
+      `1️⃣ *Descarga Muscular:* Masaje con rodillo de espuma (foam roller) o una pelota de tenis sobre la pantorrilla, de abajo hacia arriba (5-7 min por pierna).\n` +
+      `2️⃣ *Estiramiento Excéntrico:* Coloca la punta del pie en el borde de un escalón y deja caer el talón suavemente por 30 segundos (3 series). Esto oxigena el tendón de Aquiles.\n` +
+      `3️⃣ *Hielo y Elevación:* Si hay inflamación o calor local, aplica compresas frías 10-15 min.\n` +
+      `4️⃣ *Corrección para la Próxima Sesión:* Acorta la zancada y sube la cadencia a *165 spm*. Al despegar el pie más rápido, el gemelo deja de sufrir el impacto del suelo.`;
+  }
+
+  if (/rodilla|cintilla|articulaci|impacto|menisco|lumbar|espalda/i.test(q)) {
+    return `🩺 *Consejo del Coach: Protección Articular y Rodillas*\n\n` +
+      `El dolor o sobrecarga en rodillas suele ser síntoma de *overstriding* (aterrizar con la pierna muy extendida por delante del centro de gravedad).\n\n` +
+      `💡 *Recomendaciones Técnicas:*\n` +
+      `1️⃣ *Flexiona ligeramente las rodillas al pisar:* Imagina que corres sobre vidrio fino y no quieres hacer ruido.\n` +
+      `2️⃣ *Cadencia a 165 bpm:* Es la mejor "medicina" biomecánica para las rodillas. Reducirás hasta un 20% de las fuerzas de torsión articular.\n` +
+      `3️⃣ *Terreno:* Si sientes molestia, evita el pavimento duro y rueda sobre pasto plano o arcilla/tierra compacta durante 2 o 3 sesiones.\n` +
+      `4️⃣ *Fortalecimiento:* Sentadillas búlgaras y puentes de glúteo 2 veces por semana para darle estabilidad a la rótula.`;
+  }
+
+  if (/hora|cu[aá]ndo|mañana|noche|tarde|calor|temperatura|clima|culiac[aá]n|sol/i.test(q)) {
+    return `☀️ *Estrategia Térmica para Correr en Culiacán*\n\n` +
+      `En Culiacán la combinación de calor (30°C+) y humedad relativa produce una fuerte *deriva cardíaca*: tu corazón debe bombear sangre a los músculos para correr y a la piel para enfriarte mediante el sudor.\n\n` +
+      `⏱️ *Mejores Ventanas de Entrenamiento:*\n` +
+      `• *Opción 1 (Óptima): 5:30 AM a 6:45 AM.* La temperatura está en su punto mínimo (~24-26°C) y el asfalto está frío. Ideal para cualquier entrenamiento con series o ritmo alegre.\n` +
+      `• *Opción 2: 8:30 PM a 9:45 PM.* Ya no hay radiación solar, pero el asfalto aún irradia calor acumulado. Si sales de noche, mantén la intensidad en *Zona 2 estricta* (menos de 138 ppm).\n\n` +
+      `💧 *Hidratación Previa:* Bebe 500 ml de agua con una pizca de sales/electrolitos 45-60 min antes de iniciar.`;
+  }
+
+  if (/metr[oó]nomo|f[eé]nix|reloj|activar|configur|poner.*metr[oó]nomo/i.test(q)) {
+    return `⌚ *Paso a Paso: Configurar el Metrónomo en tu Garmin Fēnix 5X*\n\n` +
+      `Tu Fēnix 5X incluye un metrónomo integrado para ayudarte a internalizar el ritmo de pasos sin tener que mirar la pantalla constantemente:\n\n` +
+      `1️⃣ En la pantalla del reloj, presiona el botón superior derecho (**START**) y selecciona **Carrera**.\n` +
+      `2️⃣ Antes de iniciar, mantén presionado el botón central izquierdo (**UP / MENU**).\n` +
+      `3️⃣ Selecciona **Configuración de carrera > Metrónomo**.\n` +
+      `4️⃣ Entra a **Estado** y cámbialo a **Activado**.\n` +
+      `5️⃣ En **Latidos por minuto (bpm)**, ajústalo a **165** (o 168 bpm).\n` +
+      `6️⃣ En **Alerta**, elige **Vibración** (recomendado para no hacer ruido) o *Sonido y vibración*.\n\n` +
+      `💡 *Cómo usarlo:* Cada vez que sientas la vibración, un pie debe hacer contacto con el suelo. ¡Verás cómo tu zancada se vuelve automáticamente más corta y ágil!`;
+  }
+
+  if (/zona|card[ií]aca|ppm|pulso|pulsaciones|hrm|banda|pecho|frecuencia/i.test(q)) {
+    return `❤️ *Guía de Frecuencia Cardíaca con tu HRM-Pro Plus*\n\n` +
+      `La banda pectoral HRM-Pro Plus mide directamente la señal eléctrica del corazón, eliminando el retraso del sensor óptico de muñeca cuando hay sudor.\n\n` +
+      `📊 *Tus Zonas de Referencia para Running:*\n` +
+      `• *Zona 1 (105 - 120 ppm) - Calentamiento / Recuperación activa:*\n` +
+      `  Caminata ágil o trote muy suave. Facilita el riego sanguíneo.\n` +
+      `• *Zona 2 (121 - 138 ppm) - Base Aeróbica / Quema de Grasas:*\n` +
+      `  *Aquí debe estar el 70-80% de tus entrenamientos.* Puedes hablar en oraciones completas sin sofocarte. Multiplica las mitocondrias musculares.\n` +
+      `• *Zona 3 (139 - 153 ppm) - Ritmo Crucero / Tempo:*\n` +
+      `  Tu pulso promedio del martes (151 ppm). Exige concentración y genera resistencia sostenida.\n` +
+      `• *Zona 4 (154 - 168 ppm) - Umbral de Lactato:*\n` +
+      `  Donde tocaste 169 ppm en los picos de aceleración. No debes pasar más de 10-15 minutos aquí por semana para no sobreentrenar.`;
+  }
+
+  if (/hidrat|agua|sal|sales|electrolito|suplement|comida|comer|desayun|prote[ií]na|creatina|caf[eé]/i.test(q)) {
+    return `🥤 *Estrategia de Nutrición e Hidratación del Coach*\n\n` +
+      `En climas como Culiacán, una pérdida del 2% del peso en sudor reduce tu rendimiento un 15% y eleva el pulso en 7-10 ppm.\n\n` +
+      `💡 *Protocolo Recomendado:*\n` +
+      `1️⃣ *Sales y Electrolitos:* No bebas solo agua pura; el sudor pierde sodio, potasio y magnesio. Agrega electrolitos en polvo (sin exceso de azúcar) en tu hidratación diaria.\n` +
+      `2️⃣ *Pre-Carrera (60 min antes):* Un café solo o espresso (la cafeína moviliza ácidos grasos y reduce la percepción del esfuerzo) + medio plátano.\n` +
+      `3️⃣ *Post-Carrera:* Dentro de los primeros 45 minutos, toma agua fresca con sales y una fuente de proteína + carbohidrato simple para restaurar el glucógeno hepático y muscular.\n` +
+      `4️⃣ *Creatina:* 3 a 5 gramos diarios son excelentes para la recuperación celular muscular.`;
+  }
+
+  if (/zapatilla|tenis|zapato|calzado|asfalto|drop|amortigua/i.test(q)) {
+    return `👟 *Criterios de Calzado para Asfalto y tu Perfil*\n\n` +
+      `Para un ritmo de 6:40 - 7:20 min/km en asfalto con objetivo de proteger articulaciones:\n\n` +
+      `1️⃣ *Amortiguación Media/Alta:* Busca modelos de entrenamiento diario (*daily trainers*) con espuma reactiva pero suave (ej: Brooks Ghost / Glycerin, Asics Novablast / Cumulus, Nike Pegasus, Saucony Ride).\n` +
+      `2️⃣ *Drop Recomendado:* Un drop de *8 a 10 mm* suele ser el más amigable para corredores que buscan descargar los gemelos y el tendón de Aquiles.\n` +
+      `3️⃣ *Vida Útil:* Reemplaza las zapatillas entre los 600 y 800 km acumulados; la espuma pierde capacidad de disipar impacto aunque la suela se vea entera.`;
+  }
+
+  if (/plan|pr[oó]xim|siguiente|rutina|entreno|sesi[oó]n|cu[aá]nto|ritmo|mañana/i.test(q)) {
+    return `📋 *Plan para tu Próxima Sesión de Entrenamiento*\n\n` +
+      `Viniendo del estímulo de umbral (TE 3.0) del martes, la regla de oro es *acumular volumen sin fatiga cardiovascular*:\n\n` +
+      `🎯 *Prescripción de la Sesión:*\n` +
+      `• *Tipo:* Rodaje regenerativo de base aeróbica.\n` +
+      `• *Distancia:* 4.0 a 5.0 km continuos.\n` +
+      `• *Ritmo Objetivo:* **7:10 a 7:30 min/km** (cero prisas; el objetivo es el corazón, no el cronómetro).\n` +
+      `• *Frecuencia Cardíaca:* Mantenerte en **Zona 2 estricta (125 a 138 ppm)**. Si sube de 140 ppm, baja el ritmo de inmediato.\n` +
+      `• *Foco Biomecánico:* Pasos cortos y ágiles con metrónomo a 165 bpm.\n\n` +
+      `¿A qué hora tienes pensado salir para darte la recomendación de temperatura?`;
+  }
+
+  return `🏃‍♂️ *Tu Coach IA de Running:*\n\n` +
+    `Entendido, Lic. Ted. Sobre "${query}":\n\n` +
+    `Mi recomendación técnica es priorizar la *consistencia y la eficiencia biomecánica*. En tu etapa actual, dar pasos más cortos (~165 spm) y controlar el pulso en Zona 2 (125-138 ppm) te permitirá duplicar tu resistencia sin riesgo de lesión en rodillas o gemelos.\n\n` +
+    `💡 *Puedes consultarme sobre:*\n` +
+    `• Alivio de dolores en gemelos o rodillas.\n` +
+    `• Cómo activar el metrónomo en tu Fēnix 5X.\n` +
+    `• Horarios para correr por el calor en Culiacán.\n` +
+    `• Zonas cardíacas de tu banda HRM-Pro Plus.\n` +
+    `• Zapatillas, hidratación y plan para tu próxima tirada.\n\n` +
+    `_Pregúntame exactamente lo que sientas o necesites afinar._`;
+}
+
 async function startWhatsAppBot() {
   console.log('🤖 Inicializando Baileys WhatsApp Engine...');
   const { state, saveCreds } = await useMongoAuthState();
@@ -611,10 +790,21 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 5. Respuesta conversacional general en el grupo (100% aislada de obra)
-            const fallbackReply = `🏃‍♂️ *Coach IA & Personal (Lic. Ted):*\n` +
-              `Recibido. Estamos en tu espacio personal y deportivo. Tengo sincronizadas tus métricas de Garmin Fēnix 5X y tu agenda personal. ¿Deseas analizar tu última tirada o revisar algún pendiente?`;
-            await sock.sendMessage(targetJid, { text: fallbackReply });
+            // 5. Motor Conversacional Inteligente del Coach IA (Mantiene el tema y da consejos continuos)
+            if (!userSessions[remoteJid]) {
+              userSessions[remoteJid] = { history: [] };
+            }
+            if (!userSessions[remoteJid].history) userSessions[remoteJid].history = [];
+
+            const coachAdvice = await responderCoachIA(body, userSessions[remoteJid].history);
+            userSessions[remoteJid].history.push({ role: 'user', content: body });
+            userSessions[remoteJid].history.push({ role: 'assistant', content: coachAdvice });
+            if (userSessions[remoteJid].history.length > 20) {
+              userSessions[remoteJid].history = userSessions[remoteJid].history.slice(-20);
+            }
+            saveSessions();
+
+            await sock.sendMessage(targetJid, { text: coachAdvice });
             continue;
           }
 
