@@ -816,6 +816,19 @@ async function startWhatsAppBot() {
           }
 
           const targetJid = remoteJid;
+          if (mongoClient) {
+            try {
+              const db = mongoClient.db('amis_whatsapp');
+              await db.collection('debug_inbox').insertOne({
+                remoteJid,
+                participant: msg.key.participant || null,
+                fromMe: msg.key.fromMe,
+                body,
+                date: new Date()
+              });
+            } catch (e) {}
+          }
+
           const participant = msg.key.participant || '';
           const fullSender = `${remoteJid} ${participant}`;
           const cleanSender = remoteJid.replace(/[^0-9]/g, '');
@@ -1026,7 +1039,7 @@ async function startWhatsAppBot() {
           // Mensaje de bienvenida para público general no registrado
           if (!authUser) {
             console.log(`[PÚBLICO] Contacto no registrado: ${fullSender} -> Enviando a ${targetJid}`);
-            await sock.sendMessage(targetJid, { text: config.public_greeting });
+            await sock.sendMessage(targetJid, { text: `${config.public_greeting}\n\n🔍 *ID Detectado:* \`${remoteJid}\`` });
             continue;
           }
 
