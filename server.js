@@ -155,12 +155,15 @@ function loadConfig() {
   return { authorized_users: [], modules: {} };
 }
 
-function getAuthorizedUser(senderNumber, config) {
+function getAuthorizedUser(senderNumber, config, fullSender = '') {
   if (!config.authorized_users) return null;
-  const cleanSender = senderNumber.replace(/[^0-9]/g, '');
+  const cleanSender = (senderNumber || '').replace(/[^0-9]/g, '');
   return config.authorized_users.find(u => {
-    const cleanAuth = u.phone.replace(/[^0-9]/g, '');
-    return cleanSender.endsWith(cleanAuth) || cleanAuth.endsWith(cleanSender);
+    const cleanAuth = (u.phone || '').replace(/[^0-9]/g, '');
+    const cleanLid = (u.lid || '').replace(/[^0-9]/g, '');
+    if (cleanAuth && (cleanSender.endsWith(cleanAuth) || cleanAuth.endsWith(cleanSender) || fullSender.includes(cleanAuth))) return true;
+    if (cleanLid && (cleanSender === cleanLid || cleanSender.includes(cleanLid) || fullSender.includes(cleanLid))) return true;
+    return false;
   });
 }
 
@@ -640,7 +643,7 @@ async function responderConsultaPilar(pilar, query) {
         `  3. *CONSTRUCTORA ROBLOCK (7%):* Destajos, sobrenóminas SPEI y raya en efectivo.`;
     }
     if (/tadr|honorario.*ted|dort780211|consultor[ií]a/i.test(q) || q === '2') {
-      return `💼 *Contabilidad Personal TADR (RFC: DORT780211CQ5):*\\n\\n` +
+      return `💼 *Contabilidad Personal TADR (RFC: DORT780211CQ5):*\n\n` +
         `• *Régimen:* Actividad Empresarial y Servicios Profesionales / Consultoría.\n` +
         `• *Directiva Espejo AMIS:* En facturas para reparto de socios se retiene 10% ISR y 10.67% IVA, apartando bolsa SAT (5.33% IVA residual + ISR).\n` +
         `• *Asesorías Propias:* 100% ingreso exclusivo de Ted Andrey.\n` +
@@ -690,7 +693,7 @@ async function responderConsultaPilar(pilar, query) {
         `• *Fábricas y Plataformas:* Conexión directa OEM/ODM en 1688, Taobao y catálogos Yupoo.\n` +
         `• *Agentes y Casilleros:* Operación vía CSSBuy / Sugargoo para consolidación en bodega de China y US Closer para USA.\n` +
         `• *Protocolo de Inspección:* Control de calidad (QC) con fotos HD, verificación de medidas en cm e instrucción 'Drop Box' para aligerar peso volumétrico y blindar aduana.\n` +
-        `• *Repositorio:* Expediente exclusivo en \`06_COMPRAS_CHINAS\`.`;
+        `• *Repositorio:* Expediente exclusivo en \`06_COMPRAS_CHINAS\`.\`;
     }
     if (/agenda|pendiente|compromiso|reuni[oó]n/i.test(q) || q === '5') {
       return `📋 *Agenda Ejecutiva Personal (Lic. Ted):*\n\n` +
@@ -797,15 +800,12 @@ async function startWhatsAppBot() {
           console.log(`[WHATSAPP ENTRADA] De: ${remoteJid} | Texto: "${body}" | Media: ${hasMedia}`);
 
           const config = loadConfig();
-          const senderNumber = remoteJid.replace(/[^0-9]/g, '');
-          const authUser = getAuthorizedUser(senderNumber, config);
 
           // Anti-Duplicados Estricto
-          const dedupUser = authUser ? (authUser.phone || senderNumber) : senderNumber;
-          const dedupKey = `${dedupUser}:${body.toLowerCase().trim()}`;
+          const dedupKey = `${remoteJid}:${body.toLowerCase().trim()}`;
           const now = Date.now();
           if (recentUserMessages.has(dedupKey) && (now - recentUserMessages.get(dedupKey) < 4000)) {
-            console.log(`[DEDUP] Mensaje repetido ignorado para ${dedupUser} ("${body}") dentro de 4s.`);
+            console.log(`[DEDUP] Mensaje repetido ignorado para ${remoteJid} ("${body}") dentro de 4s.`);
             continue;
           }
           recentUserMessages.set(dedupKey, now);
@@ -816,9 +816,12 @@ async function startWhatsAppBot() {
           }
 
           const targetJid = remoteJid;
+          const participant = msg.key.participant || '';
+          const fullSender = `${remoteJid} ${participant}`;
+          const cleanSender = remoteJid.replace(/[^0-9]/g, '');
 
           // =====================================================================
-          // REGLA DE ORO DE AISLAMIENTO: GRUPOS DE WHATSAPP
+          // 1. REGLA DE ORO: GRUPOS DE WHATSAPP
           // =====================================================================
           if (remoteJid.endsWith('@g.us')) {
             const GRUPO_COACH_TED_JID = '120363432696055179@g.us';
@@ -881,20 +884,21 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // Si es cualquier otro grupo, ignorar silenciosamente
+            // Cualquier otro grupo: ignorar silenciosamente
             continue;
           }
 
-          // Mensaje de bienvenida para público general no registrado
-          if (!authUser) {
-            console.log(`[PÚBLICO] Contacto no registrado: +${senderNumber} ("${body}") -> Enviando a ${targetJid}`);
-            await sock.sendMessage(targetJid, { text: config.public_greeting });
-            continue;
-          }
+          // =====================================================================
+          // 2. 🏛️ RECONOCIMIENTO DIRECTO Y EXCLUSIVO: LIC. TED ANDREY (6676921223)
+          // =====================================================================
+          const isTed = fullSender.includes('6676921223') ||
+                        fullSender.includes('6672921223') ||
+                        fullSender.includes('107194381013064') ||
+                        cleanSender.endsWith('6676921223') ||
+                        cleanSender.endsWith('6672921223') ||
+                        cleanSender === '107194381013064';
 
-          const lowerBody = body.toLowerCase();
-          const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
-          const sessionKey = authUser ? (authUser.phone || senderNumber) : senderNumber;
+          const sessionKey = isTed ? '6676921223' : cleanSender;
           if (!userSessions[sessionKey]) {
             userSessions[sessionKey] = { state: 'IDLE', updatedAt: Date.now(), lastGreetingTime: 0, history: [] };
           }
@@ -902,25 +906,8 @@ async function startWhatsAppBot() {
           const userState = userSessions[sessionKey];
           if (!userState.history) userState.history = [];
 
-          if (isReset) {
-            userSessions[remoteJid].state = 'IDLE';
-            userSessions[remoteJid].updatedAt = Date.now();
-            saveSessions();
-            const menuText = buildMainMenu(authUser, config);
-            console.log(`[MENU] Enviando menú principal a ${authUser.name} (${targetJid})`);
-            await sock.sendMessage(targetJid, { text: menuText });
-            continue;
-          }
-
-          // =====================================================================
-          // 🏛️ PROCESAMIENTO EXCLUSIVO: LIC. TED ANDREY (6676921223)
-          // =====================================================================
-          const isTed = authUser && (
-            authUser.phone === '6676921223' ||
-            authUser.phone === '6672921223' ||
-            senderNumber.endsWith('6676921223') ||
-            senderNumber.endsWith('6672921223')
-          );
+          const lowerBody = body.toLowerCase().trim();
+          const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
 
           if (isTed) {
             console.log(`[CENTRO DE MANDO TED] Mensaje de Ted: "${body}" | Estado actual: ${userState.activePillar || 'IDLE'}`);
@@ -1023,6 +1010,28 @@ async function startWhatsAppBot() {
               await sock.sendMessage(targetJid, { text: pillarReply });
               continue;
             }
+          }
+
+          // =====================================================================
+          // 3. RESTO DE USUARIOS: BLINDAJE DE SEGURIDAD (NO TIENEN ACCESO A TED)
+          // =====================================================================
+          const authUser = getAuthorizedUser(cleanSender, config, fullSender);
+
+          // Mensaje de bienvenida para público general no registrado
+          if (!authUser) {
+            console.log(`[PÚBLICO] Contacto no registrado: ${fullSender} -> Enviando a ${targetJid}`);
+            await sock.sendMessage(targetJid, { text: config.public_greeting });
+            continue;
+          }
+
+          if (isReset) {
+            userSessions[remoteJid].state = 'IDLE';
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+            const menuText = buildMainMenu(authUser, config);
+            console.log(`[MENU] Enviando menú principal a ${authUser.name} (${targetJid})`);
+            await sock.sendMessage(targetJid, { text: menuText });
+            continue;
           }
 
           // Si el usuario está en IDLE
