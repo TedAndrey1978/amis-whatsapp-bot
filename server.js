@@ -910,10 +910,10 @@ async function startWhatsAppBot() {
           const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
 
           if (isTed) {
-            console.log(`[CENTRO DE MANDO TED] Mensaje de Ted: "${body}" | Estado actual: ${userState.activePillar || 'IDLE'}`);
+            console.log(`[CENTRO DE MANDO TED] Mensaje de Ted: "${body}" | Estado: ${userState.activePillar || 'IDLE'}`);
 
-            // 1. Si Ted pide menú, inicio o saludo general
-            if (isReset || (/^(hola|buenos d[ií]as|buenas|empezar|inicio)$/i.test(lowerBody) && !userState.activePillar)) {
+            // 1. Saludo, Menú, Inicio o Reset: SIEMPRE abre el Menú Maestro
+            if (isReset || /^(hola|buenos d[ií]as|buenas|empezar|inicio|men[uú]|help|ayuda)$/i.test(lowerBody)) {
               userState.activePillar = null;
               userState.waitingPillarConfirmation = false;
               userState.pendingQuery = null;
@@ -985,7 +985,6 @@ async function startWhatsAppBot() {
             // 4. Si Ted ya está dentro de un Pilar, auditar detección cruzada
             const detectedPillar = detectarPilarDeConsulta(body);
             if (userState.activePillar && detectedPillar && detectedPillar !== userState.activePillar) {
-              // 🛑 BLINDAJE DE CONTEXTO: Detectó consulta de otro pilar
               userState.waitingPillarConfirmation = true;
               userState.pendingQuery = body;
               userState.pendingTargetPillar = detectedPillar;
@@ -1010,6 +1009,13 @@ async function startWhatsAppBot() {
               await sock.sendMessage(targetJid, { text: pillarReply });
               continue;
             }
+
+            // 6. Respuesta por defecto si no encajó: NUNCA salir de if (isTed)
+            const defaultTedMsg = `🏛️ *Centro de Mando Antigravity (Lic. Ted Andrey)*\n\n` +
+              `No identifiqué una instrucción específica para "${body.slice(0, 40)}".\n\n` +
+              `👉 Escribe *menu* para ver los 3 Pilares Maestros, o selecciona *1*, *2* o *3* para ingresar a un proyecto.`;
+            await sock.sendMessage(targetJid, { text: defaultTedMsg });
+            continue;
           }
 
           // =====================================================================
