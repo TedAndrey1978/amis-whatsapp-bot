@@ -521,53 +521,51 @@ async function obtenerReporteCriptoBitso() {
 async function responderCoachIA(query) {
   const q = (query || '').toLowerCase().trim();
 
-  if (/cu[aá]nto debo|a qu[eé] ritmo|a qu[eé] velocidad|mi ritmo|ritmo ideal|siguiente carrera|siguiente salida|entreno de ma[nñ]ana/i.test(q)) {
+  if (/cu[aá]nto debo|a qu[eé] ritmo|a qu[eé] velocidad|mi ritmo|ritmo ideal|siguiente carrera|siguiente salida|entreno de ma[nñ]ana|ritmo/i.test(q)) {
     return `🏃‍♂️ *Recomendación de Ritmo y Entrenamiento (Coach Ted):*\n\n` +
       `Basado en tu última sesión de 8.52 km a 5:46 min/km con FC de 142 ppm:\n\n` +
-      `• *Para tu rodaje de mañana:* Corre entre *6:00 y 6:15 min/km*. Tu objetivo no es la velocidad, es construir capilarización muscular y mitocondrias en *Zona 2 pura* (132 a 140 ppm).\n` +
+      `• *Para tu rodaje suave:* Corre entre *6:00 y 6:15 min/km*. Tu objetivo es construir base aeróbica y mitocondrias en *Zona 2 pura* (132 a 140 ppm).\n` +
       `• *Para tu día de calidad (Tempo):* Apunta a sostener *5:20 a 5:25 min/km* por bloques de 15 a 20 minutos (FC 152-156 ppm).\n` +
       `• *Para series cortas (1,000m):* Tu paso objetivo es *4:30 a 4:35 min/km* con recuperación activa de 90 segundos al trote suave.\n\n` +
-      `💡 *Regla de oro:* Si no puedes mantener una conversación corta de corrido mientras ruedas en tu sesión suave, estás corriendo demasiado rápido. Baja 15 segundos al paso.`;
+      `💡 *Regla de oro:* Si no puedes mantener una conversación corta mientras ruedas en tu sesión suave, estás corriendo demasiado rápido. Baja 15 segundos al paso.`;
   }
 
   if (/cadencia|zancada|pisada|talon|impacto|rodillas|180|spm/i.test(q)) {
     return `⚡ *Análisis de Cadencia y Biomecánica (Coach Ted):*\n\n` +
       `• *Tu cadencia actual:* Promediaste *174 spm* en tu última sesión. ¡Es un número excelente! Estás dentro del rango ideal (170-180 spm).\n` +
       `• *¿Por qué importa?* A 174 spm tu tiempo de contacto con el suelo es menor a 230 milisegundos. Eso elimina la sobre-zancada y evita sobrecarga rotuliana.\n` +
-      `• *Consejo de afinación:* En fatiga, acorta la zancada y acelera el braceo. El tren inferior sigue automáticamente a los codos.`;
+      `• *Consejo de afinación:* En fatiga o subidas, acorta la zancada y acelera el braceo. El tren inferior sigue automáticamente la frecuencia de los codos.`;
   }
 
   if (/zona|pulsaciones|frecuencia|cardiac|coraz[oó]n|ppm|pecho/i.test(q)) {
     return `❤️ *Control de Zonas Cardíacas (Coach Ted):*\n\n` +
       `Tus zonas personalizadas de entrenamiento:\n` +
       `• *Zona 1 (<130 ppm):* Recuperación activa y regeneración celular.\n` +
-      `• *Zona 2 (130 - 145 ppm):* *Tu zona sagrada de base aeróbica.* Oxidación de lípidos.\n` +
-      `• *Zona 3 (146 - 156 ppm):* Zona Tempo.\n` +
+      `• *Zona 2 (130 - 145 ppm):* *Tu zona sagrada de base aeróbica.* Oxidación de lípidos (62% de tu última sesión).\n` +
+      `• *Zona 3 (146 - 156 ppm):* Zona Tempo aeróbica.\n` +
       `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico.\n` +
       `• *Zona 5 (>168 ppm):* Potencia aeróbica máxima (VO2 máx).\n\n` +
-      `📌 *Diagnóstico:* En tu última sesión el 62% del tiempo estuviste en Zona 2. Tu eficiencia cardiometabólica está en su punto más alto.`;
+      `📌 *Diagnóstico:* Tu corazón y metabolismo están perfectamente adaptados para fondo aeróbico.`;
   }
 
   if (/dolor|molestia|s[oó]leo|gemelo|pantorrilla|recupera|suplement|creatina|electrolit|agua|descanso/i.test(q)) {
-    return `💊 *Protocolo de Recuperación & Cuidado Muscular:*\n\n` +
-      `• *Sóleos y Gemelos:* Aplica 10 minutos de Foam Roller suave y estiramiento con rodilla flexionada.\n` +
-      `• *Hidratación Táctica:* 500 ml de agua con 300 mg de citrato de magnesio y pizca de sal marina.\n` +
-      `• *Sueño reparador:* Recuerda que la síntesis de colágeno se da en fases de sueño profundo. Apunta a 7.5 horas hoy.`;
+    return `💊 *Protocolo de Recuperación Muscular (Coach Ted):*\n\n` +
+      `• *Sóleos y Gemelos:* Aplica 10 minutos de Foam Roller suave y estiramiento con rodilla flexionada para aislar el sóleo.\n` +
+      `• *Hidratación Táctica:* 500 ml de agua con 300 mg de citrato de magnesio y una pizca de sal marina para reponer electrolitos.\n` +
+      `• *Sueño reparador:* Recuerda que la síntesis de colágeno y recuperación articular ocurre en fases de sueño profundo. Apunta a 7.5 horas hoy.`;
   }
 
-  if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(q)) {
-    return await obtenerReporteCriptoBitso();
-  }
-
-  return `🏃‍♂️ *Tu Coach Personal Garmin & Asistente Ejecutivo está listo.*\n\n` +
-    `Analizando tu contexto deportivo reciente:\n` +
-    `• Registraste *8.52 km a 5:46 min/km* con cadencia de *174 spm* y FC media de *142 ppm*.\n` +
-    `• Tu estado cardiovascular es óptimo y tu cuerpo asimiló perfectamente el volumen de la semana.\n\n` +
-    `💡 *¿Qué deseas ajustar o consultar hoy?*\n` +
-    `1. *Pedir ritmo y distancia sugerida para tu próxima salida.*\n` +
-    `2. *Consultar desglose de cadencia y zonas cardíacas Garmin.*\n` +
-    `3. *🪙 Ver portafolio Bitso en vivo (BTC / USDT / Meta 0.001 BTC).*\n` +
-    `4. *Revisar agenda ejecutiva y compromisos personales.*`;
+  return `🏃‍♂️ *RUNNING COACH & FISIOLOGÍA GARMIN*\n\n` +
+    `Analizando tu rendimiento reciente en Garmin:\n` +
+    `• Registraste *8.52 km a 5:46 min/km* con cadencia de *174 spm* y FC media de *142 ppm* (Zona 2).\n` +
+    `• Tu asimilación de carga es óptima y estás listo para tu siguiente salida.\n\n` +
+    `💡 *¿Qué deseas consultar de tu entrenamiento?*\n` +
+    `• Escribe *ritmo* para saber a qué velocidad salir mañana.\n` +
+    `• Escribe *cadencia* para revisar zancada y biomecánica.\n` +
+    `• Escribe *zonas* para ver tus rangos cardíacos en detalle.\n` +
+    `• Escribe *ayer* para ver el reporte biomédico completo de tu última sesión.\n` +
+    `• Escribe *recuperación* para cuidado de sóleos y electrolitos.\n\n` +
+    `_O pregúntame directamente cualquier duda de running, o escribe *menu* para volver._`;
 }
 
 // =========================================================================
