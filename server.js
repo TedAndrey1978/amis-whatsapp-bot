@@ -689,7 +689,7 @@ async function responderConsultaPilar(pilar, query) {
         `• *Diésel Automotriz:* $25.80 MXN / Litro\n\n` +
         `_Precios de mercado reales auditados contra facturas de compras recientes._`;
     }
-    return `🏗️ *División 1 (Obra):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes solicitar avance de Álamos del Río, detalles técnicos de Parral o cotización de insumos.`;
+    return null;
   }
 
   // Respuestas División 2: Fiscal / Finanzas
@@ -728,7 +728,7 @@ async function responderConsultaPilar(pilar, query) {
         `• *Rotación Oficial:* 24 horas continuas de fraguado y descimbrado por nivel.\n` +
         `• *Mantenimiento:* Supervisión a cargo de Bladimir Beltrán y reposición de herrajes/esquineros autorizados.`;
     }
-    return `💼 *División 2 (Finanzas):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes consultar bancos, TADR, dispersión semanal o módulo familiar.`;
+    return null;
   }
 
   // Respuestas División 3: Personal / Tech
@@ -763,9 +763,103 @@ async function responderConsultaPilar(pilar, query) {
         `• Reporte nocturno de running y recordatorios matutinos configurados.\n\n` +
         `_Todo en orden. ¿Deseas agendar alguna actividad o recordatorio específico?_`;
     }
-    return await responderCoachIA(query);
+    return null;
   }
 
+  return null;
+}
+
+async function consultarCerebroPorDivision(division, userQuery, history = []) {
+  const apiKey = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6KQ6inoYVss-O4-sVyhTmAQSY5_9m42O_l9SM_hNxiTsQ';
+  if (!apiKey) return null;
+
+  let systemPrompt = '';
+  if (division === 'PILAR_1_OBRA') {
+    systemPrompt = `Eres el Director Técnico e Ingeniero de Obra Monolítica SIMA de Ted Andrey Domínguez en AMIS Constructora.
+Ámbito EXCLUSIVO de conversación: DIVISIÓN 1 (Obra y Edificación Monolítica).
+- Proyectos:
+  1. INFONAVIT Álamos del Río (Navolato / Proyecto Lope): 320 viviendas (20 torres de 4 niveles). Contrato $54.33 MDP ($169,804/viv exento IVA). Anticipo 17% ($9.23 MDP en firme en BanBajío con CFDI VIV-2). Habilitado de acero y pre-armados en patio. Plazos congelados hasta condición suspensiva del Día "D" (uso de suelo + planos aprobados). Suministros mayores de M2 Coseinver ($60.76 MDP).
+  2. Proyecto Franco (Sierra Bonita, Parral, Chihuahua): 684 viviendas (edificios cuádruplex). Muros de 10 cm (carga y colindancias) y 20 cm (instalaciones sanitarias/bajantes y fachada de acceso). Cero muros de 12 cm. Visto bueno del 7 de oct 2026. Honorarios $240k+IVA.
+  3. Sistema de moldes SIMA con rotación estricta de 24 horas por nivel.
+  4. Precios de compras reales de insumos (cemento $245, varilla 3/8 $178.50, varilla 1/2 $312, alambre $38.50, diésel $25.80).
+AISLAMIENTO ESTRICTO: Tienes estrictamente PROHIBIDO hablar de finanzas personales, running, salud personal o criptomonedas. Si Ted pregunta de eso, indícale cordialmente que para eso debe cambiar a la División 2 (Fiscal) o División 3 (Personal).
+Tono: Muy natural, conversacional, profesional de ingeniería, claro, conciso y directo al grano.`;
+  } else if (division === 'PILAR_2_FINANZAS_FISCAL') {
+    systemPrompt = `Eres el Contralor Corporativo y Asesor Fiscal de Cabecera de Ted Andrey Domínguez en AMIS Constructora y TADR Consultoría.
+Ámbito EXCLUSIVO de conversación: DIVISIÓN 2 (Fiscal, Corporativo y Tesorería).
+- AMIS Constructora, S.A. de C.V. (RFC: ACO241114A70). Cuenta Maestra BanBajío 476863400201 (Saldo vivo ~$9.05 MDP). 5 Socios al 20% c/u (Ing. Samuel, Sra. Isabel, Sam, Ted, Mariano).
+- Dispersión semanal (Viernes): Vía 1 Fiscal BanBajío (solo trabajadores con alta IMSS Nominax), Vía 2 Asimilables Socios Darnelix 8% ($12,500 netos c/u = $62,500 total), Vía 3 Roblock 7% (factura deducible de materiales para destajos, sobrenóminas SPEI y raya en efectivo). Cero cuentas de terceros.
+- TADR Fiscal (Ted Andrey Domínguez Romero - RFC DORT780211CQ5): Régimen de honorarios/actividad empresarial. Retenciones 10% ISR y 10.67% IVA en facturas a AMIS, apartando bolsa SAT (5.33% IVA residual + ISR). Asesorías reales 100% de Ted.
+- Submayor Proyecto Ejecutivo $360,000 MXN: Reparto 50% Ing. Samuel / 50% Ted ($100k anticipo cobrado VIV-1, $260k por cobrar).
+- Módulo Familiar: Ing. Samuel (anual en abril), Sra. Isabel (trámite de disminución ante SAT).
+AISLAMIENTO ESTRICTO: Tienes estrictamente PROHIBIDO hablar de entrenamientos, running, tenis o temas deportivos. Si Ted pregunta de eso, indícale que pertenece a la División 3.
+Tono: Analítico, preciso, matemático al centavo, blindado fiscalmente y conversacional.`;
+  } else if (division === 'PILAR_3_PERSONAL') {
+    systemPrompt = `Eres el Running Coach de Alto Rendimiento y Asesor Ejecutivo Personal de Ted Andrey Domínguez.
+Ámbito EXCLUSIVO de conversación: DIVISIÓN 3 (Proyectos Personales, Tech & Bienestar).
+1. Running Coach Garmin:
+   - Atleta: Lic. Ted Andrey Domínguez.
+   - Última sesión registrada: 8.52 km a 5:46 min/km, cadencia media 174 spm (pico 182 spm), FC media 142 ppm (Zona 2 aeróbica 62% del tiempo, Zona 3 26%).
+   - Sesión de fondo anterior: 14.20 km a 5:57 min/km (FC media 139 ppm, 74% Zona 2).
+   - Metodología: Pasos cortos y reactivos (174-180 spm) para proteger rótula y fascia plantar. Respiración rítmica 3:3 en Zona 2. Rodajes suaves a 6:00-6:15 min/km para mitocondrias y capilarización. Ritmos tempo a 5:20-5:25 min/km. Cuidado de sóleos con foam roller y reposición con magnesio/sal marina.
+2. Mercado Criptomonedas & Bitso:
+   - Portafolio de Ted en vivo: 0.00063682 BTC + 105.85 USDT. Capital depositado: $3,000 MXN. Meta fijada: 0.001 BTC (100,000 satoshis). Faltan solo 0.00036318 BTC (convertibles desde USDT).
+3. SupleAI App: SaaS multiplataforma React Native + FastAPI de suplementación deportiva inteligente y afiliados en Amazon/Mercado Libre.
+4. Compras en China: Sourcing con fábricas OEM/ODM (1688, Taobao, Yupoo), casilleros (CSSBuy, Sugargoo, US Closer).
+5. Agenda ejecutiva y compromisos personales de Ted.
+AISLAMIENTO ESTRICTO: Tienes estrictamente PROHIBIDO hablar de concreto, acero, obras de AMIS o finanzas de la constructora. Si Ted pregunta de eso, indícale cordialmente que debe cambiar a la División 1 o 2.
+Tono: Ultra motivador, cercano, empático, altamente técnico en fisiología del ejercicio y métricas Garmin, conversacional y fluido.`;
+  }
+
+  const models = ['gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+
+  const contents = [];
+  if (Array.isArray(history) && history.length > 0) {
+    const recentHistory = history.slice(-6);
+    let lastRole = null;
+    for (const h of recentHistory) {
+      if (!h.text || !h.text.trim()) continue;
+      const role = h.role === 'model' ? 'model' : 'user';
+      if (role === lastRole) {
+        contents[contents.length - 1].parts[0].text += '\n' + h.text.trim();
+      } else {
+        contents.push({ role, parts: [{ text: h.text.trim() }] });
+        lastRole = role;
+      }
+    }
+  }
+
+  if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+    contents[contents.length - 1].parts[0].text += '\n' + userQuery;
+  } else {
+    contents.push({ role: 'user', parts: [{ text: userQuery }] });
+  }
+
+  const payload = {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents,
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 1024
+    }
+  };
+
+  for (const m of models) {
+    try {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + apiKey;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (answer && answer.trim().length > 0) {
+        return answer.trim();
+      }
+    } catch(e) {}
+  }
   return null;
 }
 
@@ -1043,15 +1137,31 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 5. Procesar consulta dentro de la división activa
+            // 5. Procesar atajo estructurado si coincide exactamente
             const effectivePillar = userState.activePillar || detectedPillar || 'PILAR_1_OBRA';
             const pillarReply = await responderConsultaPilar(effectivePillar, body);
             if (pillarReply) {
+              userState.history.push({ role: 'user', text: body });
+              userState.history.push({ role: 'model', text: pillarReply });
+              if (userState.history.length > 10) userState.history = userState.history.slice(-10);
+              saveSessions();
               await sock.sendMessage(targetJid, { text: pillarReply });
               continue;
             }
 
-            // 6. Mensaje por defecto de Ted (NUNCA sale a público)
+            // 6. Conversación Natural con IA (Gemini Especializado por División)
+            console.log(`[AI TED] Generando respuesta conversacional para División: ${effectivePillar} ("${body.slice(0,30)}")...`);
+            const aiReply = await consultarCerebroPorDivision(effectivePillar, body, userState.history);
+            if (aiReply) {
+              userState.history.push({ role: 'user', text: body });
+              userState.history.push({ role: 'model', text: aiReply });
+              if (userState.history.length > 10) userState.history = userState.history.slice(-10);
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: aiReply });
+              continue;
+            }
+
+            // 7. Mensaje por defecto si falla la IA
             const defaultTedMsg = `🏛️ *Centro de Mando Antigravity (Lic. Ted Andrey)*\n\n` +
               `No identifiqué una instrucción específica para "${body.slice(0, 40)}".\n\n` +
               `👉 Escribe *menu* para ver las 3 Divisiones Maestras, o selecciona *1*, *2* o *3* para ingresar a una división.`;
