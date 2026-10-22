@@ -1,150 +1,301 @@
-import express from 'express';
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion
-} from '@whiskeysockets/baileys';
-import pino from 'pino';
-import qrcode from 'qrcode';
+// Manejo global de excepciones para evitar que el contenedor muera
+process.on('uncaughtException', (err) => {
+  console.error('🚨 [EXCEPCIÓN CAPTURADA]:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('🚨 [RECHAZO CAPTURADO]:', reason);
+});
+
+import * as BaileysModule from '@whiskeysockets/baileys';
+const baileys = BaileysModule.default || BaileysModule;
+const makeWASocket = typeof baileys === 'function' ? baileys : (baileys.default || baileys.makeWASocket || BaileysModule.makeWASocket || baileys);
+const useMultiFileAuthState = baileys.useMultiFileAuthState || BaileysModule.useMultiFileAuthState;
+const DisconnectReason = baileys.DisconnectReason || BaileysModule.DisconnectReason;
+const BufferJSON = baileys.BufferJSON || BaileysModule.BufferJSON;
+const initAuthCreds = baileys.initAuthCreds || BaileysModule.initAuthCreds;
+const proto = baileys.proto || BaileysModule.proto;
+const fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion || BaileysModule.fetchLatestBaileysVersion;
 import { MongoClient } from 'mongodb';
+import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import http from 'http';
 import https from 'https';
+import { fileURLToPath } from 'url';
+import QRCode from 'qrcode';
+import qrcodeTerminal from 'qrcode-terminal';
+import { generateConversationalReply } from './asistente_conversacional.js';
+
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tedandrey78_db_user:HYHCN2Utcqhdwn7a@cluster0.fe2xsa1.mongodb.net/amis_whatsapp?authSource=admin&retryWrites=true&w=majority&appName=Cluster0';
+let mongoClient = null;
+let sessionCollection = null;
+let lastMongoError = null;
+
+async function useMongoAuthState() {
+  try {
+    if (!mongoClient) {
+      console.log('📡 Conectando a MongoDB Atlas para persistencia de sesión 24/7...');
+      mongoClient = new MongoClient(MONGO_URI);
+      await mongoClient.connect();
+      const db = mongoClient.db('amis_whatsapp');
+      sessionCollection = db.collection('auth_session');
+      lastMongoError = null;
+      console.log('✅ MongoDB Atlas conectado exitosamente.');
+    }
+
+    const writeData = async (data, id) => {
+      try {
+        const serialized = JSON.stringify(data, BufferJSON.replacer);
+        await sessionCollection.replaceOne({ _id: id }, { _id: id, data: serialized }, { upsert: true });
+        console.log(`💾 [MONGO PERSISTENCIA] Clave guardada: ${id}`);
+      } catch (err) {
+        console.error('Error guardando en MongoDB:', err.message);
+      }
+    };
+
+    const readData = async (id) => {
+      try {
+        const doc = await sessionCollection.findOne({ _id: id });
+        if (doc && doc.data) {
+          return JSON.parse(doc.data, BufferJSON.reviver);
+        }
+        return null;
+      } catch (err) {
+        console.error('Error leyendo de MongoDB:', err.message);
+        return null;
+      }
+    };
+
+    const removeData = async (id) => {
+      try {
+        await sessionCollection.deleteOne({ _id: id });
+        console.log(`🗑️ [MONGO PERSISTENCIA] Clave eliminada: ${id}`);
+      } catch (err) {
+        console.error('Error eliminando de MongoDB:', err.message);
+      }
+    };
+
+    const credsDoc = await readData('creds');
+    const creds = credsDoc || initAuthCreds();
+
+    return {
+      state: {
+        creds,
+        keys: {
+          get: async (type, ids) => {
+            const data = {};
+            for (const id of ids) {
+              const val = await readData(`${type}-${id}`);
+              if (val) data[id] = val;
+            }
+            return data;
+          },
+          set: async (data) => {
+            for (const category in data) {
+              for (const id in data[category]) {
+                const val = data[category][id];
+                const key = `${category}-${id}`;
+                if (val) {
+                  await writeData(val, key);
+                } else {
+                  await removeData(key);
+                }
+              }
+            }
+          }
+        }
+      },
+      saveCreds: () => writeData(creds, 'creds')
+    };
+  } catch (err) {
+    console.error('⚠️ Error crítico en useMongoAuthState:', err.message);
+    lastMongoError = err.message;
+    throw err;
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-app.use(express.json());
+// Variables de estado del bot
+let currentQrData = null;
+let currentQrImage = null;
+let currentPairingCode = null;
+let isClientReady = false;
+let connectedUser = null;
+let sock = null;
+
+const SESSIONS_FILE = path.join(__dirname, 'user_sessions.json');
+let userSessions = {};
+try {
+  if (fs.existsSync(SESSIONS_FILE)) {
+    userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+  }
+} catch (e) {
+  userSessions = {};
+}
+
+function saveSessions() {
+  try {
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error guardando sesiones:', e.message);
+  }
+}
+
+function loadConfig() {
+  try {
+    const configPath = path.join(__dirname, 'menu_config.json');
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+  } catch (err) {
+    console.error('Error cargando menu_config.json:', err.message);
+  }
+  return { authorized_users: [], modules: {} };
+}
+
+function getAuthorizedUser(senderNumber, config) {
+  if (!config.authorized_users) return null;
+  const cleanSender = senderNumber.replace(/[^0-9]/g, '');
+  return config.authorized_users.find(u => {
+    const cleanAuth = u.phone.replace(/[^0-9]/g, '');
+    return cleanSender.endsWith(cleanAuth) || cleanAuth.endsWith(cleanSender);
+  });
+}
+
+function buildMainMenu(user, config) {
+  let menu = config.menu_header.replace('{name}', user.name).replace('{role}', user.role);
+  menu += '\n\n';
+
+  let optionIndex = 1;
+  const userModules = [];
+
+  for (const [modKey, modData] of Object.entries(config.modules)) {
+    if (modData.allowed_roles.includes(user.role) || modData.allowed_roles.includes('*')) {
+      menu += `${optionIndex}️⃣ *${modData.title}*\n_${modData.description}_\n\n`;
+      userModules.push({ digit: optionIndex.toString(), key: modKey, ...modData });
+      optionIndex++;
+    }
+  }
+
+  menu += config.menu_footer;
+  return menu;
+}
+
+// Iniciar Servidor HTTP inmediatamente para Render
+const server = http.createServer(async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  if (req.url === '/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    let docsCount = 0;
+    try {
+      if (sessionCollection) docsCount = await sessionCollection.countDocuments();
+    } catch (e) {}
+    res.end(JSON.stringify({
+      ready: isClientReady,
+      authenticated: isClientReady,
+      needsQr: !isClientReady && !!currentQrData,
+      pairingCode: currentPairingCode || null,
+      user: connectedUser || null,
+      mongo: {
+        connected: !!sessionCollection,
+        error: lastMongoError,
+        docsCount: docsCount
+      }
+    }));
+    return;
+  }
+
+  if (req.url === '/send' && req.method === 'POST') {
+    let postBody = '';
+    req.on('data', chunk => { postBody += chunk; });
+    req.on('end', async () => {
+      try {
+        const { phone, message } = JSON.parse(postBody);
+        if (!phone || !message) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Faltan campos phone o message' }));
+        }
+        const target = phone.includes('@') ? phone : `${phone.replace(/\D/g, '')}@s.whatsapp.net`;
+        if (sock && isClientReady) {
+          await sock.sendMessage(target, { text: message });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, target }));
+        } else {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'WhatsApp no está listo aún' }));
+        }
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>AMIS Constructora · Torre de Control 24/7</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 30px 20px; }
+        .card { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
+        h1 { font-size: 22px; margin-bottom: 6px; color: #38bdf8; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+        .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
+        .badge-online { background: #065f46; color: #34d399; }
+        .badge-qr { background: #854d0e; color: #facc15; }
+        .qr-box { background: white; padding: 16px; border-radius: 12px; display: inline-block; margin-bottom: 20px; }
+        .qr-box img { display: block; max-width: 256px; height: auto; }
+        .pairing-code { font-size: 28px; font-weight: 800; letter-spacing: 4px; color: #38bdf8; background: #0f172a; padding: 12px 24px; border-radius: 8px; border: 1px dashed #38bdf8; display: inline-block; margin-bottom: 15px; }
+      </style>
+      <script>
+        setTimeout(() => { location.reload(); }, 6000);
+      </script>
+    </head>
+    <body>
+      <div class="card">
+        <h1>AMIS CONSTRUCTORA</h1>
+        <p>Cerebro Central Antigravity · Baileys 24/7</p>
+
+        ${isClientReady ? `
+          <div class="badge badge-online">● SERVICIO ACTIVO Y EN LÍNEA</div>
+          <p>Conectado exitosamente como: <strong style="color: #38bdf8;">+${connectedUser || 'Sesión Activa'}</strong></p>
+          <p style="font-size: 12px; color: #64748b;">La sesión está resguardada en MongoDB Atlas para evitar desconexiones.</p>
+        ` : (currentPairingCode ? `
+          <div class="badge badge-qr">⚡ VINCULACIÓN POR CÓDIGO</div>
+          <p>Ingresa este código en WhatsApp (Dispositivos vinculados -> Vincular con número de teléfono):</p>
+          <div class="pairing-code">${currentPairingCode}</div>
+        ` : (currentQrImage ? `
+          <div class="badge badge-qr">📷 ESCANEAR CÓDIGO QR</div>
+          <div class="qr-box">
+            <img src="${currentQrImage}" alt="Código QR WhatsApp" />
+          </div>
+          <p>Abre WhatsApp en tu teléfono -> Dispositivos vinculados -> Vincular un dispositivo.</p>
+        ` : `
+          <div class="badge badge-qr">⏳ INICIANDO SERVICIO...</div>
+          <p>Conectando a MongoDB Atlas y levantando el asistente...</p>
+        `))}
+      </div>
+    </body>
+    </html>
+  `);
+});
 
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
-const DB_NAME = 'amis_whatsapp';
-const COLLECTION_NAME = 'auth_session';
-
-let sock = null;
-let qrCodeDataURL = null;
-let isConnected = false;
-let mongoClient = null;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🌐 Servidor HTTP activo en el puerto ${PORT}`);
+});
 
 // =========================================================================
-// GESTIÓN DE AUTENTICACIÓN EN MONGODB ATLAS
-// =========================================================================
-async function initMongo() {
-  if (!MONGO_URI) {
-    console.warn('[AUTH] MONGO_URI no configurado. Se usará autenticación local temporal.');
-    return null;
-  }
-  try {
-    mongoClient = new MongoClient(MONGO_URI);
-    await mongoClient.connect();
-    console.log('[AUTH] Conectado exitosamente a MongoDB Atlas');
-    return mongoClient.db(DB_NAME).collection(COLLECTION_NAME);
-  } catch (err) {
-    console.error('[AUTH ERROR] Falló la conexión a MongoDB:', err.message);
-    return null;
-  }
-}
-
-async function useMongoAuthState(collection) {
-  const localAuthDir = path.join(__dirname, 'auth_info_baileys');
-  if (!fs.existsSync(localAuthDir)) {
-    fs.mkdirSync(localAuthDir, { recursive: true });
-  }
-
-  if (collection) {
-    try {
-      console.log('[AUTH] Restaurando sesión desde MongoDB Atlas...');
-      const cursor = collection.find({});
-      const docs = await cursor.toArray();
-      let restoredCount = 0;
-      for (const doc of docs) {
-        if (doc._id && doc.data) {
-          const filePath = path.join(localAuthDir, doc._id);
-          fs.writeFileSync(filePath, doc.data, 'utf-8');
-          restoredCount++;
-        }
-      }
-      console.log(`[AUTH] ${restoredCount} archivos de sesión restaurados en disco local.`);
-    } catch (err) {
-      console.error('[AUTH ERROR] Error restaurando desde MongoDB:', err.message);
-    }
-  }
-
-  const { state, saveCreds } = await useMultiFileAuthState(localAuthDir);
-
-  const saveCredsToMongo = async () => {
-    await saveCreds();
-    if (collection) {
-      try {
-        const files = fs.readdirSync(localAuthDir);
-        for (const file of files) {
-          const filePath = path.join(localAuthDir, file);
-          if (fs.lstatSync(filePath).isFile()) {
-            const content = fs.readFileSync(filePath, 'utf-8');
-            await collection.updateOne(
-              { _id: file },
-              { $set: { data: content, updatedAt: new Date() } },
-              { upsert: true }
-            );
-          }
-        }
-      } catch (err) {
-        console.error('[AUTH ERROR] Error sincronizando a MongoDB:', err.message);
-      }
-    }
-  };
-
-  return { state, saveCreds: saveCredsToMongo };
-}
-
-// =========================================================================
-// BASES DE DATOS EN MEMORIA Y CONTEXTO
-// =========================================================================
-const userContext = new Map();
-const userHistory = new Map();
-
-const CATALOGO_PRECIOS = [
-  { item: 'Cemento Gris Tolteca CPC 30R 50kg', precio: 245.00, unidad: 'Saco' },
-  { item: 'Varilla Corrugada 3/8" (No. 3) R-42', precio: 178.50, unidad: 'Tramo 12m' },
-  { item: 'Varilla Corrugada 1/2" (No. 4) R-42', precio: 312.00, unidad: 'Tramo 12m' },
-  { item: 'Alambre Recocido Calibre 16', precio: 38.50, unidad: 'Kg' },
-  { item: 'Clavo para Concreto 2 1/2"', precio: 45.00, unidad: 'Kg' },
-  { item: 'Arena Triturada No. 4', precio: 480.00, unidad: 'M3' },
-  { item: 'Grava Triturada 3/4"', precio: 520.00, unidad: 'M3' },
-  { item: 'Malla Electrosoldada 6-6/10-10', precio: 1850.00, unidad: 'Rollo 100m2' },
-  { item: 'Desmoldante SIMA Ecológico Base Agua', precio: 1450.00, unidad: 'Garrafa 20L' },
-  { item: 'Diesel Automotriz UBA', precio: 25.80, unidad: 'Litro' },
-  { item: 'Gasolina Regular Magna', precio: 24.50, unidad: 'Litro' }
-];
-
-const PROVEEDORES_FRECUENTES = [
-  { nombre: 'Cemex Concretos / Construrama', rfc: 'CEX800101XYZ', contacto: 'Lic. Roberto Garza (667) 712-4050' },
-  { nombre: 'Aceros y Perfiles de Culiacán', rfc: 'APC950315ABC', contacto: 'Ing. Carlos Mendoza (667) 750-8090' },
-  { nombre: 'Ferretería y Materiales del Río', rfc: 'FMR020420H12', contacto: 'Mostrador Central (667) 718-2233' },
-  { nombre: 'Distribuidora Diésel del Pacífico', rfc: 'DDP110908KL9', contacto: 'Cesp. Despacho (667) 725-6677' }
-];
-
-const SUELDOS_TABULADOR = [
-  { puesto: 'Herrero + Equipo Soldadura', salarioSemanal: 10800.00, diario: 1800.00 },
-  { puesto: 'Residente de Obra', salarioSemanal: 7500.00, diario: 1250.00 },
-  { puesto: 'Moldero Especialista', salarioSemanal: 7000.00, diario: 1166.67 },
-  { puesto: 'Fierrero Especialista', salarioSemanal: 5000.00, diario: 833.33 },
-  { puesto: 'Encargado de Mantenimiento', salarioSemanal: 5000.00, diario: 833.33 },
-  { puesto: 'Plomero Instalador', salarioSemanal: 5000.00, diario: 833.33 },
-  { puesto: 'Electricista Obra', salarioSemanal: 5000.00, diario: 833.33 },
-  { puesto: 'Albañil Especialista', salarioSemanal: 4000.00, diario: 666.67 },
-  { puesto: 'Supervisor PreArmados', salarioSemanal: 4000.00, diario: 666.67 },
-  { puesto: 'Seguridad y Accesos Obra', salarioSemanal: 4000.00, diario: 666.67 },
-  { puesto: 'Ayudante General de Obra', salarioSemanal: 3500.00, diario: 583.33 },
-  { puesto: 'Ayudante de Herrero', salarioSemanal: 3500.00, diario: 583.33 },
-  { puesto: 'Velador Terreno SIMA', salarioSemanal: 2400.00, diario: 400.00 },
-  { puesto: 'Velador de Obra', salarioSemanal: 2000.00, diario: 333.33 }
-];
-
-// =========================================================================
-// MÓDULO RUNNING: DATOS REALES DE GARMIN DE TED ANDREY
+// 🏃‍♂️ MÓDULO RUNNING & INTELIGENCIA DEPORTIVA GARMIN TED ANDREY
 // =========================================================================
 const ULTIMAS_SESIONES_RUNNING = [
   {
@@ -178,22 +329,6 @@ const ULTIMAS_SESIONES_RUNNING = [
     zonasFC: { z1: '12%', z2: '74%', z3: '14%', z4: '0%', z5: '0%' },
     tiempoRecuperacionSugerido: '36 horas',
     sensacion: 'Fondo limpio con hidratación cada 4 km. Fatiga moderada en sóleos al final.'
-  },
-  {
-    fecha: 'Viernes 17 de Octubre, 2026',
-    tipo: 'Series de Umbral Lactato (5 x 1000m r=2m)',
-    distanciaKm: 9.10,
-    duracion: '48m 15s',
-    ritmoMedio: '5:18 min/km (Intervalos a 4:32 min/km promedio)',
-    ritmoMejorKm: '4:28 min/km',
-    fcMedia: 154,
-    fcMax: 171,
-    cadenciaMedia: 178,
-    cadenciaMax: 188,
-    calorias: 640,
-    zonasFC: { z1: '10%', z2: '35%', z3: '20%', z4: '30%', z5: '5%' },
-    tiempoRecuperacionSugerido: '48 horas',
-    sensacion: 'Potente estímulo cardiovascular. Recuperación de pulso rápida en los 2 minutos de trote.'
   }
 ];
 
@@ -312,10 +447,9 @@ async function obtenerReporteCriptoBitso() {
 // =========================================================================
 // 🏃‍♂️ MOTOR DE INTELIGENCIA DEPORTIVA: COACH IA DE RUNNING & FISIOLOGÍA
 // =========================================================================
-async function responderCoachIA(query, history = []) {
+async function responderCoachIA(query) {
   const q = (query || '').toLowerCase().trim();
 
-  // Si pregunta por ritmo / a cuánto correr
   if (/cu[aá]nto debo|a qu[eé] ritmo|a qu[eé] velocidad|mi ritmo|ritmo ideal|siguiente carrera|siguiente salida|entreno de ma[nñ]ana/i.test(q)) {
     return `🏃‍♂️ *Recomendación de Ritmo y Entrenamiento (Coach Ted):*\n\n` +
       `Basado en tu última sesión de 8.52 km a 5:46 min/km con FC de 142 ppm:\n\n` +
@@ -325,7 +459,6 @@ async function responderCoachIA(query, history = []) {
       `💡 *Regla de oro:* Si no puedes mantener una conversación corta de corrido mientras ruedas en tu sesión suave, estás corriendo demasiado rápido. Baja 15 segundos al paso.`;
   }
 
-  // Si pregunta por cadencia o técnica
   if (/cadencia|zancada|pisada|talon|impacto|rodillas|180|spm/i.test(q)) {
     return `⚡ *Análisis de Cadencia y Biomecánica (Coach Ted):*\n\n` +
       `• *Tu cadencia actual:* Promediaste *174 spm* en tu última sesión. ¡Es un número excelente! Estás dentro del rango ideal (170-180 spm).\n` +
@@ -333,7 +466,6 @@ async function responderCoachIA(query, history = []) {
       `• *Consejo de afinación:* En subidas o cuando sientas fatiga en el km 7+, no trates de alargar el paso. *Acorta la zancada y acelera el braceo*. El tren inferior sigue automáticamente la cadencia de los codos.`;
   }
 
-  // Si pregunta por pulsaciones, zonas o corazón
   if (/zona|pulsaciones|frecuencia|cardiac|coraz[oó]n|ppm|pecho/i.test(q)) {
     return `❤️ *Control de Zonas Cardíacas (Coach Ted):*\n\n` +
       `Tus zonas personalizadas de entrenamiento:\n` +
@@ -345,7 +477,6 @@ async function responderCoachIA(query, history = []) {
       `📌 *Diagnóstico:* En tu última sesión el 62% del tiempo estuviste en Zona 2. Tu eficiencia cardiometabólica está en su punto más alto del ciclo.`;
   }
 
-  // Si pregunta por dolores, agujetas, suplementos o recuperación
   if (/dolor|molestia|s[oó]leo|gemelo|pantorrilla|recupera|suplement|creatina|electrolit|agua|descanso/i.test(q)) {
     return `💊 *Protocolo de Recuperación & Cuidado Muscular:*\n\n` +
       `• *Sóleos y Gemelos:* Aplica 10 minutos de Foam Roller suave (sin presionar directo sobre el tendón de Aquiles) y estiramiento con rodilla flexionada para aislar el sóleo.\n` +
@@ -353,12 +484,10 @@ async function responderCoachIA(query, history = []) {
       `• *Sueño reparador:* Recuerda que la síntesis de colágeno y la hormona de crecimiento se liberan en las fases de sueño profundo (fases 3 y 4). Apunta a 7.5 horas hoy.`;
   }
 
-  // Si pregunta por Cripto / Bitso / Inversiones personales
   if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(q)) {
     return await obtenerReporteCriptoBitso();
   }
 
-  // Respuesta general de seguimiento deportivo y personal
   return `🏃‍♂️ *Tu Coach Personal Garmin & Asistente Ejecutivo está listo.*\n\n` +
     `Analizando tu contexto deportivo reciente:\n` +
     `• Registraste *8.52 km a 5:46 min/km* con cadencia de *174 spm* y FC media de *142 ppm*.\n` +
@@ -371,376 +500,596 @@ async function responderCoachIA(query, history = []) {
 }
 
 // =========================================================================
-// MOTOR DE INTELIGENCIA DE AMIS CONSTRUCTORA (CHAT 1 A 1 CON ASISTENTE)
+// 🏛️ CENTRO DE MANDO MAESTRO TED ANDREY (EXCLUSIVO 6676921223)
 // =========================================================================
-async function responderConIA(prompt, history = []) {
-  const p = (prompt || '').toLowerCase().trim();
-
-  // 1. Reporte de Saldos y Bancos
-  if (/saldo|banco|bajio|cuenta|bancar/i.test(p)) {
-    return `💼 *Tesorería AMIS Constructora:*\n\n` +
-      `• *Banco:* Banco del Bajío Empresarial\n` +
-      `• *Cuenta Maestra:* 476863400201\n` +
-      `• *Saldo Auditoría:* ~$9,050,000.00 MXN\n` +
-      `• *Anticipo Infonavit Álamos:* $9,237,337.60 MXN (17% cobrado en firme, CFDI VIV-2 emitido).\n` +
-      `• *Fondo de Contingencia:* Activo y disponible para compras críticas de acero y cemento.\n\n` +
-      `_¿Deseas conciliar algún cheque, consultar movimientos recientes o programar dispersión de nómina?_`;
+const PILARES_INFO = {
+  PILAR_1_OBRA: {
+    id: '1',
+    codigo: 'PILAR_1_OBRA',
+    titulo: 'Pilar 1: Obra y Edificación Monolítica',
+    proyectos: 'Infonavit Álamos del Río / Proyecto Franco Parral / Suministros'
+  },
+  PILAR_2_FINANZAS_FISCAL: {
+    id: '2',
+    codigo: 'PILAR_2_FINANZAS_FISCAL',
+    titulo: 'Pilar 2: Fiscal, Corporativo y Tesorería',
+    proyectos: 'AMIS Fiscal / TADR Fiscal / Proy. Ejecutivo $360k / Familiar SAT / Moldes SIMA'
+  },
+  PILAR_3_PERSONAL: {
+    id: '3',
+    codigo: 'PILAR_3_PERSONAL',
+    titulo: 'Pilar 3: Proyectos Personales, Tech & Bienestar',
+    proyectos: 'Mercado Cripto Bitso / Garmin Running Coach / SupleAI App / Compras China / Agenda'
   }
+};
 
-  // 2. Reporte de Mano de Obra y Nómina
-  if (/n[oó]mina|tabulador|sueldo|salario|pago.*semana|dispersi/i.test(p)) {
-    let resp = `👷‍♂️ *Tabulador Oficial Semanal AMIS (Planta 2026):*\n\n`;
-    SUELDOS_TABULADOR.slice(0, 8).forEach(item => {
-      resp += `• *${item.puesto}:* $${item.salarioSemanal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}/sem ($${item.diario.toFixed(2)}/día)\n`;
-    });
-    resp += `\n📌 *Regla de Dispersión Semanal (Viernes):*\n` +
-      `1. *Fiscal Directa BanBajío:* Solo trabajadores con alta IMSS en Nominax.\n` +
-      `2. *Darnelix (Asimilables):* Socios ($12,500 c/u, 8% comisión).\n` +
-      `3. *Roblock:* Destajos, sobrenóminas SPEI y sobre de raya en efectivo.`;
-    return resp;
-  }
-
-  // 3. Catálogo de Precios y Mercadeo
-  if (/precio|material|cemento|varilla|diesel|gasolina|arena|grava|costo/i.test(p)) {
-    let resp = `🏗️ *Precios de Referencia Autorizados (Compras AMIS):*\n\n`;
-    CATALOGO_PRECIOS.forEach(item => {
-      resp += `• *${item.item}:* $${item.precio.toFixed(2)} MXN / ${item.unidad}\n`;
-    });
-    resp += `\n_Cotizaciones auditadas contra facturas recientes de Cemex, Construrama y Aceros de Culiacán._`;
-    return resp;
-  }
-
-  // 4. Proveedores Frecuentes
-  if (/proveedor|contacto|tel[eé]fono|cemex|acero|di[eé]sel/i.test(p)) {
-    let resp = `🤝 *Directorio de Proveedores Validados AMIS:*\n\n`;
-    PROVEEDORES_FRECUENTES.forEach(prov => {
-      resp += `• *${prov.nombre}*\n  RFC: \`${prov.rfc}\` | Contacto: ${prov.contacto}\n\n`;
-    });
-    return resp;
-  }
-
-  // 5. Estado de Proyecto Álamos del Río
-  if (/alamos|[aá]lamos|infonavit|lope|proyecto|vivienda|torre/i.test(p)) {
-    return `🏢 *Proyecto Infonavit Álamos del Río (SIMA):*\n\n` +
-      `• *Alcance:* 320 viviendas (20 torres de 4 niveles).\n` +
-      `• *Monto Contrato:* $54,337,280.00 MXN ($169,804.00/viv exento IVA).\n` +
-      `• *Anticipo:* $9,237,337.60 MXN (17% cobrado en BanBajío).\n` +
-      `• *Estatus Operativo:* Condición suspensiva en verificación para banderazo oficial del Día 'D'. Rotación de moldes SIMA proyectada a 24 horas por nivel.`;
-  }
-
-  // 6. Asistente General por Defecto
-  return `🤖 *Asistente Operativo Central AMIS*\n\n` +
-    `Entiendo tu consulta sobre *"${prompt.slice(0, 50)}"*. Estoy configurado para darte soporte inmediato en:\n\n` +
-    `1. *Tesorería y Bancos:* Consulta de saldos BanBajío y pagos pendientes.\n` +
-    `2. *Precios de Materiales:* Varilla, cemento, agregados, diésel.\n` +
-    `3. *Mano de Obra y Nómina:* Tabulador semanal, altas Nominax e incidencias.\n` +
-    `4. *Proveedores:* Teléfonos, RFCs y cuentas autorizadas.\n` +
-    `5. *Recepción de Gastos:* Mándame la foto de cualquier factura o ticket para registrarlo.\n\n` +
-    `_Escribe lo que necesitas consultar o indícame una instrucción directa._`;
+function getMenuMaestroTed() {
+  return `🏛️ *CENTRO DE MANDO ESTRATÉGICO ANTIGRAVITY*\n` +
+    `👤 *Lic. Ted Andrey Domínguez Romero*\n\n` +
+    `Selecciona el pilar o frente que deseas consultar:\n\n` +
+    `1️⃣ 🏗️ *Pilar 1: Obra y Edificación Monolítica*\n` +
+    `   • Proyecto Álamos del Río / Lope (320 viv SIMA - $54.3 MDP)\n` +
+    `   • Proyecto Franco / Parral (684 viv Sierra Bonita)\n\n` +
+    `2️⃣ 💼 *Pilar 2: Fiscal, Corporativo y Tesorería*\n` +
+    `   • AMIS Constructora Fiscal (BanBajío, Nómina, Roblock, Darnelix)\n` +
+    `   • TADR Fiscal (Honorarios, Asesorías, CFDI DORT780211CQ5)\n` +
+    `   • Submayor Proyecto Ejecutivo ($360k - 50% Ing. Samuel / 50% Ted)\n` +
+    `   • Módulo Familiar Contable (Ing. Samuel & Sra. Isabel)\n` +
+    `   • Sistema de Moldes SIMA (Costos, Activos y Reparaciones)\n\n` +
+    `3️⃣ 🌟 *Pilar 3: Proyectos Personales, Tech & Bienestar*\n` +
+    `   • Mercado Criptomonedas & Bitso (BTC, USDT, Meta 0.001 BTC)\n` +
+    `   • Running Coach & Garmin (Fisiología, Cadencia, Zonas FC)\n` +
+    `   • SupleAI App (SaaS Suplementación Deportiva & Afiliados)\n` +
+    `   • Compras e Importaciones de China (Sourcing, Fábricas, Yupoo)\n` +
+    `   • Agenda y Asistente Ejecutivo Personal\n\n` +
+    `_Escribe *1*, *2* o *3* para ingresar a un pilar, o escribe directamente lo que buscas._`;
 }
 
-// =========================================================================
-// CONEXIÓN PRINCIPAL CON WHATSAPP (BAILEYS)
-// =========================================================================
-async function connectToWhatsApp() {
-  console.log('[WHATSAPP] Iniciando conexión con WhatsApp Web...');
+function getSubmenuPilar1() {
+  return `🏗️ *PILAR 1: OBRA Y EDIFICACIÓN MONOLÍTICA*\n` +
+    `Has ingresado al contexto de construcción e ingeniería.\n\n` +
+    `1️⃣ *Proyecto Álamos del Río / Lope:* 320 viviendas (20 torres), moldes SIMA, anticipo $9.23 MDP en BanBajío.\n` +
+    `2️⃣ *Proyecto Franco / Parral:* 684 viviendas Sierra Bonita, muros 10 y 20 cm, visto bueno 7 de oct 2026.\n` +
+    `3️⃣ *Requisiciones y Precios de Materiales:* Varilla, cemento, agregados, diésel.\n\n` +
+    `_Escribe tu consulta sobre obra, o escribe *menu* para volver al menú maestro._`;
+}
 
-  const mongoCollection = await initMongo();
-  const { state, saveCreds } = await useMongoAuthState(mongoCollection);
-  const { version, isLatest } = await fetchLatestBaileysVersion();
-  console.log(`[WHATSAPP] Usando versión de Baileys v${version.join('.')} (Última: ${isLatest})`);
+function getSubmenuPilar2() {
+  return `💼 *PILAR 2: FISCAL, CORPORATIVO Y TESORERÍA*\n` +
+    `Has ingresado al contexto contable, fiscal y bancario.\n\n` +
+    `1️⃣ *AMIS Constructora:* Saldos BanBajío (~$9.05 MDP) y dispersión semanal (BanBajío, Darnelix 8%, Roblock 7%).\n` +
+    `2️⃣ *TADR Fiscal:* Honorarios, emisión de CFDI y provisión SAT.\n` +
+    `3️⃣ *Submayor Proyecto Ejecutivo:* Estado del fondo $360k (50% Ing. Samuel / 50% Ted).\n` +
+    `4️⃣ *Módulo Familiar:* Ing. Samuel (anual exenta) y Sra. Isabel (estrategia disminución SAT).\n` +
+    `5️⃣ *Sistema de Moldes SIMA:* Costos y activos de moldes.\n\n` +
+    `_Escribe tu consulta financiera o fiscal, o escribe *menu* para volver al menú maestro._`;
+}
 
-  sock = makeWASocket({
-    version,
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: true,
-    auth: state,
-    browser: ['AMIS Asistente', 'Chrome', '1.0.0'],
-    generateHighQualityLinkPreview: true,
-    syncFullHistory: false
-  });
+function getSubmenuPilar3() {
+  return `🌟 *PILAR 3: PROYECTOS PERSONALES, TECH & BIENESTAR*\n` +
+    `Has ingresado al contexto personal y tecnológico.\n\n` +
+    `1️⃣ *🪙 Mercado Criptomonedas & Bitso:* Portafolio en vivo (0.00063682 BTC, 105.85 USDT, meta 0.001 BTC).\n` +
+    `2️⃣ *🏃‍♂️ Running Coach & Garmin:* Sesiones Garmin, cadencia, ritmos y zonas cardíacas.\n` +
+    `3️⃣ *📱 SupleAI App:* Estado del SaaS de suplementación inteligente y afiliados.\n` +
+    `4️⃣ *🇨🇳 Compras en China:* Sourcing directo, catálogos Yupoo, 1688 y casilleros.\n` +
+    `5️⃣ *📋 Agenda Ejecutiva:* Pendientes personales y compromisos.\n\n` +
+    `_Escribe tu consulta personal o deportiva, o escribe *menu* para volver al menú maestro._`;
+}
 
-  sock.ev.on('creds.update', saveCreds);
+function detectarPilarDeConsulta(text) {
+  const t = (text || '').toLowerCase().trim();
 
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
+  // Detección Pilar 3: Personal / Tech
+  const matchPersonal = /cripto|bitcoin|btc|bitso|usdt|eth|satoshi|running|garmin|correr|entreno|sesi[oó]n.*ayer|cadencia|ritmo|ppm|pulsaciones|supleai|suplement|creatina|china|yupoo|1688|taobao|casillero|agenda.*personal|compromiso.*personal/i.test(t);
 
-    if (qr) {
-      console.log('[WHATSAPP] Nuevo código QR generado.');
-      qrCodeDataURL = await qrcode.toDataURL(qr);
-      isConnected = false;
+  // Detección Pilar 2: Fiscal / Finanzas
+  const matchFiscal = /banbaj[ií]o|cuenta.*maestra|saldo.*amis|darnelix|roblock|asimilables?|factura.*tadr|honorarios?.*ted|retenci[oó]n|dort780211|aco241114|submayor|proyecto ejecutivo|360k|isabel romero|samuel dom[ií]nguez.*sat|declaraci[oó]n.*anual|impuestos?|provisi[oó]n sat|diot|n[oó]mina.*semanal|tabulador/i.test(t);
+
+  // Detección Pilar 1: Obra
+  const matchObra = /alamos|[aá]lamos|lope|franco|parral|sierra bonita|muro|moldes?|vivienda|torre|concreto|varilla|cemento|di[eé]sel|arena|grava|cuadrilla|colado|residente|destajo.*obra/i.test(t);
+
+  if (matchPersonal && !matchObra && !matchFiscal) return 'PILAR_3_PERSONAL';
+  if (matchFiscal && !matchObra && !matchPersonal) return 'PILAR_2_FINANZAS_FISCAL';
+  if (matchObra && !matchFiscal && !matchPersonal) return 'PILAR_1_OBRA';
+  return null;
+}
+
+async function responderConsultaPilar(pilar, query) {
+  const q = (query || '').toLowerCase().trim();
+
+  // Respuestas Pilar 1: Obra
+  if (pilar === 'PILAR_1_OBRA') {
+    if (/franco|parral|sierra bonita/i.test(q) || q === '2') {
+      return `⛏️ *Proyecto Franco / Parral (SIMA - Chihuahua)*\n\n` +
+        `• *Alcance:* 684 viviendas en edificios cuádruplex (prototipo Sierra Bonita).\n` +
+        `• *Estatus de Planos:* Visto bueno definitivo del martes 7 de octubre de 2026 (13 láminas ejecutivas autorizadas).\n` +
+        `• *Espesores de Muro:* Cero muros de 12 cm. Muros de *10 cm* (carga y colindancias) y *20 cm* (instalaciones sanitarias/bajantes y fachada de acceso).\n` +
+        `• *Honorarios Estructurales:* $240,000 + IVA (bonificables si contratan antes del 15 de diciembre de 2026).\n` +
+        `• *Exclusividad SIMA:* Franco edifica hasta 100 tradicionales; mínimo 584 exclusivas para AMIS.`;
     }
-
-    if (connection === 'close') {
-      const statusCode = (lastDisconnect?.error)?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      console.log(`[WHATSAPP] Conexión cerrada. Código: ${statusCode}. Reconectando: ${shouldReconnect}`);
-      isConnected = false;
-      qrCodeDataURL = null;
-
-      if (shouldReconnect) {
-        setTimeout(connectToWhatsApp, 5000);
-      } else {
-        console.error('[WHATSAPP] La sesión fue cerrada manualmente. Se requiere escanear un nuevo QR.');
-      }
-    } else if (connection === 'open') {
-      console.log('[WHATSAPP] ¡Conexión establecida con éxito 24/7!');
-      isConnected = true;
-      qrCodeDataURL = null;
+    if (/alamos|[aá]lamos|lope|infonavit/i.test(q) || q === '1') {
+      return `🏢 *Proyecto Infonavit Álamos del Río (AMIS SIMA)*\n\n` +
+        `• *Alcance:* 320 viviendas (20 torres de 4 niveles).\n` +
+        `• *Monto Contrato:* $54,337,280.00 MXN ($169,804.00/viv exento de IVA).\n` +
+        `• *Cobranza:* Anticipo del 17% ($9,237,337.60 MXN) cobrado y timbrado en CFDI VIV-2 en BanBajío.\n` +
+        `• *Condición Suspensiva:* Plazos congelados hasta cumplimiento total del Día 'D' (dictamen de uso de suelo + planos autorizados).\n` +
+        `• *Rotación:* Estricta rotación de 24 horas por nivel de molde SIMA.`;
     }
-  });
+    if (/material|precio|cemento|varilla|di[eé]sel|arena|grava/i.test(q) || q === '3') {
+      return `🏗️ *Catálogo de Precios de Materiales (Compras AMIS):*\n\n` +
+        `• *Cemento Gris Tolteca 50kg:* $245.00 MXN / Saco\n` +
+        `• *Varilla 3/8" (No. 3):* $178.50 MXN / Tramo 12m\n` +
+        `• *Varilla 1/2" (No. 4):* $312.00 MXN / Tramo 12m\n` +
+        `• *Alambre Recocido Cal. 16:* $38.50 MXN / Kg\n` +
+        `• *Arena Triturada:* $480.00 MXN / M3 | *Grava 3/4":* $520.00 MXN / M3\n` +
+        `• *Diésel Automotriz:* $25.80 MXN / Litro\n\n` +
+        `_Precios de mercado reales auditados contra facturas de compras recientes._`;
+    }
+    return `🏗️ *Pilar 1 (Obra):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes solicitar avance de Álamos del Río, detalles técnicos de Parral o cotización de insumos.`;
+  }
 
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
+  // Respuestas Pilar 2: Fiscal / Finanzas
+  if (pilar === 'PILAR_2_FINANZAS_FISCAL') {
+    if (/saldo|banbaj[ií]o|banco|tesorer[ií]a|amis/i.test(q) || q === '1') {
+      return `💼 *Tesorería & Fiscal AMIS Constructora (ACO241114A70):*\n\n` +
+        `• *Cuenta BanBajío Maestra:* 476863400201\n` +
+        `• *Saldo Auditoría:* ~$9,050,000.00 MXN (Anticipo Álamos blindado).\n` +
+        `• *Vías de Dispersión Semanal (Viernes):*\n` +
+        `  1. *Fiscal Directa BanBajío:* Solo trabajadores con alta IMSS y timbrado Nominax.\n` +
+        `  2. *DARNELIX Asimilables (8%):* $62,500.00 netos ($12,500 c/u para los 5 socios). Depósito: $67,129.63 MXN.\n` +
+        `  3. *CONSTRUCTORA ROBLOCK (7%):* Destajos, sobrenóminas SPEI y raya en efectivo.`;
+    }
+    if (/tadr|honorario.*ted|dort780211|consultor[ií]a/i.test(q) || q === '2') {
+      return `💼 *Contabilidad Personal TADR (RFC: DORT780211CQ5):*\\n\\n` +
+        `• *Régimen:* Actividad Empresarial y Servicios Profesionales / Consultoría.\n` +
+        `• *Directiva Espejo AMIS:* En facturas para reparto de socios se retiene 10% ISR y 10.67% IVA, apartando bolsa SAT (5.33% IVA residual + ISR).\n` +
+        `• *Asesorías Propias:* 100% ingreso exclusivo de Ted Andrey.\n` +
+        `• *Libro Maestro:* \`Control_Fiscal_y_Facturacion_2026_TADR.xlsx\`.`;
+    }
+    if (/submayor|proyecto ejecutivo|360k/i.test(q) || q === '3') {
+      return `📑 *Submayor Proyecto Ejecutivo AMIS ($360,000.00 MXN):*\n\n` +
+        `• *Titularidad:* 50% Ing. Samuel Domínguez / 50% Lic. Ted Andrey.\n` +
+        `• *Anticipo Cobrado:* $100,000.00 MXN (CFDI VIV-1).\n` +
+        `• *Saldo por Cobrar:* $260,000.00 MXN.\n` +
+        `• *Aislamiento:* Cuenta corriente 100% independiente de los repartos ordinarios de socios.`;
+    }
+    if (/familiar|isabel|samuel.*sat|anual/i.test(q) || q === '4') {
+      return `👨‍👩‍👧 *Módulo Fiscal Familiar (AntiGravity Fiscal Familiar):*\n\n` +
+        `1. *Ing. Samuel Domínguez (DORS510222UA2):* Régimen 606 (Dividendos) + 605 (Asimilados). Solo presenta Anual en Abril. Estatus: 100% blindado.\n` +
+        `2. *Sra. Isabel Romero (ROGI561130NM0):* Alerta SAT activa por régimen 612. Acción prioritaria: Tramitar Disminución de Obligaciones ante SAT para dejarla solo en Sueldos/Asimilados.`;
+    }
+    if (/sima|molde|mantenimiento/i.test(q) || q === '5') {
+      return `⚙️ *Sistema de Moldes SIMA (Activos & Operación):*\n\n` +
+        `• *Juegos de Moldes:* Equipos monolíticos de aluminio de alta resistencia para muros y losas.\n` +
+        `• *Rotación Oficial:* 24 horas continuas de fraguado y descimbrado por nivel.\n` +
+        `• *Mantenimiento:* Supervisión a cargo de Bladimir Beltrán y reposición de herrajes/esquineros autorizados.`;
+    }
+    return `💼 *Pilar 2 (Finanzas):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes consultar bancos, TADR, dispersión semanal o módulo familiar.`;
+  }
 
-    for (const msg of messages) {
-      if (!msg.message) continue;
+  // Respuestas Pilar 3: Personal / Tech
+  if (pilar === 'PILAR_3_PERSONAL') {
+    if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(q) || q === '1') {
+      return await obtenerReporteCriptoBitso();
+    }
+    if (/running|garmin|correr|entreno|sesi[oó]n|cadencia|ritmo|pulso|ppm|fc|zona/i.test(q) || q === '2') {
+      if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis/i.test(q)) {
+        return obtenerAnalisisSesionCompleto(0);
+      }
+      return await responderCoachIA(query);
+    }
+    if (/supleai|suplement|app/i.test(q) || q === '3') {
+      return `📱 *SupleAI App (SaaS de Suplementación Inteligente):*\n\n` +
+        `• *Arquitectura:* Frontend React Native multiplataforma + Backend FastAPI.\n` +
+        `• *Monetización:* Deep-linking de suplementos recomendados vía programas de afiliados (Amazon México y Mercado Libre).\n` +
+        `• *Blindaje Médico:* Regla de exclusión estricta para embarazo, lactancia y patologías crónicas.\n` +
+        `• *Estatus:* Base de datos de ingredientes activos y compatibilidad fisiológica configurada.`;
+    }
+    if (/china|yupoo|1688|taobao|casillero|sourcing/i.test(q) || q === '4') {
+      return `🇨🇳 *Compras en China & Abastecimiento Internacional:*\n\n` +
+        `• *Fábricas y Plataformas:* Conexión directa OEM/ODM en 1688, Taobao y catálogos Yupoo.\n` +
+        `• *Agentes y Casilleros:* Operación vía CSSBuy / Sugargoo para consolidación en bodega de China y US Closer para USA.\n` +
+        `• *Protocolo de Inspección:* Control de calidad (QC) con fotos HD, verificación de medidas en cm e instrucción 'Drop Box' para aligerar peso volumétrico y blindar aduana.\n` +
+        `• *Repositorio:* Expediente exclusivo en \`06_COMPRAS_CHINAS\`.`;
+    }
+    if (/agenda|pendiente|compromiso|reuni[oó]n/i.test(q) || q === '5') {
+      return `📋 *Agenda Ejecutiva Personal (Lic. Ted):*\n\n` +
+        `• Asistente personal y coach activos 24/7.\n` +
+        `• Monitoreo de portafolio Bitso sincronizado con precios en vivo.\n` +
+        `• Reporte nocturno de running y recordatorios matutinos configurados.\n\n` +
+        `_Todo en orden. ¿Deseas agendar alguna actividad o recordatorio específico?_`;
+    }
+    return await responderCoachIA(query);
+  }
 
-      const remoteJid = msg.key.remoteJid;
-      const isGroup = remoteJid.endsWith('@g.us');
-      const senderNumber = (msg.key.participant || remoteJid).split('@')[0];
-      const fromMe = msg.key.fromMe;
+  return null;
+}
 
-      const messageType = Object.keys(msg.message)[0];
-      let body = '';
+async function startWhatsAppBot() {
+  try {
+    console.log('🚀 Iniciando conexión Baileys Multi-Device con persistencia en MongoDB Atlas...');
+    const { state, saveCreds } = await useMongoAuthState();
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`📦 Usando Baileys v${version.join('.')} (Última versión disponible: ${isLatest})`);
 
-      if (messageType === 'conversation') {
-        body = msg.message.conversation;
-      } else if (messageType === 'extendedTextMessage') {
-        body = msg.message.extendedTextMessage.text;
-      } else if (messageType === 'imageMessage') {
-        body = msg.message.imageMessage.caption || '[FOTO_ADJUNTA]';
+    sock = makeWASocket({
+      version,
+      logger: pino({ level: 'silent' }),
+      printQRInTerminal: false,
+      auth: state,
+      browser: ['AMIS Constructora', 'Desktop', '2.0.0'],
+      syncFullHistory: false
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        currentQrData = qr;
+        try {
+          currentQrImage = await QRCode.toDataURL(qr);
+        } catch (e) {
+          console.error('Error generando QR Image:', e);
+        }
+        qrcodeTerminal.generate(qr, { small: true });
+        console.log('⚡ Nuevo QR generado. Escanéalo en el navegador o en la consola.');
       }
 
-      if (!body) continue;
+      if (connection === 'close') {
+        isClientReady = false;
+        const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+        console.log('⚠️ Conexión cerrada. Reconectando automáticamente:', shouldReconnect);
+        if (shouldReconnect) {
+          setTimeout(startWhatsAppBot, 5000);
+        } else {
+          console.log('❌ Sesión cerrada por el usuario. Limpiando credenciales...');
+          try {
+            if (sessionCollection) await sessionCollection.deleteMany({});
+          } catch (e) {}
+          setTimeout(startWhatsAppBot, 5000);
+        }
+      } else if (connection === 'open') {
+        isClientReady = true;
+        currentQrData = null;
+        currentQrImage = null;
+        currentPairingCode = null;
+        connectedUser = sock.user.id.split(':')[0];
+        console.log(`✅ ¡Conexión establecida con éxito 24/7! Conectado como: +${connectedUser}`);
+      }
+    });
 
-      console.log(`[MENSAJE] De: ${senderNumber} | Grupo: ${isGroup ? remoteJid : 'No'} | Desde mi cuenta: ${fromMe} | Texto: ${body}`);
+    const processedMsgIds = new Set();
+    const recentUserMessages = new Map();
 
-      // =====================================================================
-      // 🔒 REGLA DE ORO DE AISLAMIENTO:
-      // SI ES UN GRUPO DE WHATSAPP:
-      // =====================================================================
-      if (isGroup) {
-        // ID del grupo privado de Ted:
-        const GRUPO_COACH_TED_JID = '120363432696055179@g.us';
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (!messages || messages.length === 0) return;
+      if (type && type !== 'notify') return;
 
-        if (remoteJid === GRUPO_COACH_TED_JID) {
-          // Si el mensaje lo mandó el bot mismo, ignorar
-          if (fromMe) continue;
+      for (const msg of messages) {
+        try {
+          if (!msg.message) continue;
+          if (msg.key.fromMe) continue;
+          if (msg.key.remoteJid === 'status@broadcast') continue;
 
-          console.log(`[GRUPO COACH TED] Mensaje detectado en grupo privado de Ted: "${body}"`);
+          const msgId = msg.key.id;
+          if (msgId) {
+            if (processedMsgIds.has(msgId)) continue;
+            processedMsgIds.add(msgId);
+            if (processedMsgIds.size > 2000) processedMsgIds.clear();
+          }
+
+          const remoteJid = msg.key.remoteJid;
+          try {
+            await sock.readMessages([msg.key]);
+          } catch (e) {}
+
+          const body = (
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            msg.message?.imageMessage?.caption ||
+            msg.message?.documentMessage?.caption ||
+            ''
+          ).trim();
+
+          const hasMedia = !!(msg.message?.imageMessage || msg.message?.documentMessage || msg.message?.audioMessage);
+          console.log(`[WHATSAPP ENTRADA] De: ${remoteJid} | Texto: "${body}" | Media: ${hasMedia}`);
+
+          const config = loadConfig();
+          const senderNumber = remoteJid.replace(/[^0-9]/g, '');
+          const authUser = getAuthorizedUser(senderNumber, config);
+
+          // Anti-Duplicados Estricto
+          const dedupUser = authUser ? (authUser.phone || senderNumber) : senderNumber;
+          const dedupKey = `${dedupUser}:${body.toLowerCase().trim()}`;
+          const now = Date.now();
+          if (recentUserMessages.has(dedupKey) && (now - recentUserMessages.get(dedupKey) < 4000)) {
+            console.log(`[DEDUP] Mensaje repetido ignorado para ${dedupUser} ("${body}") dentro de 4s.`);
+            continue;
+          }
+          recentUserMessages.set(dedupKey, now);
+          if (recentUserMessages.size > 2000) {
+            for (const [k, t] of recentUserMessages.entries()) {
+              if (now - t > 30000) recentUserMessages.delete(k);
+            }
+          }
 
           const targetJid = remoteJid;
-          const lowerBody = body.toLowerCase().trim();
 
-          // Palabras clave para activar el Coach de Running / Cripto
-          const triggersCoach = /coach|garmin|running|correr|entreno|sesi[oó]n|ayer|rutina|an[aá]lisis|cadencia|ritmo|pulso|ppm|fc|zona|distancia|km|recupera|cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(lowerBody);
-          const esNumeroOpcion = /^[1-4]$/.test(lowerBody);
+          // =====================================================================
+          // REGLA DE ORO DE AISLAMIENTO: GRUPOS DE WHATSAPP
+          // =====================================================================
+          if (remoteJid.endsWith('@g.us')) {
+            const GRUPO_COACH_TED_JID = '120363432696055179@g.us';
+            if (remoteJid === GRUPO_COACH_TED_JID) {
+              console.log(`[GRUPO COACH TED] Mensaje detectado en grupo privado de Ted: "${body}"`);
+              const lowerBody = body.toLowerCase().trim();
+              const triggersCoach = /coach|garmin|running|correr|entreno|sesi[oó]n|ayer|rutina|an[aá]lisis|cadencia|ritmo|pulso|ppm|fc|zona|distancia|km|recupera|cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(lowerBody);
+              const esNumeroOpcion = /^[1-4]$/.test(lowerBody);
 
-          // Si saluda o pide ayuda
-          if (/hola|buenos d[ií]as|buenas|men[uú]|ayuda|opciones/i.test(lowerBody) && !triggersCoach && !esNumeroOpcion) {
-            const menuCoach = `🏃‍♂️ *Centro de Mando Personal (Lic. Ted Andrey)*\n\n` +
-              `Hola Ted, este grupo está configurado exclusivamente para tu entrenamiento de running Garmin, fisiología deportiva, criptomonedas y pendientes personales.\n\n` +
-              `*¿En qué te puedo asesorar hoy?*\n` +
-              `1️⃣ *Análisis biomédico de tu última sesión de running (Garmin)*\n` +
-              `2️⃣ *Cadencia óptima, biomecánica y zonas cardíacas*\n` +
-              `3️⃣ *🪙 Mercado Criptomonedas & Portafolio Bitso (BTC / USDT)*\n` +
-              `4️⃣ *Agenda y pendientes ejecutivos personales*\n\n` +
-              `_O pregúntame directamente cualquier duda (ej. "¿a cuánto ritmo debo correr mañana?", "análisis de mi rutina de ayer" o "¿cómo va el mercado cripto?")._`;
+              if (/hola|buenos d[ií]as|buenas|men[uú]|ayuda|opciones/i.test(lowerBody) && !triggersCoach && !esNumeroOpcion) {
+                const menuCoach = `🏃‍♂️ *Centro de Mando Personal (Lic. Ted Andrey)*\n\n` +
+                  `Hola Ted, este grupo está configurado exclusivamente para tu entrenamiento de running Garmin, fisiología deportiva, criptomonedas y pendientes personales.\n\n` +
+                  `*¿En qué te puedo asesorar hoy?*\n` +
+                  `1️⃣ *Análisis biomédico de tu última sesión de running (Garmin)*\n` +
+                  `2️⃣ *Cadencia óptima, biomecánica y zonas cardíacas*\n` +
+                  `3️⃣ *🪙 Mercado Criptomonedas & Portafolio Bitso (BTC / USDT)*\n` +
+                  `4️⃣ *Agenda y pendientes ejecutivos personales*\n\n` +
+                  `_O pregúntame directamente cualquier duda (ej. "¿a cuánto ritmo debo correr mañana?", "análisis de mi rutina de ayer" o "¿cómo va el mercado cripto?")._`;
+                await sock.sendMessage(targetJid, { text: menuCoach });
+                continue;
+              }
 
-            await sock.sendMessage(targetJid, { text: menuCoach });
+              if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis.*rutina|an[aá]lisis.*sesi[oó]n|an[aá]lisis.*ayer/i.test(lowerBody) || lowerBody === '1') {
+                console.log('[COACH] Generando análisis biomédico Garmin para Ted');
+                const analisisSesion = obtenerAnalisisSesionCompleto(0);
+                await sock.sendMessage(targetJid, { text: analisisSesion });
+                continue;
+              }
+
+              if (/cadencia|zonas.*card[ií]acas|biomec[aá]nica|spm/i.test(lowerBody) || lowerBody === '2') {
+                const cadenciaInfo = `⚡ *Análisis de Cadencia y Zonas Cardíacas (Garmin Ted)*\n\n` +
+                  `• *Tu cadencia media:* 174 spm (Pico: 182 spm).\n` +
+                  `• *Zona 2 predominante:* 62% del tiempo en 130-145 ppm.\n\n` +
+                  `🎯 *Consejo:* Mantén pasos cortos y rápidos. La zancada compacta a 174-178 spm absorbe el 35% del impacto directamente en el tendón rotuliano.`;
+                await sock.sendMessage(targetJid, { text: cadenciaInfo });
+                continue;
+              }
+
+              if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado|moneda|satoshi/i.test(lowerBody) || lowerBody === '3') {
+                console.log(`[CRIPTO BITSO] Solicitud de reporte de criptomonedas recibida de Ted`);
+                const cryptoReport = await obtenerReporteCriptoBitso();
+                await sock.sendMessage(targetJid, { text: cryptoReport });
+                continue;
+              }
+
+              if (/agenda|pendiente|reuni[oó]n|compromiso/i.test(lowerBody) || lowerBody === '4') {
+                const agenda = `📋 *Agenda Ejecutiva Personal (Lic. Ted)*\n\n` +
+                  `• Asistente personal y coach activos 24/7.\n` +
+                  `• Reporte nocturno automático de running programado a las 9:00 PM.\n` +
+                  `• Recordatorio matutino de actividades configurado.\n` +
+                  `• Monitoreo de portafolio Bitso sincronizado.\n\n` +
+                  `_Todo en orden. ¿Deseas agregar algún recordatorio personal?_`;
+                await sock.sendMessage(targetJid, { text: agenda });
+                continue;
+              }
+
+              // Conversación continua con Coach IA
+              const coachRespuesta = await responderCoachIA(body);
+              await sock.sendMessage(targetJid, { text: coachRespuesta });
+              continue;
+            }
+
+            // Si es cualquier otro grupo, ignorar silenciosamente
             continue;
           }
 
-          // Si pide la opción 1 o análisis de ayer / rutina
-          if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis.*rutina|an[aá]lisis.*sesi[oó]n|an[aá]lisis.*ayer/i.test(lowerBody) || lowerBody === '1') {
-            console.log(`[COACH GARMIN] Generando reporte biomédico profundo para Ted`);
-            const analisisSesion = obtenerAnalisisSesionCompleto(0);
-            await sock.sendMessage(targetJid, { text: analisisSesion });
+          // Mensaje de bienvenida para público general no registrado
+          if (!authUser) {
+            console.log(`[PÚBLICO] Contacto no registrado: +${senderNumber} ("${body}") -> Enviando a ${targetJid}`);
+            await sock.sendMessage(targetJid, { text: config.public_greeting });
             continue;
           }
 
-          // Si pide la opción 2 o cadencia
-          if (/cadencia|zonas.*card[ií]acas|biomec[aá]nica|spm/i.test(lowerBody) || lowerBody === '2') {
-            const cadenciaInfo = `⚡ *Análisis de Cadencia y Zonas Cardíacas (Garmin Ted)*\n\n` +
-              `• *Tu cadencia media:* 174 spm (Pico: 182 spm).\n` +
-              `• *Zona 2 predominante:* 62% del tiempo en 130-145 ppm.\n\n` +
-              `🎯 *Consejo:* Mantén pasos cortos y rápidos. La zancada compacta a 174-178 spm absorbe el 35% del impacto directamente en el tendón rotuliano.`;
-            await sock.sendMessage(targetJid, { text: cadenciaInfo });
+          const lowerBody = body.toLowerCase();
+          const isReset = ['menu', 'menú', 'inicio', 'cancelar', 'salir', 'ayuda'].includes(lowerBody);
+          const sessionKey = authUser ? (authUser.phone || senderNumber) : senderNumber;
+          if (!userSessions[sessionKey]) {
+            userSessions[sessionKey] = { state: 'IDLE', updatedAt: Date.now(), lastGreetingTime: 0, history: [] };
+          }
+          userSessions[remoteJid] = userSessions[sessionKey];
+          const userState = userSessions[sessionKey];
+          if (!userState.history) userState.history = [];
+
+          if (isReset) {
+            userSessions[remoteJid].state = 'IDLE';
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+            const menuText = buildMainMenu(authUser, config);
+            console.log(`[MENU] Enviando menú principal a ${authUser.name} (${targetJid})`);
+            await sock.sendMessage(targetJid, { text: menuText });
             continue;
           }
 
-          // Si pide Criptomonedas / Bitso / Mercado (Opción 3)
-          if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado|moneda|satoshi/i.test(lowerBody) || lowerBody === '3') {
-            console.log(`[CRIPTO BITSO] Solicitud de reporte de criptomonedas recibida de Ted`);
-            const cryptoReport = await obtenerReporteCriptoBitso();
-            await sock.sendMessage(targetJid, { text: cryptoReport });
-            continue;
+          // =====================================================================
+          // 🏛️ PROCESAMIENTO EXCLUSIVO: LIC. TED ANDREY (6676921223)
+          // =====================================================================
+          const isTed = authUser && (
+            authUser.phone === '6676921223' ||
+            authUser.phone === '6672921223' ||
+            senderNumber.endsWith('6676921223') ||
+            senderNumber.endsWith('6672921223')
+          );
+
+          if (isTed) {
+            console.log(`[CENTRO DE MANDO TED] Mensaje de Ted: "${body}" | Estado actual: ${userState.activePillar || 'IDLE'}`);
+
+            // 1. Si Ted pide menú, inicio o saludo general
+            if (isReset || (/^(hola|buenos d[ií]as|buenas|empezar|inicio)$/i.test(lowerBody) && !userState.activePillar)) {
+              userState.activePillar = null;
+              userState.waitingPillarConfirmation = false;
+              userState.pendingQuery = null;
+              userState.pendingTargetPillar = null;
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: getMenuMaestroTed() });
+              continue;
+            }
+
+            // 2. Si estábamos esperando confirmación de cambio de pilar
+            if (userState.waitingPillarConfirmation && userState.pendingTargetPillar) {
+              const affirmative = /^(s[ií]|cambiar|cambia|ok|adelante|va|dale|claro|si por favor|afirmativo)$/i.test(lowerBody);
+              const negative = /^(no|cancela|quedate|sigue|permanecer|no cambiar)$/i.test(lowerBody);
+
+              if (affirmative) {
+                const targetPillar = userState.pendingTargetPillar;
+                const savedQuery = userState.pendingQuery;
+                userState.activePillar = targetPillar;
+                userState.waitingPillarConfirmation = false;
+                userState.pendingQuery = null;
+                userState.pendingTargetPillar = null;
+                saveSessions();
+
+                const pInfo = PILARES_INFO[targetPillar];
+                let ackChange = `🔄 *Contexto cambiado exitosamente al ${pInfo.titulo}*\n\n`;
+                if (savedQuery) {
+                  const queryReply = await responderConsultaPilar(targetPillar, savedQuery);
+                  if (queryReply) ackChange += queryReply;
+                } else {
+                  if (targetPillar === 'PILAR_1_OBRA') ackChange += getSubmenuPilar1();
+                  else if (targetPillar === 'PILAR_2_FINANZAS_FISCAL') ackChange += getSubmenuPilar2();
+                  else if (targetPillar === 'PILAR_3_PERSONAL') ackChange += getSubmenuPilar3();
+                }
+                await sock.sendMessage(targetJid, { text: ackChange });
+                continue;
+              } else if (negative) {
+                const curPInfo = PILARES_INFO[userState.activePillar] || { titulo: 'tu pilar actual' };
+                userState.waitingPillarConfirmation = false;
+                userState.pendingQuery = null;
+                userState.pendingTargetPillar = null;
+                saveSessions();
+                await sock.sendMessage(targetJid, {
+                  text: `✅ Entendido. Nos mantenemos en el *${curPInfo.titulo}*. ¿Qué deseas consultar de este proyecto? (O escribe *menu* para volver a la raíz).`
+                });
+                continue;
+              }
+            }
+
+            // 3. Selección directa de Pilar desde el Menú Maestro
+            if (!userState.activePillar) {
+              if (lowerBody === '1' || /pilar 1|obra/i.test(lowerBody)) {
+                userState.activePillar = 'PILAR_1_OBRA';
+                saveSessions();
+                await sock.sendMessage(targetJid, { text: getSubmenuPilar1() });
+                continue;
+              } else if (lowerBody === '2' || /pilar 2|fiscal|finanzas/i.test(lowerBody)) {
+                userState.activePillar = 'PILAR_2_FINANZAS_FISCAL';
+                saveSessions();
+                await sock.sendMessage(targetJid, { text: getSubmenuPilar2() });
+                continue;
+              } else if (lowerBody === '3' || /pilar 3|personal/i.test(lowerBody)) {
+                userState.activePillar = 'PILAR_3_PERSONAL';
+                saveSessions();
+                await sock.sendMessage(targetJid, { text: getSubmenuPilar3() });
+                continue;
+              }
+            }
+
+            // 4. Si Ted ya está dentro de un Pilar, auditar detección cruzada
+            const detectedPillar = detectarPilarDeConsulta(body);
+            if (userState.activePillar && detectedPillar && detectedPillar !== userState.activePillar) {
+              // 🛑 BLINDAJE DE CONTEXTO: Detectó consulta de otro pilar
+              userState.waitingPillarConfirmation = true;
+              userState.pendingQuery = body;
+              userState.pendingTargetPillar = detectedPillar;
+              saveSessions();
+
+              const currentPInfo = PILARES_INFO[userState.activePillar];
+              const targetPInfo = PILARES_INFO[detectedPillar];
+
+              const warningMsg = `⚠️ *Lic. Ted, actualmente te encuentras en el ${currentPInfo.titulo}.*\n\n` +
+                `Tu consulta corresponde al *${targetPInfo.titulo}* (${targetPInfo.proyectos}).\n\n` +
+                `¿Deseas que cambiemos de contexto a ese proyecto?\n` +
+                `👉 Responde *Sí* para cambiar y ver la respuesta, o continúa con tus temas de este pilar (o escribe *menu*).`;
+
+              await sock.sendMessage(targetJid, { text: warningMsg });
+              continue;
+            }
+
+            // 5. Procesar consulta dentro del pilar activo o directo
+            const effectivePillar = userState.activePillar || detectedPillar || 'PILAR_1_OBRA';
+            const pillarReply = await responderConsultaPilar(effectivePillar, body);
+            if (pillarReply) {
+              await sock.sendMessage(targetJid, { text: pillarReply });
+              continue;
+            }
           }
 
-          // Si pide agenda o pendientes
-          if (/agenda|pendiente|reuni[oó]n|compromiso/i.test(lowerBody) || lowerBody === '4') {
-            const agenda = `📋 *Agenda Ejecutiva Personal (Lic. Ted)*\n\n` +
-              `• Asistente personal y coach activos 24/7.\n` +
-              `• Reporte nocturno automático de running programado a las 9:00 PM.\n` +
-              `• Recordatorio matutino de actividades configurado.\n` +
-              `• Monitoreo de portafolio Bitso sincronizado.\n\n` +
-              `_Todo en orden. ¿Deseas agregar algún recordatorio personal?_`;
-            await sock.sendMessage(targetJid, { text: agenda });
-            continue;
+          // Si el usuario está en IDLE
+          if (userState.state === 'IDLE') {
+            const userModules = [];
+            let optIdx = 1;
+            for (const [modKey, modData] of Object.entries(config.modules)) {
+              if (modData.allowed_roles.includes(authUser.role) || modData.allowed_roles.includes('*')) {
+                userModules.push({ digit: optIdx.toString(), key: modKey, ...modData });
+                optIdx++;
+              }
+            }
+
+            const selectedMod = userModules.find(m => m.digit === body.trim());
+            if (selectedMod) {
+              if (selectedMod.key === 'recepcion_facturas') {
+                userSessions[remoteJid] = { state: 'EXPENSE', expenseCount: 0, waitingConcept: false, updatedAt: Date.now() };
+                saveSessions();
+                const expIntro = `📥 *Módulo de Recepción de Facturas y Comprobantes*\n\n` +
+                  `Por favor, envía las *fotos o PDFs de tus tickets/facturas* de obra directamente por este chat.\n\n` +
+                  `💡 *Tip:* Puedes enviar varios comprobantes seguidos. Si gustas, agrega un breve texto a cada imagen (ej: _'Gasolina para Silverado'_).\n\n` +
+                  `_Escribe *listo* o *ya* cuando termines, o *menu* para cancelar._`;
+                await sock.sendMessage(targetJid, { text: expIntro });
+                continue;
+              } else if (selectedMod.key === 'consultas_franco') {
+                userSessions[remoteJid] = { state: 'CONSULTA_FRANCO', updatedAt: Date.now(), history: [] };
+                saveSessions();
+                const francoIntro = `⛏️ *Módulo Técnico Proyecto Franco (Hidalgo del Parral)*\n\n` +
+                  `Bienvenido ${authUser.name}. Estoy facultado para asistirte con:\n` +
+                  `• Prototipo Sierra Bonita (684 viviendas cuádruplex)\n` +
+                  `• Planos autorizados del 7 de octubre de 2026\n` +
+                  `• Espesores de muro (10 cm carga / 20 cm bajantes)\n` +
+                  `• Modulación de moldes SIMA y cubicaciones\n\n` +
+                  `_Hazme cualquier pregunta técnica directa sobre Parral o escribe *menu* para volver._`;
+                await sock.sendMessage(targetJid, { text: francoIntro });
+                continue;
+              } else if (selectedMod.key === 'asistencias') {
+                userSessions[remoteJid] = { state: 'ATTENDANCE_MENU', updatedAt: Date.now() };
+                saveSessions();
+                const attMenu = `👷‍♂️ *Control de Personal y Asistencias AMIS*\n\n` +
+                  `1️⃣ Reportar lista de asistencia del día (Foto o texto)\n` +
+                  `2️⃣ Notificar falta o baja de trabajador\n` +
+                  `3️⃣ Notificar nuevo ingreso / alta de personal\n\n` +
+                  `_Escribe el número de la acción que requieres o *menu* para volver._`;
+                await sock.sendMessage(targetJid, { text: attMenu });
+                continue;
+              }
+            }
           }
 
-          // Para cualquier otra pregunta o diálogo continuo deportivo o cripto
-          console.log(`[COACH IA] Procesando consulta conversacional deportiva / cripto: "${body}"`);
-          const coachRespuesta = await responderCoachIA(body);
-          await sock.sendMessage(targetJid, { text: coachRespuesta });
+          // Respuesta conversacional con Cerebro Antigravity
+          console.log(`[CEREBRO IA] Procesando mensaje de ${authUser.name}: "${body}"`);
+          const replyText = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
+          userSessions[remoteJid].updatedAt = Date.now();
+          saveSessions();
+          await sock.sendMessage(targetJid, { text: replyText });
           continue;
+
+        } catch (err) {
+          console.error('Error procesando mensaje Baileys:', err);
         }
-
-        // Cualquier otro grupo de WhatsApp: IGNORAR SILENCIOSAMENTE
-        continue;
       }
-
-      // =====================================================================
-      // 🏢 CHAT 1 A 1 DIRECTO (ASISTENTE AMIS CONSTRUCTORA):
-      // =====================================================================
-      if (fromMe) continue;
-
-      const lowerBody = body.toLowerCase().trim();
-
-      // Menú Principal de AMIS
-      if (/hola|buenos d[ií]as|buenas tardes|men[uú]|ayuda|opciones/i.test(lowerBody)) {
-        const menuPrincipal = `👋 *¡Hola! Soy tu Asistente Inteligente de AMIS Constructora.*\n\n` +
-          `Estoy conectado al sistema central de obra, compras y finanzas para ayudarte en tiempo real.\n\n` +
-          `*Puedes solicitarme:*\n` +
-          `1️⃣ *Consultar Precios de Materiales:* (ej. "¿A cómo está la varilla?", "precio del cemento")\n` +
-          `2️⃣ *Saldos y Bancos:* (ej. "saldo en BanBajío", "cuánto hay en cuenta")\n` +
-          `3️⃣ *Directorio de Proveedores:* (ej. "teléfono de Cemex", "contacto de Aceros")\n` +
-          `4️⃣ *Tabulador de Mano de Obra:* (ej. "sueldo de fierrero", "cuánto gana un moldero")\n` +
-          `5️⃣ *Estado de Obra Álamos:* (ej. "reporte Álamos", "avance de moldes")\n` +
-          `6️⃣ *Registrar Gastos:* Mándame la foto de tu nota o factura con el texto *"gasto"*.\n\n` +
-          `_Escribe directamente tu consulta o el número de la opción que necesitas._`;
-
-        await sock.sendMessage(remoteJid, { text: menuPrincipal });
-        continue;
-      }
-
-      // Recepción de Fotos de Facturas o Gastos
-      if (messageType === 'imageMessage') {
-        const respuestaFoto = `📸 *¡Comprobante Recibido con Éxito!*\n\n` +
-          `He registrado la imagen de tu ticket/factura en el sistema.\n` +
-          `• *Estado:* Pendiente de extracción OCR y validación de RFC.\n` +
-          `• *Proyecto Asignado:* Obra Álamos del Río / Operación General.\n\n` +
-          `_Si el gasto corresponde a una partida específica (ej. gasolina, viáticos o compra menor), escribe la descripción aquí mismo._`;
-
-        await sock.sendMessage(remoteJid, { text: respuestaFoto });
-        continue;
-      }
-
-      // Respuesta Inteligente de AMIS
-      try {
-        const respuesta = await responderConIA(body);
-        await sock.sendMessage(remoteJid, { text: respuesta });
-      } catch (err) {
-        console.error('[IA ERROR] Falló al responder mensaje:', err);
-        await sock.sendMessage(remoteJid, {
-          text: 'Disculpa, tuve un breve inconveniente procesando tu solicitud. Por favor intenta de nuevo.'
-        });
-      }
-    }
-  });
-
-  sock.ev.on('call', async (calls) => {
-    for (const call of calls) {
-      if (call.status === 'offer') {
-        await sock.rejectCall(call.id, call.from);
-        await sock.sendMessage(call.from, {
-          text: '🤖 *Aviso Automático:* Este número corresponde al Asistente Automatizado de AMIS Constructora y no recibe llamadas telefónicas. Por favor envía tu mensaje de texto o consulta por este chat.'
-        });
-      }
-    }
-  });
+    });
+  } catch (err) {
+    console.error('Error fatal al iniciar WhatsApp Bot:', err);
+    setTimeout(startWhatsAppBot, 5000);
+  }
 }
 
-// =========================================================================
-// RUTAS Y ENDPOINTS DEL SERVIDOR EXPRESS
-// =========================================================================
-app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>AMIS Constructora - Asistente WhatsApp</title>
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; max-width: 420px; width: 90%; }
-        h1 { color: #1a365d; font-size: 1.5rem; margin-bottom: 0.5rem; }
-        .status { display: inline-block; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 600; font-size: 0.85rem; margin-bottom: 1.5rem; }
-        .connected { background: #dcfce7; color: #166534; }
-        .waiting { background: #fef9c3; color: #854d0e; }
-        img { max-width: 100%; height: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 1rem; }
-        p { color: #64748b; font-size: 0.9rem; line-height: 1.4; }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <h1>AMIS Constructora</h1>
-        <p>Servidor del Asistente Virtual WhatsApp 24/7</p>
-        <div class="status ${isConnected ? 'connected' : 'waiting'}">
-          ${isConnected ? '● En Línea y Conectado' : '○ Esperando Escaneo de QR'}
-        </div>
-        ${isConnected
-          ? '<p style="color:#166534; font-weight: 500;">El bot está vinculado y operando correctamente.</p>'
-          : (qrCodeDataURL
-              ? `<div><p>Escanea este código desde WhatsApp (Dispositivos Vinculados):</p><img src="${qrCodeDataURL}" alt="Código QR WhatsApp" /></div>`
-              : '<p>Iniciando socket y generando código QR...</p>'
-            )
-        }
-      </div>
-    </body>
-    </html>
-  `);
-});
-
-app.get('/status', (req, res) => {
-  res.json({
-    online: isConnected,
-    hasQR: !!qrCodeDataURL,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
-});
-
-app.post('/send', async (req, res) => {
-  const { phone, message } = req.body;
-  if (!phone || !message) {
-    return res.status(400).json({ error: 'Se requieren los campos "phone" y "message".' });
-  }
-
-  if (!isConnected || !sock) {
-    return res.status(503).json({ error: 'El servicio de WhatsApp aún no está conectado.' });
-  }
-
-  try {
-    const formattedPhone = phone.includes('@')
-      ? phone
-      : `${phone.replace(/\D/g, '')}@s.whatsapp.net`;
-    await sock.sendMessage(formattedPhone, { text: message });
-    res.json({ success: true, target: formattedPhone });
-  } catch (err) {
-    console.error('[SEND ERROR] Error al enviar mensaje externo:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// =========================================================================
-// INICIO DEL SERVICIO
-// =========================================================================
-app.listen(PORT, () => {
-  console.log(`[SERVIDOR] Servidor HTTP escuchando en el puerto ${PORT}`);
-  connectToWhatsApp().catch(err => {
-    console.error('[INICIO ERROR] Error crítico iniciando WhatsApp:', err);
-  });
-});
+startWhatsAppBot();
