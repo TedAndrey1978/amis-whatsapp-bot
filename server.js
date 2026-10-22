@@ -577,47 +577,47 @@ const PILARES_INFO = {
   PILAR_1_OBRA: {
     id: '1',
     codigo: 'PILAR_1_OBRA',
-    titulo: 'Pilar 1: Obra y Edificación Monolítica',
-    proyectos: 'Infonavit Álamos del Río / Proyecto Franco Parral / Suministros'
+    titulo: 'División 1: Obra y Edificación Monolítica',
+    proyectos: 'Infonavit Álamos del Río / Proyecto Franco Parral'
   },
   PILAR_2_FINANZAS_FISCAL: {
     id: '2',
     codigo: 'PILAR_2_FINANZAS_FISCAL',
-    titulo: 'Pilar 2: Fiscal, Corporativo y Tesorería',
-    proyectos: 'AMIS Fiscal / TADR Fiscal / Proy. Ejecutivo $360k / Familiar SAT / Moldes SIMA'
+    titulo: 'División 2: Fiscal, Corporativo y Tesorería',
+    proyectos: 'AMIS Fiscal / TADR Fiscal / Proy. Ejecutivo / Familiar SAT / Moldes SIMA'
   },
   PILAR_3_PERSONAL: {
     id: '3',
     codigo: 'PILAR_3_PERSONAL',
-    titulo: 'Pilar 3: Proyectos Personales, Tech & Bienestar',
-    proyectos: 'Mercado Cripto Bitso / Garmin Running Coach / SupleAI App / Compras China / Agenda'
+    titulo: 'División 3: Proyectos Personales, Tech & Bienestar',
+    proyectos: 'Mercado Cripto Bitso / Garmin Running / SupleAI App / Compras China / Agenda'
   }
 };
 
 function getMenuMaestroTed() {
   return `🏛️ *CENTRO DE MANDO ESTRATÉGICO ANTIGRAVITY*\n` +
     `👤 *Lic. Ted Andrey Domínguez Romero*\n\n` +
-    `Selecciona el pilar o frente que deseas consultar:\n\n` +
-    `1️⃣ 🏗️ *Pilar 1: Obra y Edificación Monolítica*\n` +
-    `   • Proyecto Álamos del Río / Lope (320 viv SIMA - $54.3 MDP)\n` +
-    `   • Proyecto Franco / Parral (684 viv Sierra Bonita)\n\n` +
-    `2️⃣ 💼 *Pilar 2: Fiscal, Corporativo y Tesorería*\n` +
-    `   • AMIS Constructora Fiscal (BanBajío, Nómina, Roblock, Darnelix)\n` +
-    `   • TADR Fiscal (Honorarios, Asesorías, CFDI DORT780211CQ5)\n` +
-    `   • Submayor Proyecto Ejecutivo ($360k - 50% Ing. Samuel / 50% Ted)\n` +
-    `   • Módulo Familiar Contable (Ing. Samuel & Sra. Isabel)\n` +
-    `   • Sistema de Moldes SIMA (Costos, Activos y Reparaciones)\n\n` +
-    `3️⃣ 🌟 *Pilar 3: Proyectos Personales, Tech & Bienestar*\n` +
-    `   • Mercado Criptomonedas & Bitso (BTC, USDT, Meta 0.001 BTC)\n` +
-    `   • Running Coach & Garmin (Fisiología, Cadencia, Zonas FC)\n` +
-    `   • SupleAI App (SaaS Suplementación Deportiva & Afiliados)\n` +
-    `   • Compras e Importaciones de China (Sourcing, Fábricas, Yupoo)\n` +
+    `Selecciona la división o frente que deseas consultar:\n\n` +
+    `1️⃣ 🏗️ *División 1: Obra y Edificación Monolítica*\n` +
+    `   • Proyecto Álamos del Río / Lope\n` +
+    `   • Proyecto Franco / Parral\n\n` +
+    `2️⃣ 💼 *División 2: Fiscal, Corporativo y Tesorería*\n` +
+    `   • AMIS Constructora Fiscal\n` +
+    `   • TADR Fiscal\n` +
+    `   • Submayor Proyecto Ejecutivo\n` +
+    `   • Módulo Familiar Contable\n` +
+    `   • Sistema de Moldes SIMA\n\n` +
+    `3️⃣ 🌟 *División 3: Proyectos Personales, Tech & Bienestar*\n` +
+    `   • Mercado Criptomonedas & Bitso\n` +
+    `   • Running Coach & Garmin\n` +
+    `   • SupleAI App\n` +
+    `   • Compras e Importaciones de China\n` +
     `   • Agenda y Asistente Ejecutivo Personal\n\n` +
-    `_Escribe *1*, *2* o *3* para ingresar a un pilar, o escribe directamente lo que buscas._`;
+    `_Escribe *1*, *2* o *3* para ingresar a una división, o escribe directamente lo que buscas._`;
 }
 
 function getSubmenuPilar1() {
-  return `🏗️ *PILAR 1: OBRA Y EDIFICACIÓN MONOLÍTICA*\n` +
+  return `🏗️ *DIVISIÓN 1: OBRA Y EDIFICACIÓN MONOLÍTICA*\n` +
     `Has ingresado al contexto de construcción e ingeniería.\n\n` +
     `1️⃣ *Proyecto Álamos del Río / Lope:* 320 viviendas (20 torres), moldes SIMA, anticipo $9.23 MDP en BanBajío.\n` +
     `2️⃣ *Proyecto Franco / Parral:* 684 viviendas Sierra Bonita, muros 10 y 20 cm, visto bueno 7 de oct 2026.\n` +
@@ -626,7 +626,7 @@ function getSubmenuPilar1() {
 }
 
 function getSubmenuPilar2() {
-  return `💼 *PILAR 2: FISCAL, CORPORATIVO Y TESORERÍA*\n` +
+  return `💼 *DIVISIÓN 2: FISCAL, CORPORATIVO Y TESORERÍA*\n` +
     `Has ingresado al contexto contable, fiscal y bancario.\n\n` +
     `1️⃣ *AMIS Constructora:* Saldos BanBajío (~$9.05 MDP) y dispersión semanal (BanBajío, Darnelix 8%, Roblock 7%).\n` +
     `2️⃣ *TADR Fiscal:* Honorarios, emisión de CFDI y provisión SAT.\n` +
@@ -637,7 +637,7 @@ function getSubmenuPilar2() {
 }
 
 function getSubmenuPilar3() {
-  return `🌟 *PILAR 3: PROYECTOS PERSONALES, TECH & BIENESTAR*\n` +
+  return `🌟 *DIVISIÓN 3: PROYECTOS PERSONALES, TECH & BIENESTAR*\n` +
     `Has ingresado al contexto personal y tecnológico.\n\n` +
     `1️⃣ *🪙 Mercado Criptomonedas & Bitso:* Portafolio en vivo (0.00063682 BTC, 105.85 USDT, meta 0.001 BTC).\n` +
     `2️⃣ *🏃‍♂️ Running Coach & Garmin:* Sesiones Garmin, cadencia, ritmos y zonas cardíacas.\n` +
@@ -663,7 +663,7 @@ function detectarPilarDeConsulta(text) {
 async function responderConsultaPilar(pilar, query) {
   const q = (query || '').toLowerCase().trim();
 
-  // Respuestas Pilar 1: Obra
+  // Respuestas División 1: Obra
   if (pilar === 'PILAR_1_OBRA') {
     if (/franco|parral|sierra bonita/i.test(q) || q === '2') {
       return `⛏️ *Proyecto Franco / Parral (SIMA - Chihuahua)*\n\n` +
@@ -691,10 +691,10 @@ async function responderConsultaPilar(pilar, query) {
         `• *Diésel Automotriz:* $25.80 MXN / Litro\n\n` +
         `_Precios de mercado reales auditados contra facturas de compras recientes._`;
     }
-    return `🏗️ *Pilar 1 (Obra):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes solicitar avance de Álamos del Río, detalles técnicos de Parral o cotización de insumos.`;
+    return `🏗️ *División 1 (Obra):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes solicitar avance de Álamos del Río, detalles técnicos de Parral o cotización de insumos.`;
   }
 
-  // Respuestas Pilar 2: Fiscal / Finanzas
+  // Respuestas División 2: Fiscal / Finanzas
   if (pilar === 'PILAR_2_FINANZAS_FISCAL') {
     if (/saldo|banbaj[ií]o|banco|tesorer[ií]a|amis/i.test(q) || q === '1') {
       return `💼 *Tesorería & Fiscal AMIS Constructora (ACO241114A70):*\n\n` +
@@ -730,10 +730,10 @@ async function responderConsultaPilar(pilar, query) {
         `• *Rotación Oficial:* 24 horas continuas de fraguado y descimbrado por nivel.\n` +
         `• *Mantenimiento:* Supervisión a cargo de Bladimir Beltrán y reposición de herrajes/esquineros autorizados.`;
     }
-    return `💼 *Pilar 2 (Finanzas):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes consultar bancos, TADR, dispersión semanal o módulo familiar.`;
+    return `💼 *División 2 (Finanzas):* Registrada consulta sobre *"${query.slice(0, 50)}"*. Puedes consultar bancos, TADR, dispersión semanal o módulo familiar.`;
   }
 
-  // Respuestas Pilar 3: Personal / Tech
+  // Respuestas División 3: Personal / Tech
   if (pilar === 'PILAR_3_PERSONAL') {
     if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(q) || q === '1') {
       return await obtenerReporteCriptoBitso();
@@ -966,7 +966,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 2. Confirmación de cambio de pilar
+            // 2. Confirmación de cambio de división
             if (userState.waitingPillarConfirmation && userState.pendingTargetPillar) {
               const affirmative = /^(s[ií]|cambiar|cambia|ok|adelante|va|dale|claro|si por favor|afirmativo)$/i.test(lowerBody);
               const negative = /^(no|cancela|quedate|sigue|permanecer|no cambiar)$/i.test(lowerBody);
@@ -981,7 +981,7 @@ async function startWhatsAppBot() {
                 saveSessions();
 
                 const pInfo = PILARES_INFO[targetPillar];
-                let ackChange = `🔄 *Contexto cambiado exitosamente al ${pInfo.titulo}*\n\n`;
+                let ackChange = `🔄 *Contexto cambiado exitosamente a la ${pInfo.titulo}*\n\n`;
                 if (savedQuery) {
                   const queryReply = await responderConsultaPilar(targetPillar, savedQuery);
                   if (queryReply) ackChange += queryReply;
@@ -993,31 +993,31 @@ async function startWhatsAppBot() {
                 await sock.sendMessage(targetJid, { text: ackChange });
                 continue;
               } else if (negative) {
-                const curPInfo = PILARES_INFO[userState.activePillar] || { titulo: 'tu pilar actual' };
+                const curPInfo = PILARES_INFO[userState.activePillar] || { titulo: 'tu división actual' };
                 userState.waitingPillarConfirmation = false;
                 userState.pendingQuery = null;
                 userState.pendingTargetPillar = null;
                 saveSessions();
                 await sock.sendMessage(targetJid, {
-                  text: `✅ Entendido. Nos mantenemos en el *${curPInfo.titulo}*. ¿Qué deseas consultar de este proyecto? (O escribe *menu* para volver a la raíz).`
+                  text: `✅ Entendido. Nos mantenemos en la *${curPInfo.titulo}*. ¿Qué deseas consultar de este proyecto? (O escribe *menu* para volver a la raíz).`
                 });
                 continue;
               }
             }
 
-            // 3. Selección directa de Pilar desde el Menú Maestro
+            // 3. Selección directa de División desde el Menú Maestro
             if (!userState.activePillar) {
-              if (lowerBody === '1' || /pilar 1|obra/i.test(lowerBody)) {
+              if (lowerBody === '1' || /divisi[oó]n 1|pilar 1|obra/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_1_OBRA';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar1() });
                 continue;
-              } else if (lowerBody === '2' || /pilar 2|fiscal|finanzas/i.test(lowerBody)) {
+              } else if (lowerBody === '2' || /divisi[oó]n 2|pilar 2|fiscal|finanzas/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_2_FINANZAS_FISCAL';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar2() });
                 continue;
-              } else if (lowerBody === '3' || /pilar 3|personal/i.test(lowerBody)) {
+              } else if (lowerBody === '3' || /divisi[oó]n 3|pilar 3|personal/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_3_PERSONAL';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar3() });
@@ -1036,16 +1036,16 @@ async function startWhatsAppBot() {
               const currentPInfo = PILARES_INFO[userState.activePillar];
               const targetPInfo = PILARES_INFO[detectedPillar];
 
-              const warningMsg = `⚠️ *Lic. Ted, actualmente te encuentras en el ${currentPInfo.titulo}.*\n\n` +
-                `Tu consulta corresponde al *${targetPInfo.titulo}* (${targetPInfo.proyectos}).\n\n` +
-                `¿Deseas que cambiemos de contexto a ese proyecto?\n` +
-                `👉 Responde *Sí* para cambiar y ver la respuesta, o continúa con tus temas de este pilar (o escribe *menu*).`;
+              const warningMsg = `⚠️ *Lic. Ted, actualmente te encuentras en la ${currentPInfo.titulo}.*\n\n` +
+                `Tu consulta corresponde a la *${targetPInfo.titulo}* (${targetPInfo.proyectos}).\n\n` +
+                `¿Deseas que cambiemos de contexto a esa división?\n` +
+                `👉 Responde *Sí* para cambiar y ver la respuesta, o continúa con tus temas de esta división (o escribe *menu*).`;
 
               await sock.sendMessage(targetJid, { text: warningMsg });
               continue;
             }
 
-            // 5. Procesar consulta dentro del pilar activo
+            // 5. Procesar consulta dentro de la división activa
             const effectivePillar = userState.activePillar || detectedPillar || 'PILAR_1_OBRA';
             const pillarReply = await responderConsultaPilar(effectivePillar, body);
             if (pillarReply) {
@@ -1056,7 +1056,7 @@ async function startWhatsAppBot() {
             // 6. Mensaje por defecto de Ted (NUNCA sale a público)
             const defaultTedMsg = `🏛️ *Centro de Mando Antigravity (Lic. Ted Andrey)*\n\n` +
               `No identifiqué una instrucción específica para "${body.slice(0, 40)}".\n\n` +
-              `👉 Escribe *menu* para ver los 3 Pilares Maestros, o selecciona *1*, *2* o *3* para ingresar a un proyecto.`;
+              `👉 Escribe *menu* para ver las 3 Divisiones Maestras, o selecciona *1*, *2* o *3* para ingresar a una división.`;
             await sock.sendMessage(targetJid, { text: defaultTedMsg });
             continue;
           }
