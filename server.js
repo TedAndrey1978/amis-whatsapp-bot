@@ -770,7 +770,7 @@ async function responderConsultaPilar(pilar, query) {
 }
 
 async function consultarCerebroPorDivision(division, userQuery, history = []) {
-  const apiKey = process.env.GEMINI_API_KEY || 'AQ.Ab8RN6KQ6inoYVss-O4-sVyhTmAQSY5_9m42O_l9SM_hNxiTsQ';
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
   let systemPrompt = '';
