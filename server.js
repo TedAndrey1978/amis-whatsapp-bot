@@ -1,9 +1,9 @@
 // Manejo global de excepciones para evitar que el contenedor muera
 process.on('uncaughtException', (err) => {
-  console.error('🚨 [EXCEPCIÓN CAPTURADA]:', err);
+  console.error('🛡️ [EXCEPCIÓN CAPTURADA]:', err);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('🚨 [RECHAZO CAPTURADO]:', reason);
+  console.error('🛡️ [RECHAZO CAPTURADO]:', reason);
 });
 
 import * as BaileysModule from '@whiskeysockets/baileys';
@@ -34,7 +34,7 @@ let lastMongoError = null;
 async function useMongoAuthState() {
   try {
     if (!mongoClient) {
-      console.log('📡 Conectando a MongoDB Atlas para persistencia de sesión 24/7...');
+      console.log('🍃 Conectando a MongoDB Atlas para persistencia de sesión 24/7...');
       mongoClient = new MongoClient(MONGO_URI);
       await mongoClient.connect();
       const db = mongoClient.db('amis_whatsapp');
@@ -61,7 +61,6 @@ async function useMongoAuthState() {
         }
         return null;
       } catch (err) {
-        console.error('Error leyendo de MongoDB:', err.message);
         return null;
       }
     };
@@ -69,14 +68,10 @@ async function useMongoAuthState() {
     const removeData = async (id) => {
       try {
         await sessionCollection.deleteOne({ _id: id });
-        console.log(`🗑️ [MONGO PERSISTENCIA] Clave eliminada: ${id}`);
-      } catch (err) {
-        console.error('Error eliminando de MongoDB:', err.message);
-      }
+      } catch (err) {}
     };
 
-    const credsDoc = await readData('creds');
-    const creds = credsDoc || initAuthCreds();
+    const creds = (await readData('creds')) || initAuthCreds();
 
     return {
       state: {
@@ -84,75 +79,114 @@ async function useMongoAuthState() {
         keys: {
           get: async (type, ids) => {
             const data = {};
-            for (const id of ids) {
-              const val = await readData(`${type}-${id}`);
-              if (val) data[id] = val;
-            }
+            await Promise.all(
+              ids.map(async (id) => {
+                let value = await readData(`${type}-${id}`);
+                if (type === 'app-state-sync-key' && value) {
+                  value = proto.Message.AppStateSyncKeyData.fromObject(value);
+                }
+                data[id] = value;
+              })
+            );
             return data;
           },
           set: async (data) => {
+            const tasks = [];
             for (const category in data) {
               for (const id in data[category]) {
-                const val = data[category][id];
+                const value = data[category][id];
                 const key = `${category}-${id}`;
-                if (val) {
-                  await writeData(val, key);
-                } else {
-                  await removeData(key);
-                }
+                tasks.push(value ? writeData(value, key) : removeData(key));
               }
             }
+            await Promise.all(tasks);
           }
         }
       },
       saveCreds: () => writeData(creds, 'creds')
     };
-  } catch (err) {
-    console.error('⚠️ Error crítico en useMongoAuthState:', err.message);
-    lastMongoError = err.message;
-    throw err;
+  } catch (mongoErr) {
+    lastMongoError = mongoErr.message;
+    console.error('❌ Error conectando a MongoDB Atlas:', mongoErr.message);
+    console.warn('⚠️ Usando almacenamiento local temporal mientras se reconecta MongoDB...');
+    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    return await useMultiFileAuthState(AUTH_DIR);
   }
 }
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Variables de estado del bot
+const PORT = process.env.PORT || 10000;
+const CONFIG_PATH = path.join(__dirname, 'menu_config.json');
+const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
+
+let sock = null;
 let currentQrData = null;
-let currentQrImage = null;
+let currentQrDataUrl = null;
 let currentPairingCode = null;
 let isClientReady = false;
 let connectedUser = null;
-let sock = null;
+const processedMsgIds = new Set();
 
-const SESSIONS_FILE = path.join(__dirname, 'user_sessions.json');
+const SESSIONS_FILE = path.join(__dirname, 'active_user_sessions.json');
 let userSessions = {};
-try {
-  if (fs.existsSync(SESSIONS_FILE)) {
-    userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
-  }
-} catch (e) {
-  userSessions = {};
+if (fs.existsSync(SESSIONS_FILE)) {
+  try { userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch (e) {}
 }
 
 function saveSessions() {
+  try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8'); } catch (e) {}
+}
+
+async function guardarEnBuzonGastos(authUser, senderNumber, count, concepto, hasMedia) {
   try {
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Error guardando sesiones:', e.message);
+    if (mongoClient) {
+      const db = mongoClient.db('amis_whatsapp');
+      await db.collection('buzon_gastos').insertOne({
+        remitente_nombre: authUser?.name || 'Desconocido',
+        remitente_rol: authUser?.role || 'COLABORADOR',
+        remitente_telefono: senderNumber,
+        indice_comprobante: count,
+        justificacion_operativa: concepto || 'Sin descripción',
+        tiene_archivo: !!hasMedia,
+        fecha_registro: new Date(),
+        estatus: 'PENDIENTE_AUDITORIA'
+      });
+      console.log(`📥 [BUZÓN GASTOS] Registrado en Mongo: ${authUser?.name} | "${concepto}"`);
+    }
+  } catch (err) {
+    console.error('Error guardando en buzon_gastos:', err.message);
+  }
+}
+
+async function actualizarConceptoBuzon(senderNumber, count, concepto) {
+  try {
+    if (mongoClient) {
+      const db = mongoClient.db('amis_whatsapp');
+      await db.collection('buzon_gastos').updateOne(
+        { remitente_telefono: senderNumber, indice_comprobante: count },
+        { $set: { justificacion_operativa: concepto, fecha_actualizacion: new Date() } }
+      );
+      console.log(`📝 [BUZÓN GASTOS ACTUALIZADO] Tel: ${senderNumber} #${count} -> "${concepto}"`);
+    }
+  } catch (err) {
+    console.error('Error actualizando buzon_gastos:', err.message);
   }
 }
 
 function loadConfig() {
-  try {
-    const configPath = path.join(__dirname, 'menu_config.json');
-    if (fs.existsSync(configPath)) {
-      return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    }
-  } catch (err) {
-    console.error('Error cargando menu_config.json:', err.message);
+  if (fs.existsSync(CONFIG_PATH)) {
+    try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) {}
   }
-  return { authorized_users: [], modules: {} };
+  return {
+    admin_phone: '6676921223',
+    authorized_users: [],
+    public_greeting: '👋 *Bienvenido a AMIS Constructora, S.A. de C.V.*\n\nGracias por comunicarte con nuestra línea oficial. ¿En qué podemos ayudarte el día de hoy?\n\n_Por favor déjanos tu nombre, empresa o el motivo de tu mensaje y un miembro de nuestro equipo te responderá a la brevedad._',
+    menu_title: '🏗️ *AMIS CONSTRUCTORA · Portal de Operaciones*\n\nHola {name}, selecciona una opción respondiendo con el número:',
+    menu_footer: '\n👉 _Responde con el número (1️⃣, 2️⃣ o 3️⃣), o escribe *menu* en cualquier momento._',
+    options: []
+  };
 }
 
 function getAuthorizedUser(senderNumber, config, fullSender = '') {
@@ -167,21 +201,34 @@ function getAuthorizedUser(senderNumber, config, fullSender = '') {
   });
 }
 
-function buildMainMenu(user, config) {
-  let menu = config.menu_header.replace('{name}', user.name).replace('{role}', user.role);
-  menu += '\n\n';
+function buildMainMenu(authUser, config) {
+  const name = authUser ? authUser.name : 'Colaborador';
+  const role = authUser ? authUser.role : '';
 
-  let optionIndex = 1;
-  const userModules = [];
-
-  for (const [modKey, modData] of Object.entries(config.modules)) {
-    if (modData.allowed_roles.includes(user.role) || modData.allowed_roles.includes('*')) {
-      menu += `${optionIndex}️⃣ *${modData.title}*\n_${modData.description}_\n\n`;
-      userModules.push({ digit: optionIndex.toString(), key: modKey, ...modData });
-      optionIndex++;
-    }
+  if (role === 'GERENTE_ADMINISTRATIVO') {
+    return (
+      `🏛️ *TORRE DE CONTROL · LIC. TED ANDREY DOMÍNGUEZ*\n\n` +
+      `¡Excelente día, Lic. Ted! 🫡 ¿En qué frente estratégico nos enfocamos hoy?\n\n` +
+      `1️⃣ 🏗️ *Álamos del Río (Navolato)* · Obra gris SIMA, pre-armados y Día "D"\n` +
+      `2️⃣ 🏘️ *Sierra Bonita (Parral)* · Planos, prototipo, muros 10 y 20 cm y volumetrías\n` +
+      `3️⃣ 💼 *AMIS Contabilidad y Finanzas* · Dispersión 3 vías, proveedores y bancos\n` +
+      `4️⃣ ⚖️ *TADR Contabilidad y Finanzas* · Régimen personal, retenciones e impuestos\n` +
+      `5️⃣ 🧾 *Subir Recibo o Factura de Gasto* · Carga directa para auditoría contable\n` +
+      `6️⃣ 👷‍♂️ *Personal y Nómina en Obra* · Asistencias, incidencias y tabuladores\n\n` +
+      `💬 _Escribe el número (1️⃣ al 6️⃣), escribe tu consulta directamente o envía un audio._`
+    );
   }
 
+  let menu = config.menu_title.replace('{name}', name) + '\n\n';
+  
+  const userOptions = (config.options || []).filter(opt => {
+    if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
+    return opt.allowed_roles.includes(role);
+  });
+
+  userOptions.forEach((opt) => {
+    menu += `${opt.id}️⃣ ${opt.title}\n`;
+  });
   menu += config.menu_footer;
   return menu;
 }
@@ -238,7 +285,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
+  // Página visual en navegador (QR y Estado en vivo)
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
     <!DOCTYPE html>
@@ -255,47 +302,69 @@ const server = http.createServer(async (req, res) => {
         .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
         .badge-online { background: #065f46; color: #34d399; }
         .badge-qr { background: #854d0e; color: #facc15; }
-        .qr-box { background: white; padding: 16px; border-radius: 12px; display: inline-block; margin-bottom: 20px; }
-        .qr-box img { display: block; max-width: 256px; height: auto; }
-        .pairing-code { font-size: 28px; font-weight: 800; letter-spacing: 4px; color: #38bdf8; background: #0f172a; padding: 12px 24px; border-radius: 8px; border: 1px dashed #38bdf8; display: inline-block; margin-bottom: 15px; }
+        .qr-box { background: white; padding: 12px; border-radius: 12px; display: inline-block; margin: 14px 0; }
+        img { display: block; max-width: 100%; height: auto; }
+        .step-list { text-align: left; background: #0f172a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
       </style>
-      <script>
-        setTimeout(() => { location.reload(); }, 6000);
-      </script>
     </head>
     <body>
-      <div class="card">
-        <h1>AMIS CONSTRUCTORA</h1>
-        <p>Cerebro Central Antigravity · Baileys 24/7</p>
-
-        ${isClientReady ? `
-          <div class="badge badge-online">● SERVICIO ACTIVO Y EN LÍNEA</div>
-          <p>Conectado exitosamente como: <strong style="color: #38bdf8;">+${connectedUser || 'Sesión Activa'}</strong></p>
-          <p style="font-size: 12px; color: #64748b;">La sesión está resguardada en MongoDB Atlas para evitar desconexiones.</p>
-        ` : (currentPairingCode ? `
-          <div class="badge badge-qr">⚡ VINCULACIÓN POR CÓDIGO</div>
-          <p>Ingresa este código en WhatsApp (Dispositivos vinculados -> Vincular con número de teléfono):</p>
-          <div class="pairing-code">${currentPairingCode}</div>
-        ` : (currentQrImage ? `
-          <div class="badge badge-qr">📷 ESCANEAR CÓDIGO QR</div>
-          <div class="qr-box">
-            <img src="${currentQrImage}" alt="Código QR WhatsApp" />
-          </div>
-          <p>Abre WhatsApp en tu teléfono -> Dispositivos vinculados -> Vincular un dispositivo.</p>
-        ` : `
-          <div class="badge badge-qr">⏳ INICIANDO SERVICIO...</div>
-          <p>Conectando a MongoDB Atlas y levantando el asistente...</p>
-        `))}
+      <div class="card" id="mainCard">
+        <h1>🏢 Torre de Control AMIS</h1>
+        <p>Servidor 24/7 en la Nube · Cerebro Antigravity</p>
+        <div id="contentBox">
+          ${isClientReady ? `
+            <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
+            <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
+            <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
+          ` : `
+            <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
+            ${currentQrDataUrl ? `
+              <div class="qr-box">
+                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="250" height="250">
+              </div>
+            ` : `
+              <p style="color:#94a3b8; font-size:14px; margin: 30px 0;">⏳ Generando código QR...</p>
+            `}
+            <div class="step-list">
+              <strong>Cómo vincular en tu celular:</strong><br>
+              1. Abre WhatsApp en tu celular (<strong>667 354 5529</strong>).<br>
+              2. Ve a <strong>Ajustes / Configuración</strong> → <strong>Dispositivos vinculados</strong>.<br>
+              3. Toca el botón verde <strong>Vincular un dispositivo</strong>.<br>
+              4. <strong>Apunta la cámara al código QR</strong> de la pantalla.
+            </div>
+          `}
+        </div>
       </div>
+      <script>
+        async function checkStatus() {
+          try {
+            const res = await fetch('/status');
+            const data = await res.json();
+            if (data.ready) {
+              document.getElementById('contentBox').innerHTML = \`
+                <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
+                <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+\${data.user || '5216673545529'}</strong></p>
+                <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
+              \`;
+            }
+          } catch(e) {}
+        }
+        setInterval(checkStatus, 3000);
+      </script>
     </body>
     </html>
   `);
 });
 
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌐 Servidor HTTP activo en el puerto ${PORT}`);
+  console.log(`📡 Servidor HTTP activo en 0.0.0.0:${PORT}`);
 });
+
+// Self Keep-Alive para evitar que Render entre en reposo
+setInterval(() => {
+  const appUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  http.get(`${appUrl}/status`, () => {}).on('error', () => {});
+}, 8 * 60 * 1000);
 
 // =========================================================================
 // 🏃‍♂️ MÓDULO RUNNING & INTELIGENCIA DEPORTIVA GARMIN TED ANDREY
@@ -398,7 +467,6 @@ async function obtenerReporteCriptoBitso() {
     const usdtPrice = parseFloat(usdtData.payload.last);
     const ethPrice = parseFloat(ethData.payload.last);
 
-    // Portafolio de Ted en Bitso:
     const btcHoldings = 0.00063682;
     const usdtHoldings = 105.85;
     const capitalDepositado = 3000.00;
@@ -409,8 +477,8 @@ async function obtenerReporteCriptoBitso() {
     const diffMXN = totalValMXN - capitalDepositado;
     const diffPct = ((diffMXN / capitalDepositado) * 100).toFixed(2);
     const sign = diffMXN >= 0 
-      ? `+$${diffMXN.toFixed(2)} MXN (+${diffPct}%) 🟢` 
-      : `-$${Math.abs(diffMXN).toFixed(2)} MXN (${diffPct}%) 🔴`;
+      ? `+$${diffMXN.toFixed(2)} MXN (+$${diffPct}%) 🟢` 
+      : `-$${Math.abs(diffMXN).toFixed(2)} MXN ($${diffPct}%) 🔴`;
 
     const metaBtc = 0.001;
     const btcFaltante = metaBtc - btcHoldings;
@@ -440,7 +508,7 @@ async function obtenerReporteCriptoBitso() {
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `💡 *4. DIAGNÓSTICO Y PLAN TÁCTICO*\n` +
       `• *Escudo Activo:* Al haber mantenido los 105.85 USDT en reserva, tu capital no sufrió con la corrección de Bitcoin.\n` +
-      `• *Ventana de Compra con Descuento:* Bitcoin está testeando el soporte de $1,520,000 - $1,525,000 MXN. Para conquistar tu meta de 0.001 BTC solo requieres convertir *${usdtParaMeta} USDT* a Bitcoin.\n\n` +
+      `• *Ventana de Compra con Descuento:* Bitcoin está testeando soporte. Para conquistar tu meta de 0.001 BTC solo requieres convertir *${usdtParaMeta} USDT* a Bitcoin.\n\n` +
       `_¿Deseas ejecutar la conversión de USDT a BTC para amarrar la meta o consultar otra criptomoneda?_`;
   } catch (err) {
     return `⚠️ *Bitso Live:* No se pudo conectar momentáneamente con los servidores de Bitso. Por favor intenta de nuevo en unos segundos.`;
@@ -465,26 +533,26 @@ async function responderCoachIA(query) {
   if (/cadencia|zancada|pisada|talon|impacto|rodillas|180|spm/i.test(q)) {
     return `⚡ *Análisis de Cadencia y Biomecánica (Coach Ted):*\n\n` +
       `• *Tu cadencia actual:* Promediaste *174 spm* en tu última sesión. ¡Es un número excelente! Estás dentro del rango ideal (170-180 spm).\n` +
-      `• *¿Por qué importa?* A 174 spm tu tiempo de contacto con el suelo es menor a 230 milisegundos. Eso elimina la sobre-zancada (overstriding) y evita la sobrecarga en la rótula y la fascia plantar.\n` +
-      `• *Consejo de afinación:* En subidas o cuando sientas fatiga en el km 7+, no trates de alargar el paso. *Acorta la zancada y acelera el braceo*. El tren inferior sigue automáticamente la cadencia de los codos.`;
+      `• *¿Por qué importa?* A 174 spm tu tiempo de contacto con el suelo es menor a 230 milisegundos. Eso elimina la sobre-zancada y evita sobrecarga rotuliana.\n` +
+      `• *Consejo de afinación:* En fatiga, acorta la zancada y acelera el braceo. El tren inferior sigue automáticamente a los codos.`;
   }
 
   if (/zona|pulsaciones|frecuencia|cardiac|coraz[oó]n|ppm|pecho/i.test(q)) {
     return `❤️ *Control de Zonas Cardíacas (Coach Ted):*\n\n` +
       `Tus zonas personalizadas de entrenamiento:\n` +
       `• *Zona 1 (<130 ppm):* Recuperación activa y regeneración celular.\n` +
-      `• *Zona 2 (130 - 145 ppm):* *Tu zona sagrada de base aeróbica.* Aquí el 80% del combustible proviene de la oxidación de lípidos.\n` +
-      `• *Zona 3 (146 - 156 ppm):* Zona Tempo. Buena para carreras de 15k a 21k, pero genera fatiga residual si se abusa entre semana.\n` +
-      `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico. Entrenar aquí eleva tu velocidad de crucero.\n` +
-      `• *Zona 5 (>168 ppm):* Potencia aeróbica máxima (VO2 máx). Reservada solo para los últimos 400m de intervalos o sprint final.\n\n` +
-      `📌 *Diagnóstico:* En tu última sesión el 62% del tiempo estuviste en Zona 2. Tu eficiencia cardiometabólica está en su punto más alto del ciclo.`;
+      `• *Zona 2 (130 - 145 ppm):* *Tu zona sagrada de base aeróbica.* Oxidación de lípidos.\n` +
+      `• *Zona 3 (146 - 156 ppm):* Zona Tempo.\n` +
+      `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico.\n` +
+      `• *Zona 5 (>168 ppm):* Potencia aeróbica máxima (VO2 máx).\n\n` +
+      `📌 *Diagnóstico:* En tu última sesión el 62% del tiempo estuviste en Zona 2. Tu eficiencia cardiometabólica está en su punto más alto.`;
   }
 
   if (/dolor|molestia|s[oó]leo|gemelo|pantorrilla|recupera|suplement|creatina|electrolit|agua|descanso/i.test(q)) {
     return `💊 *Protocolo de Recuperación & Cuidado Muscular:*\n\n` +
-      `• *Sóleos y Gemelos:* Aplica 10 minutos de Foam Roller suave (sin presionar directo sobre el tendón de Aquiles) y estiramiento con rodilla flexionada para aislar el sóleo.\n` +
-      `• *Hidratación Táctica:* Toma 500 ml de agua con 300 mg de citrato de magnesio y una pizca de sal marina para reponer electrolitos perdidos por sudoración.\n` +
-      `• *Sueño reparador:* Recuerda que la síntesis de colágeno y la hormona de crecimiento se liberan en las fases de sueño profundo (fases 3 y 4). Apunta a 7.5 horas hoy.`;
+      `• *Sóleos y Gemelos:* Aplica 10 minutos de Foam Roller suave y estiramiento con rodilla flexionada.\n` +
+      `• *Hidratación Táctica:* 500 ml de agua con 300 mg de citrato de magnesio y pizca de sal marina.\n` +
+      `• *Sueño reparador:* Recuerda que la síntesis de colágeno se da en fases de sueño profundo. Apunta a 7.5 horas hoy.`;
   }
 
   if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(q)) {
@@ -582,13 +650,8 @@ function getSubmenuPilar3() {
 function detectarPilarDeConsulta(text) {
   const t = (text || '').toLowerCase().trim();
 
-  // Detección Pilar 3: Personal / Tech
   const matchPersonal = /cripto|bitcoin|btc|bitso|usdt|eth|satoshi|running|garmin|correr|entreno|sesi[oó]n.*ayer|cadencia|ritmo|ppm|pulsaciones|supleai|suplement|creatina|china|yupoo|1688|taobao|casillero|agenda.*personal|compromiso.*personal/i.test(t);
-
-  // Detección Pilar 2: Fiscal / Finanzas
   const matchFiscal = /banbaj[ií]o|cuenta.*maestra|saldo.*amis|darnelix|roblock|asimilables?|factura.*tadr|honorarios?.*ted|retenci[oó]n|dort780211|aco241114|submayor|proyecto ejecutivo|360k|isabel romero|samuel dom[ií]nguez.*sat|declaraci[oó]n.*anual|impuestos?|provisi[oó]n sat|diot|n[oó]mina.*semanal|tabulador/i.test(t);
-
-  // Detección Pilar 1: Obra
   const matchObra = /alamos|[aá]lamos|lope|franco|parral|sierra bonita|muro|moldes?|vivienda|torre|concreto|varilla|cemento|di[eé]sel|arena|grava|cuadrilla|colado|residente|destajo.*obra/i.test(t);
 
   if (matchPersonal && !matchObra && !matchFiscal) return 'PILAR_3_PERSONAL';
@@ -647,7 +710,7 @@ async function responderConsultaPilar(pilar, query) {
         `• *Régimen:* Actividad Empresarial y Servicios Profesionales / Consultoría.\n` +
         `• *Directiva Espejo AMIS:* En facturas para reparto de socios se retiene 10% ISR y 10.67% IVA, apartando bolsa SAT (5.33% IVA residual + ISR).\n` +
         `• *Asesorías Propias:* 100% ingreso exclusivo de Ted Andrey.\n` +
-        `• *Libro Maestro:* \`Control_Fiscal_y_Facturacion_2026_TADR.xlsx\`.`;
+        `• *Libro Maestro:* Control_Fiscal_y_Facturacion_2026_TADR.xlsx.`;
     }
     if (/submayor|proyecto ejecutivo|360k/i.test(q) || q === '3') {
       return `📑 *Submayor Proyecto Ejecutivo AMIS ($360,000.00 MXN):*\n\n` +
@@ -693,7 +756,7 @@ async function responderConsultaPilar(pilar, query) {
         `• *Fábricas y Plataformas:* Conexión directa OEM/ODM en 1688, Taobao y catálogos Yupoo.\n` +
         `• *Agentes y Casilleros:* Operación vía CSSBuy / Sugargoo para consolidación en bodega de China y US Closer para USA.\n` +
         `• *Protocolo de Inspección:* Control de calidad (QC) con fotos HD, verificación de medidas en cm e instrucción 'Drop Box' para aligerar peso volumétrico y blindar aduana.\n` +
-        `• *Repositorio:* Expediente exclusivo en \`06_COMPRAS_CHINAS\`.\`;
+        `• *Repositorio:* Expediente exclusivo en 06_COMPRAS_CHINAS.`;
     }
     if (/agenda|pendiente|compromiso|reuni[oó]n/i.test(q) || q === '5') {
       return `📋 *Agenda Ejecutiva Personal (Lic. Ted):*\n\n` +
@@ -713,115 +776,80 @@ async function startWhatsAppBot() {
     console.log('🚀 Iniciando conexión Baileys Multi-Device con persistencia en MongoDB Atlas...');
     const { state, saveCreds } = await useMongoAuthState();
     const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`📦 Usando Baileys v${version.join('.')} (Última versión disponible: ${isLatest})`);
+    console.log(`📡 Versión negociada de WhatsApp Web: v${version.join('.')}`);
 
     sock = makeWASocket({
       version,
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
       auth: state,
-      browser: ['AMIS Constructora', 'Desktop', '2.0.0'],
-      syncFullHistory: false
+      browser: ['Ubuntu', 'Chrome', '20.0.04'],
+      generateHighQualityLinkPreview: false,
+      syncFullHistory: false,
+      shouldSyncHistoryMessage: () => false,
+      getMessage: async () => undefined
     });
-
-    sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
         currentQrData = qr;
-        try {
-          currentQrImage = await QRCode.toDataURL(qr);
-        } catch (e) {
-          console.error('Error generando QR Image:', e);
-        }
+        currentQrDataUrl = await QRCode.toDataURL(qr);
+        console.log('⚡ Nuevo código QR generado para vinculación.');
         qrcodeTerminal.generate(qr, { small: true });
-        console.log('⚡ Nuevo QR generado. Escanéalo en el navegador o en la consola.');
       }
 
       if (connection === 'close') {
-        isClientReady = false;
         const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-        console.log('⚠️ Conexión cerrada. Reconectando automáticamente:', shouldReconnect);
+        console.log(`🔌 Conexión cerrada. Reconectando: ${shouldReconnect}`);
+        isClientReady = false;
         if (shouldReconnect) {
-          setTimeout(startWhatsAppBot, 5000);
-        } else {
-          console.log('❌ Sesión cerrada por el usuario. Limpiando credenciales...');
-          try {
-            if (sessionCollection) await sessionCollection.deleteMany({});
-          } catch (e) {}
-          setTimeout(startWhatsAppBot, 5000);
+          setTimeout(startWhatsAppBot, 3000);
         }
       } else if (connection === 'open') {
+        console.log('🟢 ¡CONEXIÓN ESTABLECIDA CON ÉXITO A WHATSAPP!');
         isClientReady = true;
         currentQrData = null;
-        currentQrImage = null;
-        currentPairingCode = null;
-        connectedUser = sock.user.id.split(':')[0];
-        console.log(`✅ ¡Conexión establecida con éxito 24/7! Conectado como: +${connectedUser}`);
+        currentQrDataUrl = null;
+        connectedUser = sock.user?.id ? sock.user.id.split(':')[0] : '5216673545529';
       }
     });
 
-    const processedMsgIds = new Set();
+    sock.ev.on('creds.update', saveCreds);
+
     const recentUserMessages = new Map();
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
-      if (!messages || messages.length === 0) return;
-      if (type && type !== 'notify') return;
+      if (type !== 'notify') return;
 
       for (const msg of messages) {
         try {
           if (!msg.message) continue;
           if (msg.key.fromMe) continue;
-          if (msg.key.remoteJid === 'status@broadcast') continue;
-
-          const msgId = msg.key.id;
-          if (msgId) {
-            if (processedMsgIds.has(msgId)) continue;
-            processedMsgIds.add(msgId);
-            if (processedMsgIds.size > 2000) processedMsgIds.clear();
-          }
 
           const remoteJid = msg.key.remoteJid;
-          try {
-            await sock.readMessages([msg.key]);
-          } catch (e) {}
+          const participant = msg.key.participant || '';
+          const fullSender = `${remoteJid}_${participant}`;
+          const cleanSender = remoteJid.replace(/[^0-9]/g, '');
 
           const body = (
-            msg.message?.conversation ||
-            msg.message?.extendedTextMessage?.text ||
-            msg.message?.imageMessage?.caption ||
-            msg.message?.documentMessage?.caption ||
+            msg.message.conversation ||
+            msg.message.extendedTextMessage?.text ||
+            msg.message.imageMessage?.caption ||
+            msg.message.documentMessage?.caption ||
             ''
           ).trim();
 
-          const hasMedia = !!(msg.message?.imageMessage || msg.message?.documentMessage || msg.message?.audioMessage);
-          console.log(`[WHATSAPP ENTRADA] De: ${remoteJid} | Texto: "${body}" | Media: ${hasMedia}`);
+          const hasMedia = !!(msg.message.imageMessage || msg.message.documentMessage || msg.message.audioMessage);
 
-          const config = loadConfig();
-
-          // Anti-Duplicados Estricto
-          const dedupKey = `${remoteJid}:${body.toLowerCase().trim()}`;
-          const now = Date.now();
-          if (recentUserMessages.has(dedupKey) && (now - recentUserMessages.get(dedupKey) < 4000)) {
-            console.log(`[DEDUP] Mensaje repetido ignorado para ${remoteJid} ("${body}") dentro de 4s.`);
-            continue;
-          }
-          recentUserMessages.set(dedupKey, now);
-          if (recentUserMessages.size > 2000) {
-            for (const [k, t] of recentUserMessages.entries()) {
-              if (now - t > 30000) recentUserMessages.delete(k);
-            }
-          }
-
-          const targetJid = remoteJid;
+          // Registro forense en MongoDB
           if (mongoClient) {
             try {
               const db = mongoClient.db('amis_whatsapp');
               await db.collection('debug_inbox').insertOne({
                 remoteJid,
-                participant: msg.key.participant || null,
+                participant,
                 fromMe: msg.key.fromMe,
                 body,
                 date: new Date()
@@ -829,17 +857,23 @@ async function startWhatsAppBot() {
             } catch (e) {}
           }
 
-          const participant = msg.key.participant || '';
-          const fullSender = `${remoteJid} ${participant}`;
-          const cleanSender = remoteJid.replace(/[^0-9]/g, '');
+          // Anti-duplicados (4 segundos)
+          const dedupKey = `${cleanSender}:${body.toLowerCase()}`;
+          const now = Date.now();
+          if (recentUserMessages.has(dedupKey) && (now - recentUserMessages.get(dedupKey) < 4000)) {
+            continue;
+          }
+          recentUserMessages.set(dedupKey, now);
+
+          const targetJid = remoteJid;
+          const config = loadConfig();
 
           // =====================================================================
-          // 1. REGLA DE ORO: GRUPOS DE WHATSAPP
+          // 1. REGLA DE GRUPOS DE WHATSAPP
           // =====================================================================
           if (remoteJid.endsWith('@g.us')) {
             const GRUPO_COACH_TED_JID = '120363432696055179@g.us';
             if (remoteJid === GRUPO_COACH_TED_JID) {
-              console.log(`[GRUPO COACH TED] Mensaje detectado en grupo privado de Ted: "${body}"`);
               const lowerBody = body.toLowerCase().trim();
               const triggersCoach = /coach|garmin|running|correr|entreno|sesi[oó]n|ayer|rutina|an[aá]lisis|cadencia|ritmo|pulso|ppm|fc|zona|distancia|km|recupera|cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(lowerBody);
               const esNumeroOpcion = /^[1-4]$/.test(lowerBody);
@@ -852,13 +886,12 @@ async function startWhatsAppBot() {
                   `2️⃣ *Cadencia óptima, biomecánica y zonas cardíacas*\n` +
                   `3️⃣ *🪙 Mercado Criptomonedas & Portafolio Bitso (BTC / USDT)*\n` +
                   `4️⃣ *Agenda y pendientes ejecutivos personales*\n\n` +
-                  `_O pregúntame directamente cualquier duda (ej. "¿a cuánto ritmo debo correr mañana?", "análisis de mi rutina de ayer" o "¿cómo va el mercado cripto?")._`;
+                  `_O pregúntame directamente cualquier duda._`;
                 await sock.sendMessage(targetJid, { text: menuCoach });
                 continue;
               }
 
               if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis.*rutina|an[aá]lisis.*sesi[oó]n|an[aá]lisis.*ayer/i.test(lowerBody) || lowerBody === '1') {
-                console.log('[COACH] Generando análisis biomédico Garmin para Ted');
                 const analisisSesion = obtenerAnalisisSesionCompleto(0);
                 await sock.sendMessage(targetJid, { text: analisisSesion });
                 continue;
@@ -874,7 +907,6 @@ async function startWhatsAppBot() {
               }
 
               if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado|moneda|satoshi/i.test(lowerBody) || lowerBody === '3') {
-                console.log(`[CRIPTO BITSO] Solicitud de reporte de criptomonedas recibida de Ted`);
                 const cryptoReport = await obtenerReporteCriptoBitso();
                 await sock.sendMessage(targetJid, { text: cryptoReport });
                 continue;
@@ -891,13 +923,11 @@ async function startWhatsAppBot() {
                 continue;
               }
 
-              // Conversación continua con Coach IA
               const coachRespuesta = await responderCoachIA(body);
               await sock.sendMessage(targetJid, { text: coachRespuesta });
               continue;
             }
 
-            // Cualquier otro grupo: ignorar silenciosamente
             continue;
           }
 
@@ -925,7 +955,7 @@ async function startWhatsAppBot() {
           if (isTed) {
             console.log(`[CENTRO DE MANDO TED] Mensaje de Ted: "${body}" | Estado: ${userState.activePillar || 'IDLE'}`);
 
-            // 1. Saludo, Menú, Inicio o Reset: SIEMPRE abre el Menú Maestro
+            // 1. Saludo, Menú o Reset: SIEMPRE abre el Menú Maestro
             if (isReset || /^(hola|buenos d[ií]as|buenas|empezar|inicio|men[uú]|help|ayuda)$/i.test(lowerBody)) {
               userState.activePillar = null;
               userState.waitingPillarConfirmation = false;
@@ -936,7 +966,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 2. Si estábamos esperando confirmación de cambio de pilar
+            // 2. Confirmación de cambio de pilar
             if (userState.waitingPillarConfirmation && userState.pendingTargetPillar) {
               const affirmative = /^(s[ií]|cambiar|cambia|ok|adelante|va|dale|claro|si por favor|afirmativo)$/i.test(lowerBody);
               const negative = /^(no|cancela|quedate|sigue|permanecer|no cambiar)$/i.test(lowerBody);
@@ -995,7 +1025,7 @@ async function startWhatsAppBot() {
               }
             }
 
-            // 4. Si Ted ya está dentro de un Pilar, auditar detección cruzada
+            // 4. Auditoría de contexto cruzado
             const detectedPillar = detectarPilarDeConsulta(body);
             if (userState.activePillar && detectedPillar && detectedPillar !== userState.activePillar) {
               userState.waitingPillarConfirmation = true;
@@ -1015,7 +1045,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 5. Procesar consulta dentro del pilar activo o directo
+            // 5. Procesar consulta dentro del pilar activo
             const effectivePillar = userState.activePillar || detectedPillar || 'PILAR_1_OBRA';
             const pillarReply = await responderConsultaPilar(effectivePillar, body);
             if (pillarReply) {
@@ -1023,7 +1053,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 6. Respuesta por defecto si no encajó: NUNCA salir de if (isTed)
+            // 6. Mensaje por defecto de Ted (NUNCA sale a público)
             const defaultTedMsg = `🏛️ *Centro de Mando Antigravity (Lic. Ted Andrey)*\n\n` +
               `No identifiqué una instrucción específica para "${body.slice(0, 40)}".\n\n` +
               `👉 Escribe *menu* para ver los 3 Pilares Maestros, o selecciona *1*, *2* o *3* para ingresar a un proyecto.`;
@@ -1036,7 +1066,6 @@ async function startWhatsAppBot() {
           // =====================================================================
           const authUser = getAuthorizedUser(cleanSender, config, fullSender);
 
-          // Mensaje de bienvenida para público general no registrado
           if (!authUser) {
             console.log(`[PÚBLICO] Contacto no registrado: ${fullSender} -> Enviando a ${targetJid}`);
             await sock.sendMessage(targetJid, { text: `${config.public_greeting}\n\n🔍 *ID Detectado:* \`${remoteJid}\`` });
@@ -1048,66 +1077,245 @@ async function startWhatsAppBot() {
             userSessions[remoteJid].updatedAt = Date.now();
             saveSessions();
             const menuText = buildMainMenu(authUser, config);
-            console.log(`[MENU] Enviando menú principal a ${authUser.name} (${targetJid})`);
             await sock.sendMessage(targetJid, { text: menuText });
             continue;
           }
 
-          // Si el usuario está en IDLE
+          const extractDigit = (str) => {
+            const match = str.match(/^[#*]*([0-9]+)/) || str.match(/([0-9]+)/);
+            return match ? match[1] : null;
+          };
+          const choiceDigit = extractDigit(body);
+
           if (userState.state === 'IDLE') {
-            const userModules = [];
-            let optIdx = 1;
-            for (const [modKey, modData] of Object.entries(config.modules)) {
-              if (modData.allowed_roles.includes(authUser.role) || modData.allowed_roles.includes('*')) {
-                userModules.push({ digit: optIdx.toString(), key: modKey, ...modData });
-                optIdx++;
+            const isExpenseIntent = hasMedia || 
+              /^(subir|adjunt|mando|envi|va|tengo|subo)\s*(la|una|las)?\s*(factura|comprobante|ticket|nota|gasto)/i.test(lowerBody) ||
+              (choiceDigit === '5' && authUser.role === 'GERENTE_ADMINISTRATIVO') ||
+              (choiceDigit === '1' && authUser.role !== 'GERENTE_ADMINISTRATIVO');
+
+            if (isExpenseIntent) {
+              if (hasMedia) {
+                const currentCount = 1;
+                userSessions[remoteJid].state = 'EXPENSE';
+                userSessions[remoteJid].expenseCount = currentCount;
+                userSessions[remoteJid].updatedAt = Date.now();
+
+                let directAck = '';
+                if (body) {
+                  userSessions[remoteJid].waitingConcept = false;
+                  userSessions[remoteJid].lastExpenseConcept = body;
+                  await guardarEnBuzonGastos(authUser, cleanSender, currentCount, body, hasMedia);
+
+                  directAck = `🧾 *Comprobante / Factura #1 Registrada con Éxito*\n\n` +
+                    `📝 *Destino / Concepto:* "${body}"\n` +
+                    `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
+                    `📎 *Puedes enviar la siguiente factura directamente* (o escribe _'listo'_ cuando termines).\n\n` +
+                    `👉 _Escribe *menu* en cualquier momento para volver._`;
+                } else {
+                  userSessions[remoteJid].waitingConcept = true;
+                  userSessions[remoteJid].waitingIndex = currentCount;
+                  await guardarEnBuzonGastos(authUser, cleanSender, currentCount, 'Sin descripción previa', hasMedia);
+
+                  directAck = `🧾 *Comprobante / Factura #1 Registrada con Éxito*\n\n` +
+                    `✅ Archivo resguardado en la Mesa de Control de AMIS.\n\n` +
+                    `💡 *Dato opcional:* Si gustas, escribe brevemente para qué se utilizó o a qué vehículo/área corresponde.\n` +
+                    `O si prefieres, *envía directamente la siguiente factura* o escribe _'listo'_.`;
+                }
+
+                saveSessions();
+                await sock.sendMessage(targetJid, { text: directAck });
+                continue;
+              } else {
+                userSessions[remoteJid].state = 'EXPENSE';
+                userSessions[remoteJid].expenseCount = 0;
+                userSessions[remoteJid].waitingConcept = false;
+                userSessions[remoteJid].updatedAt = Date.now();
+                saveSessions();
+
+                const promptMsg = `🧾 *Recepción de Facturas y Comprobantes*\n\n` +
+                  `¡Adelante, ${authUser.name}! 🫡 Adjunta los archivos PDF/XML o fotos de tus notas/facturas.\n` +
+                  `💡 _Puedes agregar una breve nota con el destino del gasto._\n` +
+                  `Puedes enviar varias de forma continua; se registrarán una por una en la Mesa de Control.\n\n` +
+                  `_Escribe *menu* o *listo* cuando termines._`;
+
+                await sock.sendMessage(targetJid, { text: promptMsg });
+                continue;
               }
             }
 
-            const selectedMod = userModules.find(m => m.digit === body.trim());
-            if (selectedMod) {
-              if (selectedMod.key === 'recepcion_facturas') {
-                userSessions[remoteJid] = { state: 'EXPENSE', expenseCount: 0, waitingConcept: false, updatedAt: Date.now() };
+            if (authUser.role !== 'GERENTE_ADMINISTRATIVO') {
+              const availableOptions = (config.options || []).filter(opt => {
+                if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
+                return opt.allowed_roles.includes(authUser.role);
+              });
+              const selectedOpt = availableOptions.find(o => o.id === choiceDigit || o.id === body);
+              if (selectedOpt) {
+                if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
+                  const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
+                  await sock.sendMessage(targetJid, { text: deniedMsg });
+                  continue;
+                }
+
+                if (selectedOpt.code === 'EXPENSE') {
+                  userSessions[remoteJid].state = 'EXPENSE';
+                  userSessions[remoteJid].expenseCount = 0;
+                  userSessions[remoteJid].waitingConcept = false;
+                  userSessions[remoteJid].updatedAt = Date.now();
+                  saveSessions();
+                  await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
+                  continue;
+                }
+
+                if (selectedOpt.code === 'ATTENDANCE') {
+                  userSessions[remoteJid].state = 'ATTENDANCE_MENU';
+                  userSessions[remoteJid].updatedAt = Date.now();
+                  saveSessions();
+                  await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
+                  continue;
+                }
+
+                userSessions[remoteJid].state = selectedOpt.code;
+                userSessions[remoteJid].optionId = selectedOpt.id;
+                userSessions[remoteJid].updatedAt = Date.now();
                 saveSessions();
-                const expIntro = `📥 *Módulo de Recepción de Facturas y Comprobantes*\n\n` +
-                  `Por favor, envía las *fotos o PDFs de tus tickets/facturas* de obra directamente por este chat.\n\n` +
-                  `💡 *Tip:* Puedes enviar varios comprobantes seguidos. Si gustas, agrega un breve texto a cada imagen (ej: _'Gasolina para Silverado'_).\n\n` +
-                  `_Escribe *listo* o *ya* cuando termines, o *menu* para cancelar._`;
-                await sock.sendMessage(targetJid, { text: expIntro });
-                continue;
-              } else if (selectedMod.key === 'consultas_franco') {
-                userSessions[remoteJid] = { state: 'CONSULTA_FRANCO', updatedAt: Date.now(), history: [] };
-                saveSessions();
-                const francoIntro = `⛏️ *Módulo Técnico Proyecto Franco (Hidalgo del Parral)*\n\n` +
-                  `Bienvenido ${authUser.name}. Estoy facultado para asistirte con:\n` +
-                  `• Prototipo Sierra Bonita (684 viviendas cuádruplex)\n` +
-                  `• Planos autorizados del 7 de octubre de 2026\n` +
-                  `• Espesores de muro (10 cm carga / 20 cm bajantes)\n` +
-                  `• Modulación de moldes SIMA y cubicaciones\n\n` +
-                  `_Hazme cualquier pregunta técnica directa sobre Parral o escribe *menu* para volver._`;
-                await sock.sendMessage(targetJid, { text: francoIntro });
-                continue;
-              } else if (selectedMod.key === 'asistencias') {
-                userSessions[remoteJid] = { state: 'ATTENDANCE_MENU', updatedAt: Date.now() };
-                saveSessions();
-                const attMenu = `👷‍♂️ *Control de Personal y Asistencias AMIS*\n\n` +
-                  `1️⃣ Reportar lista de asistencia del día (Foto o texto)\n` +
-                  `2️⃣ Notificar falta o baja de trabajador\n` +
-                  `3️⃣ Notificar nuevo ingreso / alta de personal\n\n` +
-                  `_Escribe el número de la acción que requieres o *menu* para volver._`;
-                await sock.sendMessage(targetJid, { text: attMenu });
+                await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
                 continue;
               }
+            }
+
+            console.log(`[AI] Generando respuesta para ${authUser.name}...`);
+            const replyText = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+            await sock.sendMessage(targetJid, { text: replyText });
+            continue;
+          }
+
+          if (userState.state === 'EXPENSE') {
+            if (['listo', 'ya', 'ya son todas', 'todas', 'termine', 'terminé', 'fin', 'ya quedo', 'ya quedó', 'seria todo', 'sería todo', 'gracias', 'ok', 'nada mas', 'nada más'].includes(lowerBody)) {
+              const count = userSessions[remoteJid].expenseCount || 0;
+              userSessions[remoteJid].state = 'IDLE';
+              userSessions[remoteJid].expenseCount = 0;
+              userSessions[remoteJid].waitingConcept = false;
+              userSessions[remoteJid].updatedAt = Date.now();
+              saveSessions();
+
+              const doneMsg = `✅ *Recepción de Comprobantes Finalizada*\n\n` +
+                `📁 Se resguardaron exitosamente ${count > 0 ? count + ' comprobante(s)' : 'los comprobantes'} en la Mesa de Control para validación del Lic. Ted.\n\n` +
+                `_Escribe *menu* o continúa conversando si requieres revisar otro tema._`;
+
+              await sock.sendMessage(targetJid, { text: doneMsg });
+              continue;
+            }
+
+            if (!hasMedia && userSessions[remoteJid].waitingConcept) {
+              const targetIdx = userSessions[remoteJid].waitingIndex || userSessions[remoteJid].expenseCount || 1;
+              userSessions[remoteJid].waitingConcept = false;
+              userSessions[remoteJid].lastExpenseConcept = body;
+              userSessions[remoteJid].updatedAt = Date.now();
+              saveSessions();
+
+              await actualizarConceptoBuzon(cleanSender, targetIdx, body);
+
+              const noteAck = `📝 *Destino / Concepto anotado para el Comprobante #${targetIdx}:*\n` +
+                `"${body}"\n\n` +
+                `✅ Información vinculada en la Mesa de Control.\n` +
+                `📎 *Puedes enviar la siguiente factura* (o escribe _'listo'_ para finalizar).`;
+
+              await sock.sendMessage(targetJid, { text: noteAck });
+              continue;
+            }
+
+            if (hasMedia) {
+              const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
+              userSessions[remoteJid].expenseCount = currentCount;
+              userSessions[remoteJid].updatedAt = Date.now();
+
+              let ackMsg = '';
+              if (body) {
+                userSessions[remoteJid].waitingConcept = false;
+                userSessions[remoteJid].lastExpenseConcept = body;
+                await guardarEnBuzonGastos(authUser, cleanSender, currentCount, body, hasMedia);
+
+                ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
+                  `📝 *Destino / Concepto:* "${body}"\n` +
+                  `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
+                  `📎 *Puedes enviar la siguiente factura directamente* (o escribe _'listo'_ cuando termines).\n\n` +
+                  `👉 _Escribe *menu* para volver al menú principal._`;
+              } else {
+                userSessions[remoteJid].waitingConcept = true;
+                userSessions[remoteJid].waitingIndex = currentCount;
+                await guardarEnBuzonGastos(authUser, cleanSender, currentCount, 'Sin descripción previa', hasMedia);
+
+                ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
+                  `✅ Archivo resguardado en la Mesa de Control de AMIS.\n\n` +
+                  `💡 *Dato opcional:* Si gustas, escribe brevemente para qué se utilizó o a qué vehículo/área corresponde.\n` +
+                  `O si prefieres, *envía directamente la siguiente factura* o escribe _'listo'_.`;
+              }
+
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: ackMsg });
+              continue;
+            }
+
+            const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
+            userSessions[remoteJid].expenseCount = currentCount;
+            userSessions[remoteJid].waitingConcept = false;
+            userSessions[remoteJid].lastExpenseConcept = body;
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+
+            await guardarEnBuzonGastos(authUser, cleanSender, currentCount, body, false);
+
+            const manualAck = `🧾 *Nota de Gasto #${currentCount} Registrada*\n\n` +
+              `📝 *Detalle / Concepto:* "${body}"\n` +
+              `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
+              `📎 *Puedes enviar el siguiente comprobante* (o escribe _'listo'_ cuando termines).\n\n` +
+              `👉 _Escribe *menu* para volver al menú principal._`;
+
+            await sock.sendMessage(targetJid, { text: manualAck });
+            continue;
+          }
+
+          if (userState.state === 'CONSULTA_FRANCO') {
+            if (['menu', 'menú', 'cancelar', 'salir', 'inicio'].includes(lowerBody)) {
+              userSessions[remoteJid].state = 'IDLE';
+              userSessions[remoteJid].updatedAt = Date.now();
+              saveSessions();
+              const menuText = buildMainMenu(authUser, config);
+              await sock.sendMessage(targetJid, { text: menuText });
+              continue;
+            }
+
+            const replyFranco = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
+            userSessions[remoteJid].updatedAt = Date.now();
+            saveSessions();
+            await sock.sendMessage(targetJid, { text: replyFranco });
+            continue;
+          }
+
+          if (userState.state === 'ATTENDANCE_MENU') {
+            if (choiceDigit === '1') {
+              userSessions[remoteJid] = { state: 'ATTENDANCE_DAILY', updatedAt: Date.now() };
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: `📸 *Lista de Asistencia Diaria*\n\nPor favor adjunta la *foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._` });
+              continue;
+            } else if (choiceDigit === '2') {
+              userSessions[remoteJid] = { state: 'ATTENDANCE_ABSENCE', updatedAt: Date.now() };
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: `❌ *Reporte de Faltas / Bajas*\n\nPor favor escribe el *nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._` });
+              continue;
+            } else if (choiceDigit === '3') {
+              userSessions[remoteJid] = { state: 'ATTENDANCE_HIRE', updatedAt: Date.now() };
+              saveSessions();
+              await sock.sendMessage(targetJid, { text: `🆕 *Registro de Nuevo Ingreso / Alta*\n\nPor favor escribe los *datos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy'_).\n\n_Escribe *menu* para cancelar._` });
+              continue;
             }
           }
 
-          // Respuesta conversacional con Cerebro Antigravity
-          console.log(`[CEREBRO IA] Procesando mensaje de ${authUser.name}: "${body}"`);
-          const replyText = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
-          userSessions[remoteJid].updatedAt = Date.now();
+          userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
           saveSessions();
-          await sock.sendMessage(targetJid, { text: replyText });
-          continue;
+          await sock.sendMessage(targetJid, { text: `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._` });
 
         } catch (err) {
           console.error('Error procesando mensaje Baileys:', err);
@@ -1115,8 +1323,7 @@ async function startWhatsAppBot() {
       }
     });
   } catch (err) {
-    console.error('Error fatal al iniciar WhatsApp Bot:', err);
-    setTimeout(startWhatsAppBot, 5000);
+    console.error('Error inicializando WhatsApp Bot:', err);
   }
 }
 
