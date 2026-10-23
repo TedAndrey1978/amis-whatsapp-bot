@@ -1,137 +1,170 @@
-// Manejo global de excepciones para evitar que el contenedor muera
-process.on('uncaughtException', (err) => {
-  console.error('🚨 [EXCEPCIÓN CAPTURADA]:', err);
-});
-process.on('unhandledRejection', (reason) => {
-  console.error('🚨 [RECHAZO CAPTURADO]:', reason);
-});
+// server.js
+// AMIS CONSTRUCTORA · Cerebro Central Antigravity 24/7
+// Conexión Oficial Baileys Multi-Device + Persistencia MongoDB Atlas
 
-import * as BaileysModule from '@whiskeysockets/baileys';
-const baileys = BaileysModule.default || BaileysModule;
-const makeWASocket = typeof baileys === 'function' ? baileys : (baileys.default || baileys.makeWASocket || BaileysModule.makeWASocket || baileys);
-const useMultiFileAuthState = baileys.useMultiFileAuthState || BaileysModule.useMultiFileAuthState;
-const DisconnectReason = baileys.DisconnectReason || BaileysModule.DisconnectReason;
-const BufferJSON = baileys.BufferJSON || BaileysModule.BufferJSON;
-const initAuthCreds = baileys.initAuthCreds || BaileysModule.initAuthCreds;
-const proto = baileys.proto || BaileysModule.proto;
-const fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion || BaileysModule.fetchLatestBaileysVersion;
-import { MongoClient } from 'mongodb';
+import makeWASocket, {
+  DisconnectReason,
+  fetchLatestBaileysVersion
+} from '@whiskeysockets/baileys';
+import QRCode from 'qrcode';
+import qrcodeTerminal from 'qrcode-terminal';
 import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
 import https from 'https';
 import { fileURLToPath } from 'url';
-import QRCode from 'qrcode';
-import qrcodeTerminal from 'qrcode-terminal';
-import { generateConversationalReply } from './asistente_conversacional.js';
+import { MongoClient } from 'mongodb';
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://tedandrey78_db_user:HYHCN2Utcqhdwn7a@cluster0.fe2xsa1.mongodb.net/amis_whatsapp?authSource=admin&retryWrites=true&w=majority&appName=Cluster0';
-let mongoClient = null;
-let sessionCollection = null;
-let userSessionsCollection = null;
-let lastMongoError = null;
-
-async function useMongoAuthState() {
-  try {
-    if (!mongoClient) {
-      console.log('📡 Conectando a MongoDB Atlas para persistencia de sesión 24/7...');
-      mongoClient = new MongoClient(MONGO_URI);
-      await mongoClient.connect();
-      const db = mongoClient.db('amis_whatsapp');
-      sessionCollection = db.collection('auth_session');
-      userSessionsCollection = db.collection('user_sessions');
-      lastMongoError = null;
-      console.log('✅ MongoDB Atlas conectado exitosamente.');
-    }
-
-    const writeData = async (data, id) => {
-      try {
-        const serialized = JSON.stringify(data, BufferJSON.replacer);
-        await sessionCollection.replaceOne({ _id: id }, { _id: id, data: serialized }, { upsert: true });
-        console.log(`💾 [MONGO PERSISTENCIA] Clave guardada: ${id}`);
-      } catch (err) {
-        console.error('Error guardando en MongoDB:', err.message);
-      }
-    };
-
-    const readData = async (id) => {
-      try {
-        const doc = await sessionCollection.findOne({ _id: id });
-        if (doc && doc.data) {
-          return JSON.parse(doc.data, BufferJSON.reviver);
-        }
-        return null;
-      } catch (err) {
-        console.error('Error leyendo de MongoDB:', err.message);
-        return null;
-      }
-    };
-
-    const removeData = async (id) => {
-      try {
-        await sessionCollection.deleteOne({ _id: id });
-        console.log(`🗑️ [MONGO PERSISTENCIA] Clave eliminada: ${id}`);
-      } catch (err) {
-        console.error('Error eliminando de MongoDB:', err.message);
-      }
-    };
-
-    const credsDoc = await readData('creds');
-    const creds = credsDoc || initAuthCreds();
-
-    return {
-      state: {
-        creds,
-        keys: {
-          get: async (type, ids) => {
-            const data = {};
-            for (const id of ids) {
-              const val = await readData(`${type}-${id}`);
-              if (val) data[id] = val;
-            }
-            return data;
-          },
-          set: async (data) => {
-            for (const category in data) {
-              for (const id in data[category]) {
-                const val = data[category][id];
-                const key = `${category}-${id}`;
-                if (val) {
-                  await writeData(val, key);
-                } else {
-                  await removeData(key);
-                }
-              }
-            }
-          }
-        }
-      },
-      saveCreds: () => writeData(creds, 'creds')
-    };
-  } catch (err) {
-    console.error('⚠️ Error crítico en useMongoAuthState:', err.message);
-    lastMongoError = err.message;
-    throw err;
-  }
-}
+import {
+  generateConversationalReply,
+  consultarCerebroAntigravity
+} from './asistente_conversacional.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Variables de estado del bot
+let sock = null;
 let currentQrData = null;
 let currentQrImage = null;
 let currentPairingCode = null;
 let isClientReady = false;
 let connectedUser = null;
-let sock = null;
 
-const SESSIONS_FILE = path.join(__dirname, 'user_sessions.json');
+// =========================================================================
+// 🗄️ PERSISTENCIA DE CREDENCIALES Y ESTADOS EN MONGODB ATLAS
+// =========================================================================
+const MONGODB_URI = process.env.MONGODB_URI;
+let mongoClient = null;
+let sessionCollection = null;
+let userSessionsCollection = null;
+
+async function initMongoDB() {
+  if (!MONGODB_URI) {
+    console.warn('⚠️ MONGODB_URI no configurado. Se usará almacenamiento local para credenciales.');
+    return;
+  }
+  try {
+    mongoClient = new MongoClient(MONGODB_URI);
+    await mongoClient.connect();
+    const db = mongoClient.db('amis_whatsapp_bot');
+    sessionCollection = db.collection('baileys_auth_sessions');
+    userSessionsCollection = db.collection('user_sessions');
+    console.log('✅ Conectado a MongoDB Atlas (Base de datos: amis_whatsapp_bot)');
+  } catch (err) {
+    console.error('❌ Error conectando a MongoDB Atlas:', err.message);
+  }
+}
+
+// Adaptador de Auth State de Baileys para MongoDB
+async function useMongoAuthState() {
+  await initMongoDB();
+
+  if (!sessionCollection) {
+    console.log('📁 Usando almacenamiento local en carpeta auth_info...');
+    const { useMultiFileAuthState } = await import('@whiskeysockets/baileys');
+    return await useMultiFileAuthState(path.join(__dirname, 'auth_info'));
+  }
+
+  const writeData = async (data, id) => {
+    try {
+      await sessionCollection.replaceOne(
+        { _id: id },
+        { _id: id, data: JSON.stringify(data, BufferJSON.replacer) },
+        { upsert: true }
+      );
+    } catch (e) {
+      console.error(`Error escribiendo en Mongo (${id}):`, e.message);
+    }
+  };
+
+  const readData = async (id) => {
+    try {
+      const doc = await sessionCollection.findOne({ _id: id });
+      if (doc && doc.data) {
+        return JSON.parse(doc.data, BufferJSON.reviver);
+      }
+    } catch (e) {
+      console.error(`Error leyendo de Mongo (${id}):`, e.message);
+    }
+    return null;
+  };
+
+  const removeData = async (id) => {
+    try {
+      await sessionCollection.deleteOne({ _id: id });
+    } catch (e) {
+      console.error(`Error eliminando de Mongo (${id}):`, e.message);
+    }
+  };
+
+  const BufferJSON = {
+    replacer: (k, value) => {
+      if (Buffer.isBuffer(value) || value instanceof Uint8Array || value?.type === 'Buffer') {
+        return { type: 'Buffer', data: Buffer.from(value?.data || value).toString('base64') };
+      }
+      return value;
+    },
+    reviver: (k, value) => {
+      if (typeof value === 'object' && value !== null && (value.type === 'Buffer' || value.buffer === true)) {
+        return Buffer.from(value.data, 'base64');
+      }
+      return value;
+    }
+  };
+
+  let creds = await readData('creds');
+  if (!creds) {
+    const { initAuthCreds } = await import('@whiskeysockets/baileys');
+    creds = initAuthCreds();
+    await writeData(creds, 'creds');
+  }
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {};
+          await Promise.all(
+            ids.map(async (id) => {
+              let value = await readData(`${type}-${id}`);
+              if (type === 'app-state-sync-key' && value) {
+                const { proto } = await import('@whiskeysockets/baileys');
+                value = proto.Message.AppStateSyncKeyData.fromObject(value);
+              }
+              data[id] = value;
+            })
+          );
+          return data;
+        },
+        set: async (data) => {
+          const tasks = [];
+          for (const category in data) {
+            for (const id in data[category]) {
+              const value = data[category][id];
+              const key = `${category}-${id}`;
+              tasks.push(value ? writeData(value, key) : removeData(key));
+            }
+          }
+          await Promise.all(tasks);
+        }
+      }
+    },
+    saveCreds: () => writeData(creds, 'creds')
+  };
+}
+
+// =========================================================================
+// 🧠 MEMORIA DE SESIONES DE USUARIOS (PERSISTENTE EN MONGODB)
+// =========================================================================
+const sessionsFilePath = path.join(__dirname, 'user_sessions.json');
 let userSessions = {};
+
 try {
-  if (fs.existsSync(SESSIONS_FILE)) {
-    userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+  if (fs.existsSync(sessionsFilePath)) {
+    userSessions = JSON.parse(fs.readFileSync(sessionsFilePath, 'utf8'));
   }
 } catch (e) {
   userSessions = {};
@@ -139,10 +172,8 @@ try {
 
 function saveSessions() {
   try {
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Error guardando sesiones locales:', e.message);
-  }
+    fs.writeFileSync(sessionsFilePath, JSON.stringify(userSessions, null, 2), 'utf8');
+  } catch (e) {}
 }
 
 async function getUserSession(key) {
@@ -248,41 +279,30 @@ const server = http.createServer(async (req, res) => {
       user: connectedUser || null,
       mongo: {
         connected: !!sessionCollection,
-        error: lastMongoError,
-        docsCount: docsCount
+        sessionDocs: docsCount
       }
     }));
     return;
   }
 
-  if (req.url === '/send' && req.method === 'POST') {
-    let postBody = '';
-    req.on('data', chunk => { postBody += chunk; });
-    req.on('end', async () => {
-      try {
-        const { phone, message } = JSON.parse(postBody);
-        if (!phone || !message) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Faltan campos phone o message' }));
-        }
-        const target = phone.includes('@') ? phone : `${phone.replace(/\D/g, '')}@s.whatsapp.net`;
-        if (sock && isClientReady) {
-          await sock.sendMessage(target, { text: message });
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: true, target }));
-        } else {
-          res.writeHead(503, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'WhatsApp no está listo aún' }));
-        }
-      } catch (e) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: e.message }));
+  if (req.url === '/pair') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    try {
+      if (sock && !isClientReady) {
+        const adminPhone = process.env.ADMIN_PHONE || '5216676921223';
+        const code = await sock.requestPairingCode(adminPhone.replace(/[^0-9]/g, ''));
+        currentPairingCode = code;
+        res.end(JSON.stringify({ success: true, pairingCode: code }));
+        return;
       }
-    });
+    } catch (err) {
+      res.end(JSON.stringify({ success: false, error: err.message }));
+      return;
+    }
+    res.end(JSON.stringify({ success: false, message: 'Bot ya conectado o inicializando.' }));
     return;
   }
 
-  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
     <!DOCTYPE html>
@@ -290,13 +310,13 @@ const server = http.createServer(async (req, res) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>AMIS Constructora · Torre de Control 24/7</title>
+      <title>AMIS Constructora · Asistente IA WhatsApp</title>
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; text-align: center; padding: 30px 20px; }
-        .card { max-width: 500px; margin: 0 auto; background: #1e293b; border-radius: 16px; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
-        h1 { font-size: 22px; margin-bottom: 6px; color: #38bdf8; }
-        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
-        .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: #1e293b; border-radius: 16px; padding: 32px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid #334155; }
+        h1 { font-size: 24px; margin-top: 0; color: #38bdf8; letter-spacing: -0.5px; }
+        p { color: #94a3b8; font-size: 15px; line-height: 1.5; margin-bottom: 24px; }
+        .badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 24px; }
         .badge-online { background: #065f46; color: #34d399; }
         .badge-qr { background: #854d0e; color: #facc15; }
         .qr-box { background: white; padding: 16px; border-radius: 12px; display: inline-block; margin-bottom: 20px; }
@@ -648,7 +668,7 @@ const PILARES_INFO = {
     id: '2',
     codigo: 'PILAR_2_FINANZAS_FISCAL',
     titulo: 'División 2: Fiscal, Corporativo y Tesorería',
-    proyectos: 'AMIS Fiscal / TADR Fiscal / Proy. Ejecutivo $360k / Familiar SAT / Moldes SIMA'
+    proyectos: 'AMIS Fiscal / Nómina Semanal / TADR Fiscal / Proy. Ejecutivo $360k / Familiar SAT / Moldes SIMA'
   },
   PILAR_3_PERSONAL: {
     id: '3',
@@ -663,66 +683,77 @@ function getMenuMaestroTed() {
     `👤 *Lic. Ted Andrey Domínguez Romero*\n\n` +
     `Selecciona la división o frente que deseas consultar:\n\n` +
     `1️⃣ 🏗️ *División 1: Obra y Edificación Monolítica*\n` +
-    `   • Proyecto Álamos del Río / Lope (320 viv, $54.33 MDP, anticipo $9.23 MDP en BanBajío)\n` +
-    `   • Proyecto Franco / Parral (684 viv Sierra Bonita, muros 10 y 20 cm, visto bueno 7 oct)\n` +
-    `   • Catálogo de Materiales y Compras Reales AMIS\n\n` +
+    `   • Proyecto Álamos del Río / Lope\n` +
+    `   • Proyecto Franco / Parral\n\n` +
     `2️⃣ 💼 *División 2: Fiscal, Corporativo y Tesorería*\n` +
-    `   • AMIS Fiscal & BanBajío (~$9.05 MDP) · Dispersión 3 Vías\n` +
-    `   • TADR Fiscal (Honorarios, Retenciones y SAT)\n` +
-    `   • Submayor Proyecto Ejecutivo ($360k - 50% Ing. Samuel / 50% Ted)\n` +
-    `   • Módulo Fiscal Familiar (Ing. Samuel & Sra. Isabel)\n` +
-    `   • Sistema de Moldes SIMA (Activos & Rotación 24h)\n\n` +
+    `   • AMIS Tesorería & Banco BanBajío\n` +
+    `   • Nómina Semanal & Dispersión 3 Vías\n` +
+    `   • TADR Fiscal\n` +
+    `   • Submayor Proyecto Ejecutivo\n` +
+    `   • Módulo Familiar Contable\n` +
+    `   • Sistema de Moldes SIMA\n\n` +
     `3️⃣ 🌟 *División 3: Proyectos Personales, Tech & Bienestar*\n` +
-    `   • Mercado Criptomonedas Bitso Alpha en vivo (BTC, USDT, Meta 0.001 BTC)\n` +
-    `   • Running Coach IA & Garmin Fēnix 5X (Telemetría real, cadencia, metrónomo)\n` +
-    `   • SupleAI App (SaaS Suplementación Inteligente & Afiliados)\n` +
-    `   • Compras en China & Sourcing Internacional (06_COMPRAS_CHINAS / 1688 / Yupoo)\n` +
-    `   • Agenda Ejecutiva & Pendientes Personales\n\n` +
+    `   • Mercado Criptomonedas & Bitso\n` +
+    `   • Running Coach & Garmin\n` +
+    `   • SupleAI App\n` +
+    `   • Compras e Importaciones de China\n` +
+    `   • Agenda y Asistente Ejecutivo Personal\n\n` +
     `_Escribe *1*, *2* o *3* para ingresar a una división, o escribe directamente lo que buscas._`;
 }
 
 function getSubmenuPilar1() {
   return `🏗️ *DIVISIÓN 1: OBRA Y EDIFICACIÓN MONOLÍTICA*\n` +
-    `Contexto de Construcción, Estructuras e Ingeniería SIMA.\n\n` +
-    `1️⃣ *Proyecto Álamos del Río / Lope:* 320 viviendas (20 torres de 4 niveles), $54.33 MDP, anticipo $9.23 MDP cobrado en BanBajío con CFDI VIV-2, condición suspensiva Día "D", acero/concreto a cargo de M2 Coseinver ($60.76 MDP).\n` +
-    `2️⃣ *Proyecto Franco / Parral:* 684 viviendas cuádruplex (Sierra Bonita), muros de 10 cm y 20 cm (cero muros de 12 cm), visto bueno 7 de octubre de 2026, honorarios $240k+IVA, exclusividad SIMA.\n` +
-    `3️⃣ *Catálogo de Precios y Materiales:* Cemento ($245), varilla 3/8 ($178.50), varilla 1/2 ($312), alambre ($38.50), diésel ($25.80).\n\n` +
-    `_Escribe el número de la sección (1, 2, 3), haz una pregunta sobre obra, o escribe *menu* para volver._`;
+    `Has ingresado al contexto de construcción e ingeniería.\n\n` +
+    `1️⃣ *Proyecto Álamos del Río / Lope:* 320 viviendas (20 torres), moldes SIMA, anticipo $9.23 MDP en BanBajío.\n` +
+    `2️⃣ *Proyecto Franco / Parral:* 684 viviendas Sierra Bonita, muros 10 y 20 cm, visto bueno 7 de oct 2026.\n` +
+    `3️⃣ *Requisiciones y Precios de Materiales:* Varilla, cemento, agregados, diésel.\n\n` +
+    `_Escribe tu consulta sobre obra, o escribe *menu* para volver al menú maestro._`;
 }
 
 function getSubmenuPilar2() {
   return `💼 *DIVISIÓN 2: FISCAL, CORPORATIVO Y TESORERÍA*\n` +
-    `Contexto Contable, Fiscal, Societario y Bancario.\n\n` +
-    `1️⃣ *AMIS Constructora:* Cuenta BanBajío 476863400201 (~$9.05 MDP) y Dispersión Semanal 3 Vías (Vía 1 Fiscal BanBajío IMSS, Vía 2 Darnelix 8% Asimilables $62.5k netos, Vía 3 Roblock 7% destajos/efectivo).\n` +
-    `2️⃣ *TADR Fiscal:* Honorarios Lic. Ted (DORT780211CQ5), retenciones 10% ISR y 10.67% IVA, provisión SAT y asesorías personales.\n` +
-    `3️⃣ *Submayor Proyecto Ejecutivo:* Estado del fondo $360,000 MXN ($100k cobrado VIV-1, $260k pendiente; 50% Ing. Samuel / 50% Ted).\n` +
-    `4️⃣ *Módulo Fiscal Familiar:* Ing. Samuel (anual exenta en abril) y Sra. Isabel (trámite de disminución de obligaciones ante el SAT).\n` +
-    `5️⃣ *Sistema de Moldes SIMA:* Activos, mantenimiento y rotación 24h.\n\n` +
-    `_Escribe el número de la sección (1 al 5), haz tu consulta fiscal o financiera, o escribe *menu* para volver._`;
+    `Has ingresado al contexto contable, fiscal y bancario.\n\n` +
+    `1️⃣ *AMIS Tesorería & Bancos:* Saldos BanBajío (~$9.05 MDP) y cuenta maestra.\n` +
+    `2️⃣ *Nómina Semanal & Dispersión 3 Vías:* BanBajío Fiscal (Nominax), Darnelix 8% ($62.5k socios), Roblock 7% (sobrenóminas, destajos y sobre de raya en efectivo), tabulador oficial.\n` +
+    `3️⃣ *TADR Fiscal:* Honorarios, emisión de CFDI y provisión SAT.\n` +
+    `4️⃣ *Submayor Proyecto Ejecutivo:* Estado del fondo $360k (50% Ing. Samuel / 50% Ted).\n` +
+    `5️⃣ *Módulo Familiar:* Ing. Samuel (anual exenta) y Sra. Isabel (estrategia disminución SAT).\n` +
+    `6️⃣ *Sistema de Moldes SIMA:* Costos y activos de moldes.\n\n` +
+    `_Escribe tu consulta financiera o fiscal, o escribe *menu* para volver al menú maestro._`;
 }
 
 function getSubmenuPilar3() {
   return `🌟 *DIVISIÓN 3: PROYECTOS PERSONALES, TECH & BIENESTAR*\n` +
-    `Contexto Personal, Tecnológico y Deportivo.\n\n` +
-    `1️⃣ *🪙 Mercado Criptomonedas Bitso:* Portafolio en vivo (0.00063682 BTC, 105.85 USDT, meta 0.001 BTC / 100,000 satoshis).\n` +
-    `2️⃣ *🏃‍♂️ Running Coach & Garmin Fēnix 5X:* Telemetría real (5.01 km a 6:54 min/km), cadencia (160 spm), metrónomo (172 ppm) y zonas cardíacas.\n` +
-    `3️⃣ *📱 SupleAI App:* SaaS de suplementación inteligente (React Native + FastAPI) y monetización con afiliados.\n` +
-    `4️⃣ *🇨🇳 Compras en China & Sourcing:* Importaciones, plataformas 1688, catálogos Yupoo, casilleros CSSBuy/Sugargoo/US Closer e inspección QC.\n` +
-    `5️⃣ *📋 Agenda Ejecutiva:* Organización de actividades, compromisos y pendientes personales.\n\n` +
-    `_Escribe el número de la sección (1 al 5), haz tu consulta directa, o escribe *menu* para volver._`;
+    `Has ingresado al contexto personal y tecnológico.\n\n` +
+    `1️⃣ *🪙 Mercado Criptomonedas & Bitso:* Portafolio en vivo (0.00063682 BTC, 105.85 USDT, meta 0.001 BTC).\n` +
+    `2️⃣ *🏃‍♂️ Running Coach & Garmin:* Sesiones Garmin, cadencia, ritmos y zonas cardíacas.\n` +
+    `3️⃣ *📱 SupleAI App:* Estado del SaaS de suplementación inteligente y afiliados.\n` +
+    `4️⃣ *🇨🇳 Compras en China:* Sourcing directo, catálogos Yupoo, 1688 y casilleros.\n` +
+    `5️⃣ *📋 Agenda Ejecutiva:* Pendientes personales y compromisos.\n\n` +
+    `_Escribe tu consulta personal o deportiva, o escribe *menu* para volver al menú maestro._`;
 }
 
-function detectarPilarDeConsulta(text) {
+function detectarPilarDeConsulta(text, currentPillar = null) {
   const t = (text || '').toLowerCase().trim();
+
+  // Detección Nómina y Personal AMIS (Tanto Obra como Finanzas manejan personal):
+  const matchNomina = /n[oó]minas?|sueldos?|tabulador|raya\b|asistencias?|destajos?|nominax|asimilables?|darnelix|roblock|jessica\s*patricia|jessica\s*rivera|otoniel|mois[eé]s\s*abinadab|osuna\s*s[aá]nchez/i.test(t);
+
+  // Si Ted ya está en Pilar 1 (Obra) o Pilar 2 (Finanzas/Fiscal), y consulta sobre nómina/sueldos/personal:
+  // NUNCA considerarlo conflicto ni cambiar de pilar forzadamente. Ambos frentes atienden personal y obra.
+  if (matchNomina) {
+    if (currentPillar === 'PILAR_1_OBRA') return 'PILAR_1_OBRA';
+    return 'PILAR_2_FINANZAS_FISCAL';
+  }
 
   // Detección Pilar 3: Personal / Tech
   const matchPersonal = /cripto|bitcoin|btc|bitso|usdt|eth|satoshi|running|garmin|correr|entreno|sesi[oó]n.*ayer|cadencia|ritmo|ppm|pulsaciones|supleai|suplement|creatina|china|compras?|pedido|pedidos|paquete|paquetes|gu[ií]a|rastreo|casillero|yupoo|1688|taobao|cssbuy|sugargoo|us closer|aduanas?|agenda.*personal|compromiso.*personal/i.test(t);
 
   // Detección Pilar 2: Fiscal / Finanzas
-  const matchFiscal = /banbaj[ií]o|cuenta.*maestra|saldo.*amis|darnelix|roblock|asimilables?|factura.*tadr|honorarios?.*ted|retenci[oó]n|dort780211|aco241114|submayor|proyecto ejecutivo|360k|isabel romero|samuel dom[ií]nguez.*sat|declaraci[oó]n.*anual|impuestos?|provisi[oó]n sat|diot|n[oó]mina.*semanal|tabulador/i.test(t);
+  const matchFiscal = /banbaj[ií]o|cuenta.*maestra|saldo.*amis|factura.*tadr|honorarios?.*ted|retenci[oó]n|dort780211|aco241114|submayor|proyecto ejecutivo|360k|isabel romero|samuel dom[ií]nguez.*sat|declaraci[oó]n.*anual|impuestos?|provisi[oó]n sat|diot/i.test(t);
 
   // Detección Pilar 1: Obra
-  const matchObra = /alamos|[aá]lamos|lope|franco|parral|sierra bonita|muro|moldes?|vivienda|torre|concreto|varilla|cemento|di[eé]sel|arena|grava|cuadrilla|colado|residente|destajo.*obra/i.test(t);
+  const matchObra = /alamos|[aá]lamos|lope|franco|parral|sierra bonita|muro|moldes?|vivienda|torre|concreto|varilla|cemento|di[eé]sel|arena|grava|colado|residente/i.test(t);
 
   if (matchPersonal && !matchObra && !matchFiscal) return 'PILAR_3_PERSONAL';
   if (matchFiscal && !matchObra && !matchPersonal) return 'PILAR_2_FINANZAS_FISCAL';
@@ -780,24 +811,59 @@ async function responderConsultaPilar(pilar, query, userState = null, sessionKey
         `• *Diésel Automotriz:* $25.80 MXN / Litro\n\n` +
         `_Precios de mercado reales auditados contra facturas de compras recientes. ¿Deseas cotizar algún insumo adicional?_`;
     }
+    if (/^(n[oó]minas?|sueldos?|tabulador|cuadrillas?|trabajadores?|personal|asistencias?)$/i.test(q)) {
+      await setSubmodule('CUADRILLAS_OBRA');
+      return `👷‍♂️ *Personal de Obra & Tabulador Semanal (Álamos del Río / SIMA)*\n\n` +
+        `• *Supervisión en Campo:* Ing. Emilio Peñuelas (Pre-Armados) y Bladimir Beltrán (Mantenimiento y Obra).\n` +
+        `• *Tabulador Maestro Oficial (Sueldos Semanales Base):*\n` +
+        `  - Herrero + Equipo/Herramienta propia: $10,800.00 / sem ($1,800.00 diarios base)\n` +
+        `  - Residente de Obra: $7,500.00 / sem ($1,250.00 diarios base)\n` +
+        `  - Moldero: $7,000.00 / sem ($1,166.67 diarios base)\n` +
+        `  - Fierrero / Mantenimiento / Plomero / Electricista: $5,000.00 / sem ($833.33 diarios base)\n` +
+        `  - Supervisor PreArmados / Albañil / Seguridad: $4,000.00 / sem ($666.67 diarios base)\n` +
+        `  - Ayudante General / Herrero: $3,500.00 / sem ($583.33 diarios base)\n` +
+        `  - Velador (SIMA): $2,400.00 / sem | Velador (Obra): $2,000.00 / sem\n\n` +
+        `• *Frente de Trabajo:* Patio de maniobras Álamos habilitando acero para las 20 torres de 4 niveles.\n` +
+        `• *Dispersión Bancaria:* Administrada por AMIS Tesorería (Vía 1 BanBajío, Vía 2 Darnelix, Vía 3 Roblock).\n\n` +
+        `_¿Deseas consultar rendimientos de cuadrilla, supervisión de campo o dispersión fiscal de nómina?_`;
+    }
     return null;
   }
 
   // Respuestas Pilar 2: Fiscal, Corporativo y Tesorería
   if (pilar === 'PILAR_2_FINANZAS_FISCAL') {
-    if (q === '1' || /^(saldo|banbaj[ií]o|banco|tesorer[ií]a|amis|dispersion|dispersi[oó]n)$/i.test(q)) {
+    if (q === '1' || /^(saldo|banbaj[ií]o|banco|tesorer[ií]a|cuenta\s*maestra|amis)$/i.test(q)) {
       await setSubmodule('AMIS_FISCAL');
-      return `💼 *Tesorería & Fiscal AMIS Constructora (ACO241114A70):*\n\n` +
+      return `💼 *Tesorería AMIS Constructora (ACO241114A70):*\n\n` +
         `• *Cuenta BanBajío Maestra:* 476863400201\n` +
         `• *Saldo Auditoría:* ~$9,050,000.00 MXN (Anticipo Álamos blindado).\n` +
-        `• *Vías de Dispersión Semanal (Viernes):*\n` +
-        `  1. *Fiscal Directa BanBajío:* Solo trabajadores con alta IMSS y timbrado Nominax CFDI 4.0.\n` +
-        `  2. *DARNELIX Asimilables (8%):* $62,500.00 netos ($12,500 c/u para los 5 socios). Depósito: $67,129.63 MXN en PEIBO.\n` +
-        `  3. *CONSTRUCTORA ROBLOCK (7%):* Destajos sin CFDI, sobrenóminas SPEI y raya en efectivo.\n` +
-        `• *Regla de Oro:* Cero dispersión a cuentas de terceros; quien no tenga cuenta bancaria verificada cobra en efectivo en sobre de raya.\n\n` +
-        `_¿Deseas consultar saldos bancarios, nómina de la semana o dispersión de socios?_`;
+        `• *Flujo y Cuentas Bancarias:* Conciliación de anticipo, pagos a proveedores mayores autorizados y provisión para obra.\n` +
+        `• *Dispersión Semanal:* Centralizada los viernes a través de las 3 Vías oficiales.\n\n` +
+        `_¿Deseas consultar saldos bancarios, estados de cuenta de obra o dispersión de socios?_`;
     }
-    if (q === '2' || /^(tadr|honorarios?|consultor[ií]a|sat ted)$/i.test(q)) {
+    if (q === '2' || /^(n[oó]mina|n[oó]minas|raya|sueldo|sueldos|tabulador|dispersi[oó]n|destajo|destajos|asistencias?|nominax|trabajadores)$/i.test(q)) {
+      await setSubmodule('NOMINA_AMIS');
+      return `👷‍♂️ *NÓMINA SEMANAL & SISTEMA MAESTRO DE DISPERSIÓN AMIS*\n\n` +
+        `• *Esquema Oficial de Dispersión Semanal (3 Vías - Viernes):*\n` +
+        `  1️⃣ *Vía 1 (Fiscal Directa AMIS BanBajío 476863400201):*\n` +
+        `     ÚNICAMENTE nómina neta timbrada de personal con alta IMSS (RP Z3350123108, cálculo Nominax y recibo CFDI 4.0).\n` +
+        `  2️⃣ *Vía 2 (Socios Asimilables vía DARNELIX 8%):*\n` +
+        `     $62,500.00 MXN netos ($12,500 c/u para los 5 socios). Depósito: $67,129.63 MXN a cuenta PEIBO 732010100000087663. Formato oficial SOLICITUD_MOVIMIENTO_DARNELIX.\n` +
+        `  3️⃣ *Vía 3 (Sobrenóminas, Destajos y Efectivo vía CONSTRUCTORA ROBLOCK 7%):*\n` +
+        `     Factura deducible de materiales. Dispersa SPEI a personal + destajos sin CFDI (Jessica Rivera) + fondos USD + efectivo sobre de raya + caja chica de obra ($10,000.00 MXN).\n\n` +
+        `• *Tabulador Maestro Oficial de Puestos y Sueldos:*\n` +
+        `  - Herrero + Equipo/Herramienta propia: $10,800.00 / sem ($1,800.00 diarios base)\n` +
+        `  - Residente de Obra: $7,500.00 / sem ($1,250.00 diarios base)\n` +
+        `  - Moldero: $7,000.00 / sem ($1,166.67 diarios base)\n` +
+        `  - Encargado Mantenimiento / Fierrero / Plomero / Electricista / Herrero: $5,000.00 / sem ($833.33 diarios base)\n` +
+        `  - Supervisor PreArmados / Albañil / Seguridad: $4,000.00 / sem ($666.67 diarios base)\n` +
+        `  - Ayudante General / Herrero: $3,500.00 / sem ($583.33 diarios base)\n` +
+        `  - Velador (Terreno SIMA): $2,400.00 / sem ($400.00 diarios base)\n` +
+        `  - Velador (Obra): $2,000.00 / sem ($333.33 diarios base)\n\n` +
+        `• *Regla de Oro de Titularidad:* Cero depósitos a cuentas de terceros. Quien no tenga cuenta propia verificada en padrón cobra 100% en sobre de raya en efectivo físico en campo.\n\n` +
+        `_¿Deseas consultar la dispersión de algún trabajador en específico, destajos de obra o el cálculo de la semana?_`;
+    }
+    if (q === '3' || /^(tadr|honorarios?|consultor[ií]a|sat ted)$/i.test(q)) {
       await setSubmodule('TADR_FISCAL');
       return `⚖️ *Contabilidad Personal TADR (Lic. Ted - RFC: DORT780211CQ5):*\n\n` +
         `• *Régimen:* Actividad Empresarial y Servicios Profesionales / Consultoría.\n` +
@@ -806,7 +872,7 @@ async function responderConsultaPilar(pilar, query, userState = null, sessionKey
         `• *Libro Maestro:* Control_Fiscal_y_Facturacion_2026_TADR.xlsx.\n\n` +
         `_¿Deseas consultar retenciones acumuladas, provisión de impuestos o deducciones personales?_`;
     }
-    if (q === '3' || /^(submayor|proyecto ejecutivo|360k)$/i.test(q)) {
+    if (q === '4' || /^(submayor|proyecto ejecutivo|360k)$/i.test(q)) {
       await setSubmodule('PROY_EJECUTIVO');
       return `📑 *Submayor Proyecto Ejecutivo AMIS ($360,000.00 MXN):*\n\n` +
         `• *Titularidad:* 50% Ing. Samuel Domínguez / 50% Lic. Ted Andrey Domínguez.\n` +
@@ -815,14 +881,14 @@ async function responderConsultaPilar(pilar, query, userState = null, sessionKey
         `• *Aislamiento:* Cuenta corriente 100% independiente de los repartos ordinarios de socios.\n\n` +
         `_¿Deseas revisar el estado de cuenta del proyecto ejecutivo o programar cobranza?_`;
     }
-    if (q === '4' || /^(familiar|modulo familiar|isabel|samuel)$/i.test(q)) {
+    if (q === '5' || /^(familiar|modulo familiar|isabel|samuel)$/i.test(q)) {
       await setSubmodule('FAMILIAR');
       return `👨‍👩‍👧 *Módulo Fiscal Familiar (AntiGravity Fiscal Familiar):*\n\n` +
         `1. *Ing. Samuel Domínguez (DORS510222UA2):* Régimen 606 (Dividendos) + 605 (Asimilados). Solo presenta Anual en Abril. Estatus: 100% blindado.\n` +
         `2. *Sra. Isabel Romero (ROGI561130NM0):* Alerta SAT activa por régimen 612. Acción prioritaria: Tramitar Disminución de Obligaciones ante SAT para dejarla solo en Sueldos/Asimilados sin provisionales mensuales.\n\n` +
         `_¿Deseas consultar la estrategia de blindaje o el expediente contable de tus papás?_`;
     }
-    if (q === '5' || /^(sima|moldes?)$/i.test(q)) {
+    if (q === '6' || /^(sima|moldes?)$/i.test(q)) {
       await setSubmodule('SIMA_MOLDES');
       return `⚙️ *Sistema de Moldes SIMA (Activos & Operación):*\n\n` +
         `• *Juegos de Moldes:* Equipos monolíticos de aluminio de alta resistencia para muros y losas.\n` +
@@ -929,18 +995,49 @@ Tono: Técnico, matemático, ágil y enfocado en costos y rendimientos.`;
      - Plazos contractuales de ejecución congelados hasta cumplir la Condición Suspensiva del Día "D" (Anticipo cobrado + Dictamen de Uso de Suelo + Planos ejecutivos aprobados por el Municipio).
      - Rotación estricta de moldes de 24 horas continuas por nivel.
      - Suministros principales (acero, concreto premezclado, tuberías) e indirectos mayores son 100% de M2 Coseinver ($60.76 MDP en Anexo C contractual).
-     - Habilitado de acero y pre-armados activos en patio de maniobras por cuadrillas de AMIS.
+     - Habilitado de acero y pre-armados activos en patio de maniobras por cuadrillas de AMIS bajo la supervisión del Ing. Emilio Peñuelas (Pre-Armados) y Bladimir Beltrán (Mantenimiento y Obra).
+     - Cuadrillas de obra operan con tabulador base (Herrero $10,800/sem, Residente $7,500/sem, Moldero $7,000/sem, Fierrero/Mantenimiento $5,000/sem, Albañil $4,000/sem, Ayudante $3,500/sem).
 AISLAMIENTO ESTRICTO: Prohibido hablar de finanzas personales, cripto o compras en China.
 Tono: Natural, conversacional, ejecutivo de obra y directo al grano.`;
     }
   } else if (division === 'PILAR_2_FINANZAS_FISCAL') {
-    const isAmis = submodule === 'AMIS_FISCAL' || /amis|banbaj[ií]o|dispersion|dispersi[oó]n|darnelix|roblock|n[oó]mina|tabulador/i.test(userQuery);
+    const isNomina = submodule === 'NOMINA_AMIS' || /n[oó]mina|sueldo|tabulador|raya\b|asistencia|destajo|nominax|asimilable|jessica|otoniel|mois[eé]s|osuna/i.test(userQuery);
+    const isAmis = submodule === 'AMIS_FISCAL' || /amis|banbaj[ií]o|dispersion|dispersi[oó]n|darnelix|roblock/i.test(userQuery);
     const isTadr = submodule === 'TADR_FISCAL' || /tadr|dort780211|honorarios?.*ted|retenci[oó]n|sat ted/i.test(userQuery);
     const isProyEj = submodule === 'PROY_EJECUTIVO' || /submayor|proyecto ejecutivo|360k/i.test(userQuery);
     const isFamiliar = submodule === 'FAMILIAR' || /familiar|isabel|samuel.*sat|anual/i.test(userQuery);
     const isSima = submodule === 'SIMA_MOLDES' || /sima|moldes?/i.test(userQuery);
 
-    if (isTadr && !isAmis) {
+    if (isNomina && !isTadr && !isProyEj && !isFamiliar) {
+      badge = '👷‍♂️ [DIVISIÓN 2 · NÓMINA Y DISPERSIÓN AMIS]';
+      systemPrompt = `Eres el Gerente Administrativo y Contralor de Nómina de AMIS Constructora para Ted Andrey Domínguez.
+Ámbito EXCLUSIVO de conversación: NÓMINA SEMANAL, DESTAJOS, PERSONAL Y DISPERSIÓN BANCARIA.
+- Software de Nómina Fiscal Oficial: Nominax (www.nominax.com) para cálculo y timbrado CFDI 4.0.
+- Registro Patronal IMSS: Z3350123108 (Clase V).
+- Esquema Maestro de Dispersión Semanal (Viernes AMIS - 3 Vías):
+  1. Vía 1 (Fiscal Directa AMIS BanBajío 476863400201):
+     ÚNICAMENTE nómina neta timbrada de personal con alta IMSS (Nominax y CFDI 4.0) con cuenta bancaria auditada propia. Prohibido pagar destajos sin CFDI o sobrenóminas por esta cuenta.
+  2. Vía 2 (Socios Asimilables vía DARNELIX 8% antes de IVA):
+     Reparto a los 5 socios ($12,500 c/u netos = $62,500.00 MXN total). Depósito: $67,129.63 MXN a cuenta PEIBO 732010100000087663. Formato oficial SOLICITUD_MOVIMIENTO_DARNELIX con empresa Noviq y leyenda "Se timbra fin de mes".
+  3. Vía 3 (Sobrenóminas, Destajos, Gastos y Efectivo vía CONSTRUCTORA ROBLOCK 7% antes de IVA):
+     Factura deducible de materiales (precios de CATALOGO_PRECIOS_Y_MERCADEO.xlsx). Cuenta BBVA 0125752345 / CLABE 012730001257523451. Dispersa: Sobrenóminas SPEI a personal + Destajos sin CFDI + Fondos USD + Efectivo para sobres de raya + Caja chica/gastos de obra ($10,000.00 MXN).
+- Reglas Estrictas de Personal y Destajos:
+  * Jessica Patricia Rivera Peñuelas: Destajo técnico. Al no tener alta IMSS ni CFDI, se paga 100% por Vía 3 (Roblock SPEI) a Mercado Pago STP 722969013505201338. PROHIBIDO pagar por Vía 1 BanBajío.
+  * Otoniel Baca Guerrero: Tarjeta Spin 4217470236441479. Sobrenómina liquidada vía SPEI Roblock (cero efectivo).
+  * Moisés Abinadab Ramos García: Tarjeta Spin 4217470248221877. Liquidación Fiscal BanBajío + Sobrenómina Roblock SPEI.
+  * Ayudantes General Centro: Pago unificado SPEI Roblock a Jesús Arturo Osuna Sánchez (BBVA 4152314552178223). Regla estricta: NO laboran los sábados.
+- Tabulador Maestro Oficial Semanal:
+  * Herrero + Herramientas/Equipo propio: $10,800.00 / sem ($1,800.00 diarios base).
+  * Residente de Obra: $7,500.00 / sem ($1,250.00 diarios base).
+  * Moldero: $7,000.00 / sem ($1,166.67 diarios base).
+  * Encargado Mantenimiento / Fierrero / Plomero / Electricista / Herrero: $5,000.00 / sem ($833.33 diarios base).
+  * Supervisor PreArmados / Albañil / Seguridad: $4,000.00 / sem ($666.67 diarios base).
+  * Ayudante General / Ayudante Herrero: $3,500.00 / sem ($583.33 diarios base).
+  * Velador (Terreno SIMA): $2,400.00 / sem ($400.00 diarios base).
+  * Velador (Obra): $2,000.00 / sem ($333.33 diarios base).
+- Regla de Oro de Titularidad: Cero depósitos a cuentas de terceros. Quien no tenga cuenta propia verificada cobra en sobre de raya en efectivo físico.
+Tono: Contralor laboral y fiscal analítico, exacto al centavo y directo.`;
+    } else if (isTadr && !isAmis) {
       badge = '⚖️ [DIVISIÓN 2 · TADR CONSULTORÍA FISCAL]';
       systemPrompt = `Eres el Asesor Fiscal Personal del Lic. Ted Andrey Domínguez Romero.
 Ámbito EXCLUSIVO de conversación: CONTABILIDAD PERSONAL TADR (RFC: DORT780211CQ5).
@@ -1374,7 +1471,12 @@ async function startWhatsAppBot() {
                 let ackChange = `🔄 *Contexto cambiado exitosamente al ${pInfo.titulo}*\n\n`;
                 if (savedQuery) {
                   const queryReply = await responderConsultaPilar(targetPillar, savedQuery, userState, sessionKey);
-                  if (queryReply) ackChange += queryReply;
+                  if (queryReply) {
+                    ackChange += queryReply;
+                  } else {
+                    const aiResult = await consultarCerebroPorDivision(targetPillar, savedQuery, userState.history, userState.activeSubmodule);
+                    if (aiResult) ackChange += `${aiResult.badge}\n\n${aiResult.text}`;
+                  }
                 } else {
                   if (targetPillar === 'PILAR_1_OBRA') ackChange += getSubmenuPilar1();
                   else if (targetPillar === 'PILAR_2_FINANZAS_FISCAL') ackChange += getSubmenuPilar2();
@@ -1392,6 +1494,12 @@ async function startWhatsAppBot() {
                   text: `✅ Entendido. Nos mantenemos en el *${curPInfo.titulo}*. ¿Qué deseas consultar de este proyecto? (O escribe *menu* para volver a la raíz).`
                 });
                 continue;
+              } else {
+                // Si Ted continúa haciendo preguntas sin responder Sí/No, romper el ciclo de inmediato
+                userState.waitingPillarConfirmation = false;
+                userState.pendingQuery = null;
+                userState.pendingTargetPillar = null;
+                await saveUserSession(sessionKey, userState);
               }
             }
 
@@ -1439,7 +1547,7 @@ async function startWhatsAppBot() {
               }
 
               // Intentar detectar pilar por palabras clave de la consulta
-              const detected = detectarPilarDeConsulta(body);
+              const detected = detectarPilarDeConsulta(body, userState.activePillar);
               if (detected) {
                 userState.activePillar = detected;
                 userState.activeSubmodule = null;
@@ -1451,7 +1559,7 @@ async function startWhatsAppBot() {
                   text: `🏛️ *Centro de Mando Antigravity (Lic. Ted Andrey)*\n\n` +
                     `Por favor selecciona la división en la que deseas trabajar:\n\n` +
                     `1️⃣ 🏗️ *División 1: Obra y Edificación Monolítica* (Álamos del Río, Parral, Materiales)\n` +
-                    `2️⃣ 💼 *División 2: Fiscal, Corporativo y Tesorería* (AMIS BanBajío, TADR SAT, Socios, Moldes)\n` +
+                    `2️⃣ 💼 *División 2: Fiscal, Corporativo y Tesorería* (AMIS BanBajío, Nómina Semanal, TADR SAT, Socios, Moldes)\n` +
                     `3️⃣ 🌟 *División 3: Proyectos Personales, Tech & Bienestar* (Bitso, Running Garmin, SupleAI, Compras China, Agenda)\n\n` +
                     `_Escribe *1*, *2* o *3* para ingresar a una división, o escribe *menu* para ver detalles._`
                 });
@@ -1460,7 +1568,7 @@ async function startWhatsAppBot() {
             }
 
             // 5. Ted YA está dentro de un Pilar activo: Auditar detección cruzada
-            const detectedPillar = detectarPilarDeConsulta(body);
+            const detectedPillar = detectarPilarDeConsulta(body, userState.activePillar);
             if (userState.activePillar && detectedPillar && detectedPillar !== userState.activePillar) {
               userState.waitingPillarConfirmation = true;
               userState.pendingQuery = body;
@@ -1479,7 +1587,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 6. Atajos rápidos de submódulo (números 1 al 5 u opciones directas dentro del Pilar)
+            // 6. Atajos rápidos de submódulo (números 1 al 6 u opciones directas dentro del Pilar)
             const pillarReply = await responderConsultaPilar(userState.activePillar, body, userState, sessionKey);
             if (pillarReply) {
               userState.history.push({ role: 'user', text: body });
