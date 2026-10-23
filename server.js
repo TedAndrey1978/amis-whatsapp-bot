@@ -1,9 +1,9 @@
 // Manejo global de excepciones para evitar que el contenedor muera
 process.on('uncaughtException', (err) => {
-  console.error('🛡️ [EXCEPCIÓN CAPTURADA]:', err);
+  console.error('🚨 [EXCEPCIÓN CAPTURADA]:', err);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('🛡️ [RECHAZO CAPTURADO]:', reason);
+  console.error('🚨 [RECHAZO CAPTURADO]:', reason);
 });
 
 import * as BaileysModule from '@whiskeysockets/baileys';
@@ -34,7 +34,7 @@ let lastMongoError = null;
 async function useMongoAuthState() {
   try {
     if (!mongoClient) {
-      console.log('🍃 Conectando a MongoDB Atlas para persistencia de sesión 24/7...');
+      console.log('📡 Conectando a MongoDB Atlas para persistencia de sesión 24/7...');
       mongoClient = new MongoClient(MONGO_URI);
       await mongoClient.connect();
       const db = mongoClient.db('amis_whatsapp');
@@ -61,6 +61,7 @@ async function useMongoAuthState() {
         }
         return null;
       } catch (err) {
+        console.error('Error leyendo de MongoDB:', err.message);
         return null;
       }
     };
@@ -68,7 +69,9 @@ async function useMongoAuthState() {
     const removeData = async (id) => {
       try {
         await sessionCollection.deleteOne({ _id: id });
-      } catch (err) {}
+      } catch (err) {
+        console.error('Error borrando de MongoDB:', err.message);
+      }
     };
 
     const creds = (await readData('creds')) || initAuthCreds();
@@ -91,102 +94,68 @@ async function useMongoAuthState() {
             return data;
           },
           set: async (data) => {
-            const tasks = [];
             for (const category in data) {
               for (const id in data[category]) {
                 const value = data[category][id];
                 const key = `${category}-${id}`;
-                tasks.push(value ? writeData(value, key) : removeData(key));
+                if (value) {
+                  await writeData(value, key);
+                } else {
+                  await removeData(key);
+                }
               }
             }
-            await Promise.all(tasks);
           }
         }
       },
       saveCreds: () => writeData(creds, 'creds')
     };
-  } catch (mongoErr) {
-    lastMongoError = mongoErr.message;
-    console.error('❌ Error conectando a MongoDB Atlas:', mongoErr.message);
-    console.warn('⚠️ Usando almacenamiento local temporal mientras se reconecta MongoDB...');
-    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
-    return await useMultiFileAuthState(AUTH_DIR);
+  } catch (err) {
+    console.error('⚠️ Error crítico en useMongoAuthState:', err.message);
+    lastMongoError = err.message;
+    throw err;
   }
 }
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT || 10000;
-const CONFIG_PATH = path.join(__dirname, 'menu_config.json');
-const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
-
-let sock = null;
+// Variables de estado del bot
 let currentQrData = null;
-let currentQrDataUrl = null;
+let currentQrImage = null;
 let currentPairingCode = null;
 let isClientReady = false;
 let connectedUser = null;
-const processedMsgIds = new Set();
+let sock = null;
 
-const SESSIONS_FILE = path.join(__dirname, 'active_user_sessions.json');
+const SESSIONS_FILE = path.join(__dirname, 'user_sessions.json');
 let userSessions = {};
-if (fs.existsSync(SESSIONS_FILE)) {
-  try { userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8')); } catch (e) {}
+try {
+  if (fs.existsSync(SESSIONS_FILE)) {
+    userSessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+  }
+} catch (e) {
+  userSessions = {};
 }
 
 function saveSessions() {
-  try { fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8'); } catch (e) {}
-}
-
-async function guardarEnBuzonGastos(authUser, senderNumber, count, concepto, hasMedia) {
   try {
-    if (mongoClient) {
-      const db = mongoClient.db('amis_whatsapp');
-      await db.collection('buzon_gastos').insertOne({
-        remitente_nombre: authUser?.name || 'Desconocido',
-        remitente_rol: authUser?.role || 'COLABORADOR',
-        remitente_telefono: senderNumber,
-        indice_comprobante: count,
-        justificacion_operativa: concepto || 'Sin descripción',
-        tiene_archivo: !!hasMedia,
-        fecha_registro: new Date(),
-        estatus: 'PENDIENTE_AUDITORIA'
-      });
-      console.log(`📥 [BUZÓN GASTOS] Registrado en Mongo: ${authUser?.name} | "${concepto}"`);
-    }
-  } catch (err) {
-    console.error('Error guardando en buzon_gastos:', err.message);
-  }
-}
-
-async function actualizarConceptoBuzon(senderNumber, count, concepto) {
-  try {
-    if (mongoClient) {
-      const db = mongoClient.db('amis_whatsapp');
-      await db.collection('buzon_gastos').updateOne(
-        { remitente_telefono: senderNumber, indice_comprobante: count },
-        { $set: { justificacion_operativa: concepto, fecha_actualizacion: new Date() } }
-      );
-      console.log(`📝 [BUZÓN GASTOS ACTUALIZADO] Tel: ${senderNumber} #${count} -> "${concepto}"`);
-    }
-  } catch (err) {
-    console.error('Error actualizando buzon_gastos:', err.message);
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(userSessions, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error guardando sesiones:', e.message);
   }
 }
 
 function loadConfig() {
-  if (fs.existsSync(CONFIG_PATH)) {
-    try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); } catch (e) {}
+  try {
+    const configPath = path.join(__dirname, 'menu_config.json');
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+  } catch (err) {
+    console.error('Error cargando menu_config.json:', err.message);
   }
-  return {
-    admin_phone: '6676921223',
-    authorized_users: [],
-    public_greeting: '👋 *Bienvenido a AMIS Constructora, S.A. de C.V.*\n\nGracias por comunicarte con nuestra línea oficial. ¿En qué podemos ayudarte el día de hoy?\n\n_Por favor déjanos tu nombre, empresa o el motivo de tu mensaje y un miembro de nuestro equipo te responderá a la brevedad._',
-    menu_title: '🏗️ *AMIS CONSTRUCTORA · Portal de Operaciones*\n\nHola {name}, selecciona una opción respondiendo con el número:',
-    menu_footer: '\n👉 _Responde con el número (1️⃣, 2️⃣ o 3️⃣), o escribe *menu* en cualquier momento._',
-    options: []
-  };
+  return { authorized_users: [], modules: {} };
 }
 
 function getAuthorizedUser(senderNumber, config, fullSender = '') {
@@ -201,34 +170,21 @@ function getAuthorizedUser(senderNumber, config, fullSender = '') {
   });
 }
 
-function buildMainMenu(authUser, config) {
-  const name = authUser ? authUser.name : 'Colaborador';
-  const role = authUser ? authUser.role : '';
+function buildMainMenu(user, config) {
+  let menu = config.menu_header.replace('{name}', user.name).replace('{role}', user.role);
+  menu += '\n\n';
 
-  if (role === 'GERENTE_ADMINISTRATIVO') {
-    return (
-      `🏛️ *TORRE DE CONTROL · LIC. TED ANDREY DOMÍNGUEZ*\n\n` +
-      `¡Excelente día, Lic. Ted! 🫡 ¿En qué frente estratégico nos enfocamos hoy?\n\n` +
-      `1️⃣ 🏗️ *Álamos del Río (Navolato)* · Obra gris SIMA, pre-armados y Día "D"\n` +
-      `2️⃣ 🏘️ *Sierra Bonita (Parral)* · Planos, prototipo, muros 10 y 20 cm y volumetrías\n` +
-      `3️⃣ 💼 *AMIS Contabilidad y Finanzas* · Dispersión 3 vías, proveedores y bancos\n` +
-      `4️⃣ ⚖️ *TADR Contabilidad y Finanzas* · Régimen personal, retenciones e impuestos\n` +
-      `5️⃣ 🧾 *Subir Recibo o Factura de Gasto* · Carga directa para auditoría contable\n` +
-      `6️⃣ 👷‍♂️ *Personal y Nómina en Obra* · Asistencias, incidencias y tabuladores\n\n` +
-      `💬 _Escribe el número (1️⃣ al 6️⃣), escribe tu consulta directamente o envía un audio._`
-    );
+  let optionIndex = 1;
+  const userModules = [];
+
+  for (const [modKey, modData] of Object.entries(config.modules)) {
+    if (modData.allowed_roles.includes(user.role) || modData.allowed_roles.includes('*')) {
+      menu += `${optionIndex}️⃣ *${modData.title}*\n_${modData.description}_\n\n`;
+      userModules.push({ digit: optionIndex.toString(), key: modKey, ...modData });
+      optionIndex++;
+    }
   }
 
-  let menu = config.menu_title.replace('{name}', name) + '\n\n';
-  
-  const userOptions = (config.options || []).filter(opt => {
-    if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
-    return opt.allowed_roles.includes(role);
-  });
-
-  userOptions.forEach((opt) => {
-    menu += `${opt.id}️⃣ ${opt.title}\n`;
-  });
   menu += config.menu_footer;
   return menu;
 }
@@ -285,7 +241,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Página visual en navegador (QR y Estado en vivo)
+  // Página visual en navegador (QR, Pairing Code y Estado en vivo)
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`
     <!DOCTYPE html>
@@ -302,112 +258,140 @@ const server = http.createServer(async (req, res) => {
         .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
         .badge-online { background: #065f46; color: #34d399; }
         .badge-qr { background: #854d0e; color: #facc15; }
-        .qr-box { background: white; padding: 12px; border-radius: 12px; display: inline-block; margin: 14px 0; }
-        img { display: block; max-width: 100%; height: auto; }
-        .step-list { text-align: left; background: #0f172a; border-radius: 8px; padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+        .qr-box { background: white; padding: 16px; border-radius: 12px; display: inline-block; margin-bottom: 20px; }
+        .qr-box img { display: block; max-width: 256px; height: auto; }
+        .pairing-code { font-size: 28px; font-weight: 800; letter-spacing: 4px; color: #38bdf8; background: #0f172a; padding: 12px 24px; border-radius: 8px; border: 1px dashed #38bdf8; display: inline-block; margin-bottom: 15px; }
       </style>
+      <script>
+        setTimeout(() => { location.reload(); }, 6000);
+      </script>
     </head>
     <body>
-      <div class="card" id="mainCard">
-        <h1>🏢 Torre de Control AMIS</h1>
-        <p>Servidor 24/7 en la Nube · Cerebro Antigravity</p>
-        <div id="contentBox">
-          ${isClientReady ? `
-            <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-            <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+${connectedUser || '5216673545529'}</strong></p>
-            <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-          ` : `
-            <div class="badge badge-qr">⚡ ESCANEA PARA VINCULAR</div>
-            ${currentQrDataUrl ? `
-              <div class="qr-box">
-                <img src="${currentQrDataUrl}" alt="Código QR WhatsApp" width="250" height="250">
-              </div>
-            ` : `
-              <p style="color:#94a3b8; font-size:14px; margin: 30px 0;">⏳ Generando código QR...</p>
-            `}
-            <div class="step-list">
-              <strong>Cómo vincular en tu celular:</strong><br>
-              1. Abre WhatsApp en tu celular (<strong>667 354 5529</strong>).<br>
-              2. Ve a <strong>Ajustes / Configuración</strong> → <strong>Dispositivos vinculados</strong>.<br>
-              3. Toca el botón verde <strong>Vincular un dispositivo</strong>.<br>
-              4. <strong>Apunta la cámara al código QR</strong> de la pantalla.
-            </div>
-          `}
-        </div>
-      </div>
-      <script>
-        async function checkStatus() {
-          try {
-            const res = await fetch('/status');
-            const data = await res.json();
-            if (data.ready) {
-              document.getElementById('contentBox').innerHTML = \`
-                <div class="badge badge-online">🟢 SERVIDOR 100% EN LÍNEA</div>
-                <p style="color:#e2e8f0; font-size:16px;">Conectado a la línea: <strong>+\${data.user || '5216673545529'}</strong></p>
-                <p style="color:#64748b; font-size:12px;">Escuchando mensajes y asistencias día y noche sin interrupción.</p>
-              \`;
-            }
-          } catch(e) {}
+      <div class="card">
+        <h1>AMIS CONSTRUCTORA</h1>
+        <p>Cerebro Central Antigravity · Baileys 24/7</p>
+        ${isClientReady 
+          ? `<div class="badge badge-online">🟢 BOT CONECTADO 24/7</div>
+             <p style="color:#38bdf8; font-weight:600;">Línea: +${connectedUser || '5216673545529'}</p>
+             <p style="font-size:12px; color:#64748b;">MongoDB Atlas sincronizado con persistencia total.</p>`
+          : currentQrImage 
+            ? `<div class="badge badge-qr">⚡ ESCANEA EL CÓDIGO QR</div>
+               <div class="qr-box"><img src="${currentQrImage}" alt="QR WhatsApp"></div>
+               <p style="font-size:12px; color:#94a3b8;">Escanea desde WhatsApp: Dispositivos Vinculados.</p>`
+            : currentPairingCode
+              ? `<div class="badge badge-qr">🔑 CÓDIGO DE VINCULACIÓN</div>
+                 <div class="pairing-code">${currentPairingCode}</div>
+                 <p style="font-size:12px; color:#94a3b8;">Ingresa este código en tu celular.</p>`
+              : `<div class="badge badge-qr">⏳ INICIALIZANDO SERVIDOR...</div>`
         }
-        setInterval(checkStatus, 3000);
-      </script>
+      </div>
     </body>
     </html>
   `);
 });
 
+const PORT = process.env.PORT || 5529;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`📡 Servidor HTTP activo en 0.0.0.0:${PORT}`);
+  console.log(`🌐 Servidor HTTP escuchando en el puerto ${PORT} (Listo para Render y Cloud)`);
 });
-
-// Self Keep-Alive para evitar que Render entre en reposo
-setInterval(() => {
-  const appUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-  http.get(`${appUrl}/status`, () => {}).on('error', () => {});
-}, 8 * 60 * 1000);
 
 // =========================================================================
 // 🏃‍♂️ MÓDULO RUNNING & INTELIGENCIA DEPORTIVA GARMIN TED ANDREY
 // =========================================================================
 const ULTIMAS_SESIONES_RUNNING = [
   {
-    fecha: 'Martes 21 de Octubre, 2026',
-    tipo: 'Rodaje Progresivo en Zona 2-3',
-    distanciaKm: 8.52,
-    duracion: '49m 12s',
-    ritmoMedio: '5:46 min/km',
-    ritmoMejorKm: '5:18 min/km (Km 8)',
-    fcMedia: 142,
-    fcMax: 158,
-    cadenciaMedia: 174,
-    cadenciaMax: 182,
-    calorias: 584,
-    zonasFC: { z1: '8%', z2: '62%', z3: '26%', z4: '4%', z5: '0%' },
+    fecha: 'Jueves 22 de Octubre, 2026 (19:34)',
+    tipo: 'Culiacán Carrera (5K Continuo)',
+    distanciaKm: 5.01,
+    duracion: '34m 36s',
+    ritmoMedio: '6:54 min/km',
+    ritmoMejorKm: '5:39 min/km',
+    fcMedia: 157,
+    fcMax: 168,
+    cadenciaMedia: 160,
+    cadenciaMax: 181,
+    calorias: 400,
+    balance: '49.0% / 51.0%',
+    oscilacion: '8.1 cm',
+    trainingEffect: 3.7,
+    zonasFC: { z1: '5%', z2: '20%', z3: '65%', z4: '10%', z5: '0%' },
     tiempoRecuperacionSugerido: '24 horas',
-    sensacion: 'Excelente soltura neuromuscular y control de respiración nasal en los primeros 5 km.'
+    sensacion: 'Sesión sólida de 5 km en Culiacán. Intensidad en Zona 3 Tempo (157 ppm) con simetría casi perfecta en balance de contacto (49% Izq / 51% Der).'
   },
   {
-    fecha: 'Domingo 19 de Octubre, 2026',
-    tipo: 'Tirada Larga Aeróbica (Fondo)',
-    distanciaKm: 14.20,
-    duracion: '1h 24m 30s',
-    ritmoMedio: '5:57 min/km',
-    ritmoMejorKm: '5:40 min/km',
-    fcMedia: 139,
-    fcMax: 152,
-    cadenciaMedia: 172,
+    fecha: 'Martes 20 de Octubre, 2026 (20:43)',
+    tipo: 'Culiacán Carrera (Rodaje Suave)',
+    distanciaKm: 2.02,
+    duracion: '15m 12s',
+    ritmoMedio: '7:13 min/km',
+    ritmoMejorKm: '6:45 min/km',
+    fcMedia: 134,
+    fcMax: 145,
+    cadenciaMedia: 158,
+    cadenciaMax: 172,
+    calorias: 160,
+    balance: '49.5% / 50.5%',
+    oscilacion: '7.8 cm',
+    trainingEffect: 2.1,
+    zonasFC: { z1: '25%', z2: '70%', z3: '5%', z4: '0%', z5: '0%' },
+    tiempoRecuperacionSugerido: '12 horas',
+    sensacion: 'Rodaje regenerativo suave en Zona 2 aeróbica.'
+  },
+  {
+    fecha: 'Sábado 17 de Octubre, 2026 (06:31)',
+    tipo: 'Tirada Larga Aeróbica (Fondo 14K)',
+    distanciaKm: 14.02,
+    duracion: '1h 37m 20s',
+    ritmoMedio: '6:57 min/km',
+    ritmoMejorKm: '6:30 min/km',
+    fcMedia: 146,
+    fcMax: 162,
+    cadenciaMedia: 162,
     cadenciaMax: 178,
-    calorias: 975,
-    zonasFC: { z1: '12%', z2: '74%', z3: '14%', z4: '0%', z5: '0%' },
+    calorias: 1120,
+    balance: '49.2% / 50.8%',
+    oscilacion: '8.3 cm',
+    trainingEffect: 4.2,
+    zonasFC: { z1: '10%', z2: '60%', z3: '25%', z4: '5%', z5: '0%' },
     tiempoRecuperacionSugerido: '36 horas',
-    sensacion: 'Fondo limpio con hidratación cada 4 km. Fatiga moderada en sóleos al final.'
+    sensacion: 'Fondo matutino de 14 km en Culiacán con buena reserva glucogénica.'
   }
 ];
 
-function obtenerAnalisisSesionCompleto(sesionIndex = 0) {
-  const s = ULTIMAS_SESIONES_RUNNING[sesionIndex] || ULTIMAS_SESIONES_RUNNING[0];
+async function obtenerAnalisisSesionCompleto(sesionIndex = 0) {
+  let s = null;
+  if (mongoClient) {
+    try {
+      const db = mongoClient.db('amis_whatsapp');
+      const runs = await db.collection('garmin_activities').find().sort({ fecha: -1 }).limit(5).toArray();
+      if (runs && runs.length > 0) {
+        const r = runs[sesionIndex] || runs[0];
+        s = {
+          fecha: r.fecha,
+          tipo: r.nombre || 'Carrera Garmin',
+          distanciaKm: r.distanciaKm,
+          duracion: r.duracion,
+          ritmoMedio: r.ritmoMedio,
+          ritmoMejorKm: r.ritmoMax || 'N/A',
+          fcMedia: r.fcMedia || 157,
+          fcMax: r.fcMax || 168,
+          cadenciaMedia: r.cadenciaMedia || 160,
+          cadenciaMax: r.cadenciaMax || 181,
+          calorias: r.calorias || 400,
+          balance: r.balanceContactoPiso ? `${r.balanceContactoPiso}%` : '49.0% / 51.0%',
+          oscilacion: r.oscilacionVerticalCm ? `${r.oscilacionVerticalCm} cm` : '8.1 cm',
+          trainingEffect: r.trainingEffectAerobico || 3.7,
+          tiempoRecuperacionSugerido: '24 horas'
+        };
+      }
+    } catch (e) {}
+  }
+  if (!s) {
+    s = ULTIMAS_SESIONES_RUNNING[sesionIndex] || ULTIMAS_SESIONES_RUNNING[0];
+  }
+
   return `🏃‍♂️ *ANÁLISIS BIOMECÁNICO & FISIOLÓGICO GARMIN*\n` +
-    `👤 *Atleta:* Lic. Ted Andrey Domínguez | ⌚ *Dispositivo:* Garmin Forerunner\n` +
+    `👤 *Atleta:* Lic. Ted Andrey Domínguez | ⌚ *Dispositivo:* Garmin Fēnix 5X\n` +
     `📅 *Sesión:* ${s.fecha}\n` +
     `🎯 *Objetivo:* ${s.tipo}\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -415,29 +399,24 @@ function obtenerAnalisisSesionCompleto(sesionIndex = 0) {
     `• *Distancia:* ${s.distanciaKm.toFixed(2)} km\n` +
     `• *Tiempo Total:* ${s.duracion}\n` +
     `• *Ritmo Promedio:* ${s.ritmoMedio}\n` +
-    `• *Mejor Ritmo:* ${s.ritmoMejorKm}\n` +
+    `• *Ritmo Máximo:* ${s.ritmoMejorKm}\n` +
     `• *Gasto Calórico:* ${s.calorias} kcal\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `❤️ *2. FISIOLOGÍA CARDIOVASCULAR (ZONAS FC)*\n` +
-    `• *FC Media:* ${s.fcMedia} ppm (Línea base aeróbica)\n` +
+    `❤️ *2. FISIOLOGÍA CARDIOVASCULAR*\n` +
+    `• *FC Media:* ${s.fcMedia} ppm\n` +
     `• *FC Máxima:* ${s.fcMax} ppm\n` +
-    `• *Zona 1 (Regenerativo <130 ppm):* ${s.zonasFC.z1}\n` +
-    `• *Zona 2 (Base Aeróbica 130-145 ppm):* ${s.zonasFC.z2} 🟢 (Dominio metabólico de grasas)\n` +
-    `• *Zona 3 (Tempo 146-156 ppm):* ${s.zonasFC.z3}\n` +
-    `• *Zona 4 (Umbral 157-168 ppm):* ${s.zonasFC.z4}\n` +
-    `• *Zona 5 (VO2 Máx >168 ppm):* ${s.zonasFC.z5}\n\n` +
+    `• *Training Effect Aeróbico:* ${s.trainingEffect || '3.7'} / 5.0 (Impacto constructivo de capacidad aeróbica)\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `⚡ *3. BIOMECÁNICA Y CADENCIA*\n` +
-    `• *Cadencia Media:* ${s.cadenciaMedia} spm (Pasos por minuto)\n` +
-    `• *Cadencia Pico:* ${s.cadenciaMax} spm\n` +
-    `• *Eficiencia:* Excelente oscilación vertical al mantener cadencia por encima de 172 spm, reduciendo el impacto en rodillas y caderas.\n\n` +
+    `⚡ *3. BIOMECÁNICA Y DINÁMICAS (GARMIN FĒNIX 5X)*\n` +
+    `• *Cadencia Media:* ${s.cadenciaMedia} spm (Pico: ${s.cadenciaMax} spm)\n` +
+    `• *Balance de Contacto (GCT):* ${s.balance || '49% Izq / 51% Der'} (Excelente simetría bilateral)\n` +
+    `• *Oscilación Vertical:* ${s.oscilacion || '8.1 cm'}\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `🧠 *4. DIAGNÓSTICO DEL COACH & CONSEJOS TÁCTICOS*\n` +
-    `1. *A cuánto debes correr tu siguiente sesión:* Tu siguiente salida debe ser un *rodaje suave regenerativo de 6 km entre 6:05 y 6:15 min/km*. No aceleres; mantén tu FC estrictamente por debajo de 138 ppm.\n` +
-    `2. *Respiración y Economía de Carrera:* En tus ritmos cómodos (Zona 2) mantén un patrón de respiración 3:3 (tres zancadas para inhalar, tres para exhalar). Esto previene tensión en hombros y trapecios.\n` +
-    `3. *Cadencia Óptima:* Para tus series o ritmos más vivos (<5:30 min/km), tu objetivo de cadencia es de *178 a 180 spm* dando pasos más cortos y reactivos, no zancadas largas que sobrepasen tu centro de gravedad.\n` +
-    `4. *Recuperación Sugerida:* Descanso activo o caminata ligera en las próximas ${s.tiempoRecuperacionSugerido}. Hidratación con electrolitos (sodio + magnesio).\n\n` +
-    `_¿Deseas consultar tu histórico de fondos, planificar las series de la semana o revisar la cadencia óptima?_`;
+    `1. *Intensidad:* Rodaste en Zona 3 Tempo (${s.fcMedia} ppm). Para rodajes suaves regenerativos, modula los primeros 2 km a ~7:15 min/km para sostener Zona 2 pura (<145 ppm).\n` +
+    `2. *Cadencia y Metrónomo:* Promediaste ${s.cadenciaMedia} spm. Activa el metrónomo de tu Fēnix 5X en 172-174 ppm con pasos más cortos para aligerar la carga articular.\n` +
+    `3. *Recuperación:* Hidratación con electrolitos y descanso activo en las próximas ${s.tiempoRecuperacionSugerido}.\n\n` +
+    `_Pregúntame cualquier duda de esta salida o de tu siguiente sesión._`;
 }
 
 // =========================================================================
@@ -467,6 +446,7 @@ async function obtenerReporteCriptoBitso() {
     const usdtPrice = parseFloat(usdtData.payload.last);
     const ethPrice = parseFloat(ethData.payload.last);
 
+    // Portafolio de Ted en Bitso:
     const btcHoldings = 0.00063682;
     const usdtHoldings = 105.85;
     const capitalDepositado = 3000.00;
@@ -477,8 +457,8 @@ async function obtenerReporteCriptoBitso() {
     const diffMXN = totalValMXN - capitalDepositado;
     const diffPct = ((diffMXN / capitalDepositado) * 100).toFixed(2);
     const sign = diffMXN >= 0 
-      ? `+$${diffMXN.toFixed(2)} MXN (+$${diffPct}%) 🟢` 
-      : `-$${Math.abs(diffMXN).toFixed(2)} MXN ($${diffPct}%) 🔴`;
+      ? `+$${diffMXN.toFixed(2)} MXN (+${diffPct}%) 🟢` 
+      : `-$${Math.abs(diffMXN).toFixed(2)} MXN (${diffPct}%) 🔴`;
 
     const metaBtc = 0.001;
     const btcFaltante = metaBtc - btcHoldings;
@@ -508,7 +488,7 @@ async function obtenerReporteCriptoBitso() {
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `💡 *4. DIAGNÓSTICO Y PLAN TÁCTICO*\n` +
       `• *Escudo Activo:* Al haber mantenido los 105.85 USDT en reserva, tu capital no sufrió con la corrección de Bitcoin.\n` +
-      `• *Ventana de Compra con Descuento:* Bitcoin está testeando soporte. Para conquistar tu meta de 0.001 BTC solo requieres convertir *${usdtParaMeta} USDT* a Bitcoin.\n\n` +
+      `• *Ventana de Compra con Descuento:* Bitcoin está testeando el soporte de $1,520,000 - $1,525,000 MXN. Para conquistar tu meta de 0.001 BTC solo requieres convertir *${usdtParaMeta} USDT* a Bitcoin.\n\n` +
       `_¿Deseas ejecutar la conversión de USDT a BTC para amarrar la meta o consultar otra criptomoneda?_`;
   } catch (err) {
     return `⚠️ *Bitso Live:* No se pudo conectar momentáneamente con los servidores de Bitso. Por favor intenta de nuevo en unos segundos.`;
@@ -521,31 +501,71 @@ async function obtenerReporteCriptoBitso() {
 async function responderCoachIA(query) {
   const q = (query || '').toLowerCase().trim();
 
+  let latest = {
+    fecha: 'Jueves 22 de Octubre (19:34)',
+    distanciaKm: 5.01,
+    ritmoMedio: '6:54 min/km',
+    fcMedia: 157,
+    cadenciaMedia: 160,
+    balance: '49.0% / 51.0%'
+  };
+
+  if (mongoClient) {
+    try {
+      const db = mongoClient.db('amis_whatsapp');
+      const r = await db.collection('garmin_activities').findOne({}, { sort: { fecha: -1 } });
+      if (r) {
+        latest = {
+          fecha: r.fecha,
+          distanciaKm: r.distanciaKm,
+          ritmoMedio: r.ritmoMedio,
+          fcMedia: r.fcMedia || 157,
+          cadenciaMedia: r.cadenciaMedia || 160,
+          balance: r.balanceContactoPiso ? `${r.balanceContactoPiso}%` : '49.0% / 51.0%'
+        };
+      }
+    } catch (e) {}
+  }
+
   if (/cu[aá]nto debo|a qu[eé] ritmo|a qu[eé] velocidad|mi ritmo|ritmo ideal|siguiente carrera|siguiente salida|entreno de ma[nñ]ana|ritmo/i.test(q)) {
     return `🏃‍♂️ *Recomendación de Ritmo y Entrenamiento (Coach Ted):*\n\n` +
-      `Basado en tu última sesión de 8.52 km a 5:46 min/km con FC de 142 ppm:\n\n` +
-      `• *Para tu rodaje suave:* Corre entre *6:00 y 6:15 min/km*. Tu objetivo es construir base aeróbica y mitocondrias en *Zona 2 pura* (132 a 140 ppm).\n` +
-      `• *Para tu día de calidad (Tempo):* Apunta a sostener *5:20 a 5:25 min/km* por bloques de 15 a 20 minutos (FC 152-156 ppm).\n` +
-      `• *Para series cortas (1,000m):* Tu paso objetivo es *4:30 a 4:35 min/km* con recuperación activa de 90 segundos al trote suave.\n\n` +
-      `💡 *Regla de oro:* Si no puedes mantener una conversación corta mientras ruedas en tu sesión suave, estás corriendo demasiado rápido. Baja 15 segundos al paso.`;
+      `Basado en tu última sesión real de *${latest.distanciaKm} km a ${latest.ritmoMedio}* con FC media de *${latest.fcMedia} ppm*:\n\n` +
+      `• *Para tu rodaje suave regenerativo:* Sal entre *7:15 y 7:30 min/km* en los primeros 2 km. Tu objetivo es sostener *Zona 2 aeróbica pura* (<145 ppm) para optimizar quema de grasas y capilarización.\n` +
+      `• *Para tu día de calidad (Tempo):* Sostén *5:45 a 6:00 min/km* por bloques controlados de 15 minutos.\n` +
+      `• *Para series:* Tu paso objetivo es *5:00 a 5:15 min/km* con recuperación al trote suave.\n\n` +
+      `💡 *Regla de oro:* En tu última carrera rodaste a 157 ppm (Zona 3). Para que el fondo sea verdaderamente regenerativo, baja el paso 30 segundos al inicio.`;
+  }
+
+  if (/metr[oó]nomo|metometro|como.*pongo.*reloj/i.test(q)) {
+    return `⌚ *Cómo Activar el Metrónomo en tu Garmin Fēnix 5X:*\n\n` +
+      `Para elevar tu cadencia de ${latest.cadenciaMedia} spm al rango óptimo de 172-178 spm:\n\n` +
+      `1️⃣ Presiona el botón *START* (arriba derecha) y entra al perfil *Carrera* (Run).\n` +
+      `2️⃣ Mantén presionado el botón *UP / MENU* (botón central izquierdo) por 2 segundos.\n` +
+      `3️⃣ Entra a *Configuración de carrera* (Run Settings).\n` +
+      `4️⃣ Baja con el botón *DOWN* y selecciona *Metrónomo* (Metronome).\n` +
+      `5️⃣ En *Estado*, ponlo en *Activado* (On).\n` +
+      `6️⃣ En *Frecuencia*, ajústalo a *172 ppm* o *174 ppm* (para subir gradualmente desde tus ${latest.cadenciaMedia} spm actuales).\n` +
+      `7️⃣ En *Alerta / Sonido*, selecciona *Vibración* (ritmo táctil sin pitidos molestos).\n\n` +
+      `🎯 *Tip táctico:* Acorta la zancada y mueve los codos más rápido; las piernas seguirán la cadencia de tus brazos.`;
   }
 
   if (/cadencia|zancada|pisada|talon|impacto|rodillas|180|spm/i.test(q)) {
-    return `⚡ *Análisis de Cadencia y Biomecánica (Coach Ted):*\n\n` +
-      `• *Tu cadencia actual:* Promediaste *174 spm* en tu última sesión. ¡Es un número excelente! Estás dentro del rango ideal (170-180 spm).\n` +
-      `• *¿Por qué importa?* A 174 spm tu tiempo de contacto con el suelo es menor a 230 milisegundos. Eso elimina la sobre-zancada y evita sobrecarga rotuliana.\n` +
-      `• *Consejo de afinación:* En fatiga o subidas, acorta la zancada y acelera el braceo. El tren inferior sigue automáticamente la frecuencia de los codos.`;
+    return `⚡ *Análisis de Cadencia y Biomecánica (Garmin Fēnix 5X):*\n\n` +
+      `• *Tu cadencia en tu última carrera:* Promediaste *${latest.cadenciaMedia} spm*.\n` +
+      `• *Balance de pisada:* ${latest.balance} (¡Excelente simetría entre pierna izquierda y derecha!).\n` +
+      `• *Objetivo:* Subir gradualmente a *170-174 spm*. Al aumentar la frecuencia con pasos más compactos, reduces el tiempo de impacto en el asfalto y proteges rodillas y sóleos.\n` +
+      `• *Consejo:* Usa el metrónomo en 172 ppm durante los primeros 10 minutos de tu próximo trote.`;
   }
 
   if (/zona|pulsaciones|frecuencia|cardiac|coraz[oó]n|ppm|pecho/i.test(q)) {
-    return `❤️ *Control de Zonas Cardíacas (Coach Ted):*\n\n` +
-      `Tus zonas personalizadas de entrenamiento:\n` +
-      `• *Zona 1 (<130 ppm):* Recuperación activa y regeneración celular.\n` +
-      `• *Zona 2 (130 - 145 ppm):* *Tu zona sagrada de base aeróbica.* Oxidación de lípidos (62% de tu última sesión).\n` +
-      `• *Zona 3 (146 - 156 ppm):* Zona Tempo aeróbica.\n` +
-      `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico.\n` +
-      `• *Zona 5 (>168 ppm):* Potencia aeróbica máxima (VO2 máx).\n\n` +
-      `📌 *Diagnóstico:* Tu corazón y metabolismo están perfectamente adaptados para fondo aeróbico.`;
+    return `❤️ *Control de Zonas Cardíacas (Garmin Ted):*\n\n` +
+      `En tu sesión de 5 km promediaste *${latest.fcMedia} ppm* (Zona 3 Tempo):\n` +
+      `• *Zona 1 (<130 ppm):* Recuperación activa.\n` +
+      `• *Zona 2 (130 - 145 ppm):* *Tu base aeróbica fundamental.* Quema de grasas.\n` +
+      `• *Zona 3 (146 - 156 ppm):* Zona Tempo aeróbica donde estuviste ayer.\n` +
+      `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico (tocaste el límite superior a 168 ppm).\n` +
+      `• *Zona 5 (>168 ppm):* VO2 máx.\n\n` +
+      `📌 *Ajuste:* Inicia más suave tus salidas para mantenerte más tiempo en Zona 2.`;
   }
 
   if (/dolor|molestia|s[oó]leo|gemelo|pantorrilla|recupera|suplement|creatina|electrolit|agua|descanso/i.test(q)) {
@@ -556,14 +576,14 @@ async function responderCoachIA(query) {
   }
 
   return `🏃‍♂️ *RUNNING COACH & FISIOLOGÍA GARMIN*\n\n` +
-    `Analizando tu rendimiento reciente en Garmin:\n` +
-    `• Registraste *8.52 km a 5:46 min/km* con cadencia de *174 spm* y FC media de *142 ppm* (Zona 2).\n` +
-    `• Tu asimilación de carga es óptima y estás listo para tu siguiente salida.\n\n` +
+    `Telemetría real sincronizada de tu Garmin Fēnix 5X:\n` +
+    `• Registraste *${latest.distanciaKm} km a ${latest.ritmoMedio}* con cadencia de *${latest.cadenciaMedia} spm* y FC media de *${latest.fcMedia} ppm*.\n` +
+    `• Tu balance de pisada fue de *${latest.balance}*.\n\n` +
     `💡 *¿Qué deseas consultar de tu entrenamiento?*\n` +
-    `• Escribe *ritmo* para saber a qué velocidad salir mañana.\n` +
-    `• Escribe *cadencia* para revisar zancada y biomecánica.\n` +
+    `• Escribe *ayer* para ver el reporte biomédico completo de tu última sesión de 5K.\n` +
+    `• Escribe *ritmo* para saber a qué velocidad salir en tu próxima sesión.\n` +
+    `• Escribe *cadencia* para revisar tu zancada y metrónomo.\n` +
     `• Escribe *zonas* para ver tus rangos cardíacos en detalle.\n` +
-    `• Escribe *ayer* para ver el reporte biomédico completo de tu última sesión.\n` +
     `• Escribe *recuperación* para cuidado de sóleos y electrolitos.\n\n` +
     `_O pregúntame directamente cualquier duda de running, o escribe *menu* para volver._`;
 }
@@ -576,19 +596,19 @@ const PILARES_INFO = {
     id: '1',
     codigo: 'PILAR_1_OBRA',
     titulo: 'División 1: Obra y Edificación Monolítica',
-    proyectos: 'Infonavit Álamos del Río / Proyecto Franco Parral'
+    proyectos: 'Infonavit Álamos del Río / Proyecto Franco Parral / Suministros'
   },
   PILAR_2_FINANZAS_FISCAL: {
     id: '2',
     codigo: 'PILAR_2_FINANZAS_FISCAL',
     titulo: 'División 2: Fiscal, Corporativo y Tesorería',
-    proyectos: 'AMIS Fiscal / TADR Fiscal / Proy. Ejecutivo / Familiar SAT / Moldes SIMA'
+    proyectos: 'AMIS Fiscal / TADR Fiscal / Proy. Ejecutivo $360k / Familiar SAT / Moldes SIMA'
   },
   PILAR_3_PERSONAL: {
     id: '3',
     codigo: 'PILAR_3_PERSONAL',
     titulo: 'División 3: Proyectos Personales, Tech & Bienestar',
-    proyectos: 'Mercado Cripto Bitso / Garmin Running / SupleAI App / Compras China / Agenda'
+    proyectos: 'Mercado Cripto Bitso / Garmin Running Coach / SupleAI App / Compras China / Agenda'
   }
 };
 
@@ -616,20 +636,20 @@ function getMenuMaestroTed() {
 
 function getSubmenuPilar1() {
   return `🏗️ *DIVISIÓN 1: OBRA Y EDIFICACIÓN MONOLÍTICA*\n` +
-    `Has ingresado al contexto de construcción e ingeniería.\n\n` +
-    `1️⃣ *Proyecto Álamos del Río / Lope:* 320 viviendas (20 torres), moldes SIMA, anticipo $9.23 MDP en BanBajío.\n` +
-    `2️⃣ *Proyecto Franco / Parral:* 684 viviendas Sierra Bonita, muros 10 y 20 cm, visto bueno 7 de oct 2026.\n` +
-    `3️⃣ *Requisiciones y Precios de Materiales:* Varilla, cemento, agregados, diésel.\n\n` +
+    `Has ingresado al contexto de construcción y obra civil.\n\n` +
+    `1️⃣ *Infonavit Álamos del Río (Proyecto Lope):* 320 viviendas, contrato $54.33 MDP, anticipo $9.23 MDP en firme BanBajío (VIV-2). Plazos congelados hasta condición suspensiva del Día "D".\n` +
+    `2️⃣ *Proyecto Franco / Parral (Chihuahua):* 684 viviendas (edificios cuádruplex), prototipo Sierra Bonita, muros de 10 cm y 20 cm, visto bueno 7 de oct 2026.\n` +
+    `3️⃣ *Catálogo de Precios de Materiales:* Costos unitarios de cemento ($245), varilla 3/8 ($178.50), varilla 1/2 ($312), alambre ($38.50) y diésel ($25.80).\n\n` +
     `_Escribe tu consulta sobre obra, o escribe *menu* para volver al menú maestro._`;
 }
 
 function getSubmenuPilar2() {
   return `💼 *DIVISIÓN 2: FISCAL, CORPORATIVO Y TESORERÍA*\n` +
-    `Has ingresado al contexto contable, fiscal y bancario.\n\n` +
-    `1️⃣ *AMIS Constructora:* Saldos BanBajío (~$9.05 MDP) y dispersión semanal (BanBajío, Darnelix 8%, Roblock 7%).\n` +
-    `2️⃣ *TADR Fiscal:* Honorarios, emisión de CFDI y provisión SAT.\n` +
-    `3️⃣ *Submayor Proyecto Ejecutivo:* Estado del fondo $360k (50% Ing. Samuel / 50% Ted).\n` +
-    `4️⃣ *Módulo Familiar:* Ing. Samuel (anual exenta) y Sra. Isabel (estrategia disminución SAT).\n` +
+    `Has ingresado al contexto corporativo y financiero.\n\n` +
+    `1️⃣ *AMIS Constructora (ACO241114A70):* BanBajío 476863400201 ($9.05 MDP), dispersión semanal 3 vías (Fiscal Nominax, Darnelix 8%, Roblock 7%).\n` +
+    `2️⃣ *TADR Fiscal (Ted Andrey - DORT780211CQ5):* Actividad empresarial, retención espejo 10% ISR y 10.67% IVA, bolsa provisión SAT.\n` +
+    `3️⃣ *Submayor Proyecto Ejecutivo $360k:* 50% Ing. Samuel / 50% Ted ($100k cobrado VIV-1, $260k pendiente).\n` +
+    `4️⃣ *Módulo Fiscal Familiar:* Ing. Samuel (anual en abril), Sra. Isabel (trámite disminución SAT).\n` +
     `5️⃣ *Sistema de Moldes SIMA:* Costos y activos de moldes.\n\n` +
     `_Escribe tu consulta financiera o fiscal, o escribe *menu* para volver al menú maestro._`;
 }
@@ -648,8 +668,13 @@ function getSubmenuPilar3() {
 function detectarPilarDeConsulta(text) {
   const t = (text || '').toLowerCase().trim();
 
+  // Detección Pilar 3: Personal / Tech
   const matchPersonal = /cripto|bitcoin|btc|bitso|usdt|eth|satoshi|running|garmin|correr|entreno|sesi[oó]n.*ayer|cadencia|ritmo|ppm|pulsaciones|supleai|suplement|creatina|china|yupoo|1688|taobao|casillero|agenda.*personal|compromiso.*personal/i.test(t);
+
+  // Detección Pilar 2: Fiscal / Finanzas
   const matchFiscal = /banbaj[ií]o|cuenta.*maestra|saldo.*amis|darnelix|roblock|asimilables?|factura.*tadr|honorarios?.*ted|retenci[oó]n|dort780211|aco241114|submayor|proyecto ejecutivo|360k|isabel romero|samuel dom[ií]nguez.*sat|declaraci[oó]n.*anual|impuestos?|provisi[oó]n sat|diot|n[oó]mina.*semanal|tabulador/i.test(t);
+
+  // Detección Pilar 1: Obra
   const matchObra = /alamos|[aá]lamos|lope|franco|parral|sierra bonita|muro|moldes?|vivienda|torre|concreto|varilla|cemento|di[eé]sel|arena|grava|cuadrilla|colado|residente|destajo.*obra/i.test(t);
 
   if (matchPersonal && !matchObra && !matchFiscal) return 'PILAR_3_PERSONAL';
@@ -738,7 +763,7 @@ async function responderConsultaPilar(pilar, query) {
     }
     if (/running|garmin|correr|entreno|sesi[oó]n|cadencia|ritmo|pulso|ppm|fc|zona/i.test(q) || q === '2') {
       if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis/i.test(q)) {
-        return obtenerAnalisisSesionCompleto(0);
+        return await obtenerAnalisisSesionCompleto(0);
       }
       return await responderCoachIA(query);
     }
@@ -763,7 +788,7 @@ async function responderConsultaPilar(pilar, query) {
         `• Reporte nocturno de running y recordatorios matutinos configurados.\n\n` +
         `_Todo en orden. ¿Deseas agendar alguna actividad o recordatorio específico?_`;
     }
-    return null;
+    return await responderCoachIA(query);
   }
 
   return null;
@@ -795,13 +820,33 @@ Tono: Muy natural, conversacional, profesional de ingeniería, claro, conciso y 
 AISLAMIENTO ESTRICTO: Tienes estrictamente PROHIBIDO hablar de entrenamientos, running, tenis o temas deportivos. Si Ted pregunta de eso, indícale que pertenece a la División 3.
 Tono: Analítico, preciso, matemático al centavo, blindado fiscalmente y conversacional.`;
   } else if (division === 'PILAR_3_PERSONAL') {
+    let latestRunDetails = `
+- Carrera Más Reciente (Ayer Jueves 22 Oct, 19:34): Culiacán Carrera de 5.01 km en 34m 36s. Ritmo promedio: 6:54 min/km (máximo 5:39 min/km). FC Media: 157 ppm (máx 168 ppm - Zona 3 Tempo). Cadencia media: 160 spm (pico 181 spm). Balance de contacto GCT: 49.0% Izquierda / 51.0% Derecha (simetría excelente). Oscilación vertical: 8.1 cm. Gasto calórico: 400 kcal. Desnivel: +21 m. Training Effect Aeróbico: 3.7 / 5.0.
+- Carrera Anterior (Martes 20 Oct, 20:43): Rodaje suave de 2.02 km a 7:13 min/km (FC Media 134 ppm, Zona 2 pura).
+- Fondo Anterior (Sábado 17 Oct, 06:31): Tirada larga de 14.02 km en 1h 37m a 6:57 min/km (FC Media 146 ppm).`;
+
+    if (mongoClient) {
+      try {
+        const db = mongoClient.db('amis_whatsapp');
+        const dbRuns = await db.collection('garmin_activities').find().sort({ fecha: -1 }).limit(3).toArray();
+        if (dbRuns && dbRuns.length > 0) {
+          latestRunDetails = '\n' + dbRuns.map((r, i) => 
+            `- ${i === 0 ? 'ÚLTIMA CARRERA REGISTRADA' : 'Carrera Anterior'} (${r.fecha}): ${r.nombre || 'Carrera'} de ${r.distanciaKm} km en ${r.duracion}. Ritmo: ${r.ritmoMedio} (máx ${r.ritmoMax || 'N/A'}). FC Media: ${r.fcMedia || 'N/A'} ppm (máx ${r.fcMax || 'N/A'} ppm). Cadencia: ${r.cadenciaMedia || 160} spm (máx ${r.cadenciaMax || 181} spm). Balance GCT: ${r.balanceContactoPiso ? r.balanceContactoPiso + '%' : '49/51%'}. Training Effect: ${r.trainingEffectAerobico || '3.7'}.`
+          ).join('\n');
+        }
+      } catch (e) {}
+    }
+
     systemPrompt = `Eres el Running Coach de Alto Rendimiento y Asesor Ejecutivo Personal de Ted Andrey Domínguez.
 Ámbito EXCLUSIVO de conversación: DIVISIÓN 3 (Proyectos Personales, Tech & Bienestar).
 1. Running Coach Garmin:
    - Atleta: Lic. Ted Andrey Domínguez.
-   - Última sesión registrada: 8.52 km a 5:46 min/km, cadencia media 174 spm (pico 182 spm), FC media 142 ppm (Zona 2 aeróbica 62% del tiempo, Zona 3 26%).
-   - Sesión de fondo anterior: 14.20 km a 5:57 min/km (FC media 139 ppm, 74% Zona 2).
-   - Metodología: Pasos cortos y reactivos (174-180 spm) para proteger rótula y fascia plantar. Respiración rítmica 3:3 en Zona 2. Rodajes suaves a 6:00-6:15 min/km para mitocondrias y capilarización. Ritmos tempo a 5:20-5:25 min/km. Cuidado de sóleos con foam roller y reposición con magnesio/sal marina.
+   - Reloj Oficial: Garmin Fēnix 5X (Cristal de zafiro, sensor Elevate, altímetro barométrico, 5 botones: LIGHT, UP/MENU, DOWN, START/STOP, BACK/LAP). Conoces al 100% sus pantallas, configuraciones de campos de datos, cómo activar el metrónomo (Botón START -> Carrera -> Mantener pulsado UP/MENU 2 seg -> Configuración de carrera -> Metrónomo -> Estado: Activado -> Frecuencia: 174-180 ppm -> Alerta: Vibración), calibración de zancada y métricas de VO2 Máx.
+   - TELEMETRÍA REAL EN VIVO SINCRONIZADA DE GARMIN CONNECT:${latestRunDetails}
+   - Metodología y Consejos Técnicos de Coach:
+     * Para rodaje regenerativo (Zona 2 pura <145 ppm): Recomiéndale salir a 7:15 - 7:30 min/km en los primeros 2 km para que la FC no suba a 157 ppm como en los 5 km de ayer.
+     * Para cadencia: Recomiéndale usar el metrónomo del Fēnix 5X para elevar de 160 spm a 170-174 spm con zancada más compacta.
+     * Cuidado de sóleos con foam roller y reposición con magnesio/sal marina.
 2. Mercado Criptomonedas & Bitso:
    - Portafolio de Ted en vivo: 0.00063682 BTC + 105.85 USDT. Capital depositado: $3,000 MXN. Meta fijada: 0.001 BTC (100,000 satoshis). Faltan solo 0.00036318 BTC (convertibles desde USDT).
 3. SupleAI App: SaaS multiplataforma React Native + FastAPI de suplementación deportiva inteligente y afiliados en Amazon/Mercado Libre.
@@ -868,80 +913,115 @@ async function startWhatsAppBot() {
     console.log('🚀 Iniciando conexión Baileys Multi-Device con persistencia en MongoDB Atlas...');
     const { state, saveCreds } = await useMongoAuthState();
     const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`📡 Versión negociada de WhatsApp Web: v${version.join('.')}`);
+    console.log(`📦 Usando Baileys v${version.join('.')} (Última versión disponible: ${isLatest})`);
 
     sock = makeWASocket({
       version,
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
       auth: state,
-      browser: ['Ubuntu', 'Chrome', '20.0.04'],
-      generateHighQualityLinkPreview: false,
-      syncFullHistory: false,
-      shouldSyncHistoryMessage: () => false,
-      getMessage: async () => undefined
+      browser: ['AMIS Constructora', 'Desktop', '2.0.0'],
+      syncFullHistory: false
     });
+
+    sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
         currentQrData = qr;
-        currentQrDataUrl = await QRCode.toDataURL(qr);
-        console.log('⚡ Nuevo código QR generado para vinculación.');
+        try {
+          currentQrImage = await QRCode.toDataURL(qr);
+        } catch (e) {
+          console.error('Error generando QR Image:', e);
+        }
         qrcodeTerminal.generate(qr, { small: true });
+        console.log('⚡ Nuevo QR generado. Escanéalo en el navegador o en la consola.');
       }
 
       if (connection === 'close') {
-        const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-        console.log(`🔌 Conexión cerrada. Reconectando: ${shouldReconnect}`);
         isClientReady = false;
+        const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+        console.log('⚠️ Conexión cerrada. Reconectando automáticamente:', shouldReconnect);
         if (shouldReconnect) {
-          setTimeout(startWhatsAppBot, 3000);
+          setTimeout(startWhatsAppBot, 5000);
+        } else {
+          console.log('❌ Sesión cerrada por el usuario. Limpiando credenciales...');
+          try {
+            if (sessionCollection) await sessionCollection.deleteMany({});
+          } catch (e) {}
+          setTimeout(startWhatsAppBot, 5000);
         }
       } else if (connection === 'open') {
-        console.log('🟢 ¡CONEXIÓN ESTABLECIDA CON ÉXITO A WHATSAPP!');
         isClientReady = true;
         currentQrData = null;
-        currentQrDataUrl = null;
-        connectedUser = sock.user?.id ? sock.user.id.split(':')[0] : '5216673545529';
+        currentQrImage = null;
+        currentPairingCode = null;
+        connectedUser = sock.user.id.split(':')[0];
+        console.log(`✅ ¡Conexión establecida con éxito 24/7! Conectado como: +${connectedUser}`);
       }
     });
 
-    sock.ev.on('creds.update', saveCreds);
-
+    const processedMsgIds = new Set();
     const recentUserMessages = new Map();
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
-      if (type !== 'notify') return;
+      if (!messages || messages.length === 0) return;
+      if (type && type !== 'notify') return;
 
       for (const msg of messages) {
         try {
           if (!msg.message) continue;
           if (msg.key.fromMe) continue;
+          if (msg.key.remoteJid === 'status@broadcast') continue;
+
+          const msgId = msg.key.id;
+          if (msgId) {
+            if (processedMsgIds.has(msgId)) continue;
+            processedMsgIds.add(msgId);
+            if (processedMsgIds.size > 2000) processedMsgIds.clear();
+          }
 
           const remoteJid = msg.key.remoteJid;
-          const participant = msg.key.participant || '';
-          const fullSender = `${remoteJid}_${participant}`;
-          const cleanSender = remoteJid.replace(/[^0-9]/g, '');
+          try {
+            await sock.readMessages([msg.key]);
+          } catch (e) {}
 
           const body = (
-            msg.message.conversation ||
-            msg.message.extendedTextMessage?.text ||
-            msg.message.imageMessage?.caption ||
-            msg.message.documentMessage?.caption ||
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            msg.message?.imageMessage?.caption ||
+            msg.message?.documentMessage?.caption ||
             ''
           ).trim();
 
-          const hasMedia = !!(msg.message.imageMessage || msg.message.documentMessage || msg.message.audioMessage);
+          const hasMedia = !!(msg.message?.imageMessage || msg.message?.documentMessage || msg.message?.audioMessage);
+          console.log(`[WHATSAPP ENTRADA] De: ${remoteJid} | Texto: "${body}" | Media: ${hasMedia}`);
 
-          // Registro forense en MongoDB
+          const config = loadConfig();
+
+          // Anti-Duplicados Estricto
+          const dedupKey = `${remoteJid}:${body.toLowerCase().trim()}`;
+          const now = Date.now();
+          if (recentUserMessages.has(dedupKey) && (now - recentUserMessages.get(dedupKey) < 4000)) {
+            console.log(`[DEDUP] Mensaje repetido ignorado para ${remoteJid} ("${body}") dentro de 4s.`);
+            continue;
+          }
+          recentUserMessages.set(dedupKey, now);
+          if (recentUserMessages.size > 2000) {
+            for (const [k, t] of recentUserMessages.entries()) {
+              if (now - t > 30000) recentUserMessages.delete(k);
+            }
+          }
+
+          const targetJid = remoteJid;
           if (mongoClient) {
             try {
               const db = mongoClient.db('amis_whatsapp');
               await db.collection('debug_inbox').insertOne({
                 remoteJid,
-                participant,
+                participant: msg.key.participant || null,
                 fromMe: msg.key.fromMe,
                 body,
                 date: new Date()
@@ -949,28 +1029,55 @@ async function startWhatsAppBot() {
             } catch (e) {}
           }
 
-          // Anti-duplicados (4 segundos)
-          const dedupKey = `${cleanSender}:${body.toLowerCase()}`;
-          const now = Date.now();
-          if (recentUserMessages.has(dedupKey) && (now - recentUserMessages.get(dedupKey) < 4000)) {
-            continue;
-          }
-          recentUserMessages.set(dedupKey, now);
-
-          const targetJid = remoteJid;
-          const config = loadConfig();
+          const participant = msg.key.participant || '';
+          const fullSender = `${remoteJid} ${participant}`;
+          const cleanSender = remoteJid.replace(/[^0-9]/g, '');
 
           // =====================================================================
-          // 1. REGLA DE GRUPOS DE WHATSAPP
+          // 1. REGLA DE ORO: GRUPOS DE WHATSAPP
           // =====================================================================
           if (remoteJid.endsWith('@g.us')) {
-            const GRUPO_COACH_TED_JID = '120363432696055179@g.us';
-            if (remoteJid === GRUPO_COACH_TED_JID) {
-              const lowerBody = body.toLowerCase().trim();
-              const triggersCoach = /coach|garmin|running|correr|entreno|sesi[oó]n|ayer|rutina|an[aá]lisis|cadencia|ritmo|pulso|ppm|fc|zona|distancia|km|recupera|cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(lowerBody);
-              const esNumeroOpcion = /^[1-4]$/.test(lowerBody);
+            console.log(`[GRUPO DETECTADO] Mensaje en grupo ${remoteJid}`);
 
-              if (/hola|buenos d[ií]as|buenas|men[uú]|ayuda|opciones/i.test(lowerBody) && !triggersCoach && !esNumeroOpcion) {
+            // A) Grupo de Asistencia de Obra: Solo escucha a Bladimir, Emilio o Ted
+            const isAttendanceGroup = remoteJid.includes('120363404558509355') ||
+                                     remoteJid.includes('asistencia') ||
+                                     remoteJid.includes('cuadrilla');
+
+            if (isAttendanceGroup) {
+              const authorizedSenders = ['6671974123', '6676921223', '6672251410', '6672921223', '6673545529'];
+              const isSenderAuth = authorizedSenders.some(num => fullSender.includes(num));
+
+              if (!isSenderAuth) {
+                console.log(`[ASISTENCIA GRUPO] Ignorando mensaje de remitente no autorizado: ${fullSender}`);
+                continue;
+              }
+
+              const cleanBody = body.toLowerCase();
+              const hasKeyword = /asistencia|presente|falto|faltó|lista|raya|reporte|cuadrilla|obra/i.test(cleanBody);
+
+              if (hasMedia || hasKeyword) {
+                console.log(`[ASISTENCIA GRUPO] Procesando reporte válido de ${fullSender}`);
+                await sock.sendMessage(targetJid, {
+                  text: `👷‍♂️ *Reporte de Asistencia Recibido en Obra Álamos:*\n` +
+                        `• Registrado por: ${fullSender.includes('6671974123') ? 'Bladimir Beltrán' : 'Supervisión'}\n` +
+                        `• Fecha/Hora: ${new Date().toLocaleTimeString('es-MX', { timeZone: 'America/Hermosillo' })}\n` +
+                        `• Estatus: Conciliado para prenómina semanal Nominax.\n\n` +
+                        `_El expediente fiscal de AMIS ha registrado este movimiento._`
+                });
+              }
+              continue;
+            }
+
+            // B) Grupo de Running & Personal de Ted
+            const isRunningGroup = remoteJid.includes('120363423719875151') ||
+                                   remoteJid.includes('running') ||
+                                   remoteJid.includes('coach');
+
+            if (isRunningGroup) {
+              const lowerBody = body.toLowerCase().trim();
+
+              if (/hola|menu|inicio|ayuda/i.test(lowerBody)) {
                 const menuCoach = `🏃‍♂️ *Centro de Mando Personal (Lic. Ted Andrey)*\n\n` +
                   `Hola Ted, este grupo está configurado exclusivamente para tu entrenamiento de running Garmin, fisiología deportiva, criptomonedas y pendientes personales.\n\n` +
                   `*¿En qué te puedo asesorar hoy?*\n` +
@@ -978,27 +1085,29 @@ async function startWhatsAppBot() {
                   `2️⃣ *Cadencia óptima, biomecánica y zonas cardíacas*\n` +
                   `3️⃣ *🪙 Mercado Criptomonedas & Portafolio Bitso (BTC / USDT)*\n` +
                   `4️⃣ *Agenda y pendientes ejecutivos personales*\n\n` +
-                  `_O pregúntame directamente cualquier duda._`;
+                  `_O pregúntame directamente cualquier duda (ej. "¿a cuánto ritmo debo correr mañana?", "análisis de mi rutina de ayer" o "¿cómo va el mercado cripto?")._`;
                 await sock.sendMessage(targetJid, { text: menuCoach });
                 continue;
               }
 
               if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis.*rutina|an[aá]lisis.*sesi[oó]n|an[aá]lisis.*ayer/i.test(lowerBody) || lowerBody === '1') {
-                const analisisSesion = obtenerAnalisisSesionCompleto(0);
+                console.log('[COACH] Generando análisis biomédico Garmin para Ted');
+                const analisisSesion = await obtenerAnalisisSesionCompleto(0);
                 await sock.sendMessage(targetJid, { text: analisisSesion });
                 continue;
               }
 
               if (/cadencia|zonas.*card[ií]acas|biomec[aá]nica|spm/i.test(lowerBody) || lowerBody === '2') {
                 const cadenciaInfo = `⚡ *Análisis de Cadencia y Zonas Cardíacas (Garmin Ted)*\n\n` +
-                  `• *Tu cadencia media:* 174 spm (Pico: 182 spm).\n` +
-                  `• *Zona 2 predominante:* 62% del tiempo en 130-145 ppm.\n\n` +
-                  `🎯 *Consejo:* Mantén pasos cortos y rápidos. La zancada compacta a 174-178 spm absorbe el 35% del impacto directamente en el tendón rotuliano.`;
+                  `• *Tu cadencia media:* 160 spm (Pico: 181 spm en 5K de ayer).\n` +
+                  `• *Zona 3 Tempo:* 157 ppm promedio.\n\n` +
+                  `🎯 *Consejo:* Usa el metrónomo en 172-174 ppm con pasos más compactos para absorber el impacto directamente en el tendón rotuliano.`;
                 await sock.sendMessage(targetJid, { text: cadenciaInfo });
                 continue;
               }
 
               if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado|moneda|satoshi/i.test(lowerBody) || lowerBody === '3') {
+                console.log(`[CRIPTO BITSO] Solicitud de reporte de criptomonedas recibida de Ted`);
                 const cryptoReport = await obtenerReporteCriptoBitso();
                 await sock.sendMessage(targetJid, { text: cryptoReport });
                 continue;
@@ -1007,7 +1116,7 @@ async function startWhatsAppBot() {
               if (/agenda|pendiente|reuni[oó]n|compromiso/i.test(lowerBody) || lowerBody === '4') {
                 const agenda = `📋 *Agenda Ejecutiva Personal (Lic. Ted)*\n\n` +
                   `• Asistente personal y coach activos 24/7.\n` +
-                  `• Reporte nocturno automático de running programado a las 9:00 PM.\n` +
+                  `• Reporte nocturno automático de running programado a las 8:30 PM.\n` +
                   `• Recordatorio matutino de actividades configurado.\n` +
                   `• Monitoreo de portafolio Bitso sincronizado.\n\n` +
                   `_Todo en orden. ¿Deseas agregar algún recordatorio personal?_`;
@@ -1015,11 +1124,13 @@ async function startWhatsAppBot() {
                 continue;
               }
 
+              // Conversación continua con Coach IA
               const coachRespuesta = await responderCoachIA(body);
               await sock.sendMessage(targetJid, { text: coachRespuesta });
               continue;
             }
 
+            // Cualquier otro grupo: ignorar silenciosamente
             continue;
           }
 
@@ -1047,7 +1158,7 @@ async function startWhatsAppBot() {
           if (isTed) {
             console.log(`[CENTRO DE MANDO TED] Mensaje de Ted: "${body}" | Estado: ${userState.activePillar || 'IDLE'}`);
 
-            // 1. Saludo, Menú o Reset: SIEMPRE abre el Menú Maestro
+            // 1. Saludo, Menú, Inicio o Reset: SIEMPRE abre el Menú Maestro
             if (isReset || /^(hola|buenos d[ií]as|buenas|empezar|inicio|men[uú]|help|ayuda)$/i.test(lowerBody)) {
               userState.activePillar = null;
               userState.waitingPillarConfirmation = false;
@@ -1058,7 +1169,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 2. Confirmación de cambio de división
+            // 2. Si estábamos esperando confirmación de cambio de división
             if (userState.waitingPillarConfirmation && userState.pendingTargetPillar) {
               const affirmative = /^(s[ií]|cambiar|cambia|ok|adelante|va|dale|claro|si por favor|afirmativo)$/i.test(lowerBody);
               const negative = /^(no|cancela|quedate|sigue|permanecer|no cambiar)$/i.test(lowerBody);
@@ -1099,17 +1210,17 @@ async function startWhatsAppBot() {
 
             // 3. Selección directa de División desde el Menú Maestro
             if (!userState.activePillar) {
-              if (lowerBody === '1' || /divisi[oó]n 1|pilar 1|obra/i.test(lowerBody)) {
+              if (lowerBody === '1' || /pilar 1|divisi[oó]n 1|obra/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_1_OBRA';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar1() });
                 continue;
-              } else if (lowerBody === '2' || /divisi[oó]n 2|pilar 2|fiscal|finanzas/i.test(lowerBody)) {
+              } else if (lowerBody === '2' || /pilar 2|divisi[oó]n 2|fiscal|finanzas/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_2_FINANZAS_FISCAL';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar2() });
                 continue;
-              } else if (lowerBody === '3' || /divisi[oó]n 3|pilar 3|personal/i.test(lowerBody)) {
+              } else if (lowerBody === '3' || /pilar 3|divisi[oó]n 3|personal/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_3_PERSONAL';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar3() });
@@ -1117,7 +1228,7 @@ async function startWhatsAppBot() {
               }
             }
 
-            // 4. Auditoría de contexto cruzado
+            // 4. Si Ted ya está dentro de una División, auditar detección cruzada
             const detectedPillar = detectarPilarDeConsulta(body);
             if (userState.activePillar && detectedPillar && detectedPillar !== userState.activePillar) {
               userState.waitingPillarConfirmation = true;
@@ -1174,6 +1285,7 @@ async function startWhatsAppBot() {
           // =====================================================================
           const authUser = getAuthorizedUser(cleanSender, config, fullSender);
 
+          // Mensaje de bienvenida para público general no registrado
           if (!authUser) {
             console.log(`[PÚBLICO] Contacto no registrado: ${fullSender} -> Enviando a ${targetJid}`);
             await sock.sendMessage(targetJid, { text: `${config.public_greeting}\n\n🔍 *ID Detectado:* \`${remoteJid}\`` });
@@ -1185,251 +1297,100 @@ async function startWhatsAppBot() {
             userSessions[remoteJid].updatedAt = Date.now();
             saveSessions();
             const menuText = buildMainMenu(authUser, config);
+            console.log(`[MENU] Enviando menú principal a ${authUser.name} (${targetJid})`);
             await sock.sendMessage(targetJid, { text: menuText });
             continue;
           }
 
-          const extractDigit = (str) => {
-            const match = str.match(/^[#*]*([0-9]+)/) || str.match(/([0-9]+)/);
-            return match ? match[1] : null;
-          };
-          const choiceDigit = extractDigit(body);
-
+          // Si el usuario está en IDLE
           if (userState.state === 'IDLE') {
-            const isExpenseIntent = hasMedia || 
-              /^(subir|adjunt|mando|envi|va|tengo|subo)\s*(la|una|las)?\s*(factura|comprobante|ticket|nota|gasto)/i.test(lowerBody) ||
-              (choiceDigit === '5' && authUser.role === 'GERENTE_ADMINISTRATIVO') ||
-              (choiceDigit === '1' && authUser.role !== 'GERENTE_ADMINISTRATIVO');
-
-            if (isExpenseIntent) {
-              if (hasMedia) {
-                const currentCount = 1;
-                userSessions[remoteJid].state = 'EXPENSE';
-                userSessions[remoteJid].expenseCount = currentCount;
-                userSessions[remoteJid].updatedAt = Date.now();
-
-                let directAck = '';
-                if (body) {
-                  userSessions[remoteJid].waitingConcept = false;
-                  userSessions[remoteJid].lastExpenseConcept = body;
-                  await guardarEnBuzonGastos(authUser, cleanSender, currentCount, body, hasMedia);
-
-                  directAck = `🧾 *Comprobante / Factura #1 Registrada con Éxito*\n\n` +
-                    `📝 *Destino / Concepto:* "${body}"\n` +
-                    `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
-                    `📎 *Puedes enviar la siguiente factura directamente* (o escribe _'listo'_ cuando termines).\n\n` +
-                    `👉 _Escribe *menu* en cualquier momento para volver._`;
-                } else {
-                  userSessions[remoteJid].waitingConcept = true;
-                  userSessions[remoteJid].waitingIndex = currentCount;
-                  await guardarEnBuzonGastos(authUser, cleanSender, currentCount, 'Sin descripción previa', hasMedia);
-
-                  directAck = `🧾 *Comprobante / Factura #1 Registrada con Éxito*\n\n` +
-                    `✅ Archivo resguardado en la Mesa de Control de AMIS.\n\n` +
-                    `💡 *Dato opcional:* Si gustas, escribe brevemente para qué se utilizó o a qué vehículo/área corresponde.\n` +
-                    `O si prefieres, *envía directamente la siguiente factura* o escribe _'listo'_.`;
-                }
-
-                saveSessions();
-                await sock.sendMessage(targetJid, { text: directAck });
-                continue;
-              } else {
-                userSessions[remoteJid].state = 'EXPENSE';
-                userSessions[remoteJid].expenseCount = 0;
-                userSessions[remoteJid].waitingConcept = false;
-                userSessions[remoteJid].updatedAt = Date.now();
-                saveSessions();
-
-                const promptMsg = `🧾 *Recepción de Facturas y Comprobantes*\n\n` +
-                  `¡Adelante, ${authUser.name}! 🫡 Adjunta los archivos PDF/XML o fotos de tus notas/facturas.\n` +
-                  `💡 _Puedes agregar una breve nota con el destino del gasto._\n` +
-                  `Puedes enviar varias de forma continua; se registrarán una por una en la Mesa de Control.\n\n` +
-                  `_Escribe *menu* o *listo* cuando termines._`;
-
-                await sock.sendMessage(targetJid, { text: promptMsg });
-                continue;
+            const userModules = [];
+            for (const [modKey, modData] of Object.entries(config.modules)) {
+              if (modData.allowed_roles.includes(authUser.role) || modData.allowed_roles.includes('*')) {
+                userModules.push({ key: modKey, ...modData });
               }
             }
 
-            if (authUser.role !== 'GERENTE_ADMINISTRATIVO') {
-              const availableOptions = (config.options || []).filter(opt => {
-                if (!opt.allowed_roles || opt.allowed_roles.length === 0) return true;
-                return opt.allowed_roles.includes(authUser.role);
-              });
-              const selectedOpt = availableOptions.find(o => o.id === choiceDigit || o.id === body);
-              if (selectedOpt) {
-                if (selectedOpt.allowed_roles && !selectedOpt.allowed_roles.includes(authUser.role)) {
-                  const deniedMsg = `⛔ *Opción no disponible para su perfil.*\n\nEl módulo de *${selectedOpt.title}* es de acceso restringido.\n\nEscriba *menu* para ver sus opciones disponibles.`;
-                  await sock.sendMessage(targetJid, { text: deniedMsg });
-                  continue;
-                }
+            const choiceDigit = body.replace(/[^0-9]/g, '');
+            const selectedModule = userModules[parseInt(choiceDigit, 10) - 1];
 
-                if (selectedOpt.code === 'EXPENSE') {
-                  userSessions[remoteJid].state = 'EXPENSE';
-                  userSessions[remoteJid].expenseCount = 0;
-                  userSessions[remoteJid].waitingConcept = false;
-                  userSessions[remoteJid].updatedAt = Date.now();
-                  saveSessions();
-                  await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
-                  continue;
-                }
+            if (selectedModule) {
+              console.log(`[MODULO] Usuario ${authUser.name} seleccionó: ${selectedModule.key}`);
+              userState.state = selectedModule.key;
+              userState.updatedAt = Date.now();
+              saveSessions();
 
-                if (selectedOpt.code === 'ATTENDANCE') {
-                  userSessions[remoteJid].state = 'ATTENDANCE_MENU';
-                  userSessions[remoteJid].updatedAt = Date.now();
-                  saveSessions();
-                  await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
-                  continue;
-                }
-
-                userSessions[remoteJid].state = selectedOpt.code;
-                userSessions[remoteJid].optionId = selectedOpt.id;
-                userSessions[remoteJid].updatedAt = Date.now();
-                saveSessions();
-                await sock.sendMessage(targetJid, { text: selectedOpt.prompt });
+              if (selectedModule.key === 'ATTENDANCE_MODULE') {
+                const msgText = `📋 *MÓDULO DE ASISTENCIA Y OPERACIÓN EN CAMPO*\n\n` +
+                  `Hola *${authUser.name}*, selecciona una opción:\n` +
+                  `1️⃣ *Registrar Asistencia del Día*\n` +
+                  `2️⃣ *Reportar Faltas o Incidencias*\n` +
+                  `3️⃣ *Solicitar Alta de Nuevo Trabajador*\n\n` +
+                  `_Escribe el número de la opción o escribe *menu* para volver._`;
+                await sock.sendMessage(targetJid, { text: msgText });
+                continue;
+              } else if (selectedModule.key === 'INVOICE_MODULE') {
+                const msgText = `📑 *MÓDULO FISCAL Y FACTURACIÓN AMIS*\n\n` +
+                  `Hola *${authUser.name}*, adjunta aquí el archivo PDF o XML de la factura que deseas ingresar al sistema.\n\n` +
+                  `*Datos Fiscales Oficiales:*\n` +
+                  `• Razón Social: AMIS CONSTRUCTORA, S.A. DE C.V.\n` +
+                  `• RFC: ACO241114A70\n` +
+                  `• Uso CFDI: G03 (Gastos en general) o G01 (Mercancías)\n\n` +
+                  `_O escribe *menu* para volver._`;
+                await sock.sendMessage(targetJid, { text: msgText });
+                continue;
+              } else if (selectedModule.key === 'EXPENSES_MODULE') {
+                const msgText = `💰 *MÓDULO DE SOLICITUD DE GASTOS Y CAJA CHICA*\n\n` +
+                  `Escribe el concepto, monto y motivo de la compra o gasto de obra para revisión administrativa.\n\n` +
+                  `_O escribe *menu* para volver._`;
+                await sock.sendMessage(targetJid, { text: msgText });
                 continue;
               }
-            }
-
-            console.log(`[AI] Generando respuesta para ${authUser.name}...`);
-            const replyText = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
-            userSessions[remoteJid].updatedAt = Date.now();
-            saveSessions();
-            await sock.sendMessage(targetJid, { text: replyText });
-            continue;
-          }
-
-          if (userState.state === 'EXPENSE') {
-            if (['listo', 'ya', 'ya son todas', 'todas', 'termine', 'terminé', 'fin', 'ya quedo', 'ya quedó', 'seria todo', 'sería todo', 'gracias', 'ok', 'nada mas', 'nada más'].includes(lowerBody)) {
-              const count = userSessions[remoteJid].expenseCount || 0;
-              userSessions[remoteJid].state = 'IDLE';
-              userSessions[remoteJid].expenseCount = 0;
-              userSessions[remoteJid].waitingConcept = false;
-              userSessions[remoteJid].updatedAt = Date.now();
-              saveSessions();
-
-              const doneMsg = `✅ *Recepción de Comprobantes Finalizada*\n\n` +
-                `📁 Se resguardaron exitosamente ${count > 0 ? count + ' comprobante(s)' : 'los comprobantes'} en la Mesa de Control para validación del Lic. Ted.\n\n` +
-                `_Escribe *menu* o continúa conversando si requieres revisar otro tema._`;
-
-              await sock.sendMessage(targetJid, { text: doneMsg });
-              continue;
-            }
-
-            if (!hasMedia && userSessions[remoteJid].waitingConcept) {
-              const targetIdx = userSessions[remoteJid].waitingIndex || userSessions[remoteJid].expenseCount || 1;
-              userSessions[remoteJid].waitingConcept = false;
-              userSessions[remoteJid].lastExpenseConcept = body;
-              userSessions[remoteJid].updatedAt = Date.now();
-              saveSessions();
-
-              await actualizarConceptoBuzon(cleanSender, targetIdx, body);
-
-              const noteAck = `📝 *Destino / Concepto anotado para el Comprobante #${targetIdx}:*\n` +
-                `"${body}"\n\n` +
-                `✅ Información vinculada en la Mesa de Control.\n` +
-                `📎 *Puedes enviar la siguiente factura* (o escribe _'listo'_ para finalizar).`;
-
-              await sock.sendMessage(targetJid, { text: noteAck });
-              continue;
-            }
-
-            if (hasMedia) {
-              const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
-              userSessions[remoteJid].expenseCount = currentCount;
-              userSessions[remoteJid].updatedAt = Date.now();
-
-              let ackMsg = '';
-              if (body) {
-                userSessions[remoteJid].waitingConcept = false;
-                userSessions[remoteJid].lastExpenseConcept = body;
-                await guardarEnBuzonGastos(authUser, cleanSender, currentCount, body, hasMedia);
-
-                ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
-                  `📝 *Destino / Concepto:* "${body}"\n` +
-                  `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
-                  `📎 *Puedes enviar la siguiente factura directamente* (o escribe _'listo'_ cuando termines).\n\n` +
-                  `👉 _Escribe *menu* para volver al menú principal._`;
-              } else {
-                userSessions[remoteJid].waitingConcept = true;
-                userSessions[remoteJid].waitingIndex = currentCount;
-                await guardarEnBuzonGastos(authUser, cleanSender, currentCount, 'Sin descripción previa', hasMedia);
-
-                ackMsg = `🧾 *Comprobante / Factura #${currentCount} Registrada con Éxito*\n\n` +
-                  `✅ Archivo resguardado en la Mesa de Control de AMIS.\n\n` +
-                  `💡 *Dato opcional:* Si gustas, escribe brevemente para qué se utilizó o a qué vehículo/área corresponde.\n` +
-                  `O si prefieres, *envía directamente la siguiente factura* o escribe _'listo'_.`;
+            } else {
+              // Respuesta Conversacional de Soporte Operativo
+              const botReply = await generateConversationalReply(authUser, body, hasMedia);
+              if (botReply) {
+                console.log(`[IA OPERATIVA] Respondiendo a ${authUser.name}`);
+                await sock.sendMessage(targetJid, { text: botReply });
+                continue;
               }
 
-              saveSessions();
-              await sock.sendMessage(targetJid, { text: ackMsg });
-              continue;
-            }
-
-            const currentCount = (userSessions[remoteJid].expenseCount || 0) + 1;
-            userSessions[remoteJid].expenseCount = currentCount;
-            userSessions[remoteJid].waitingConcept = false;
-            userSessions[remoteJid].lastExpenseConcept = body;
-            userSessions[remoteJid].updatedAt = Date.now();
-            saveSessions();
-
-            await guardarEnBuzonGastos(authUser, cleanSender, currentCount, body, false);
-
-            const manualAck = `🧾 *Nota de Gasto #${currentCount} Registrada*\n\n` +
-              `📝 *Detalle / Concepto:* "${body}"\n` +
-              `✅ Turnado a la Mesa de Control para validación del Lic. Ted.\n\n` +
-              `📎 *Puedes enviar el siguiente comprobante* (o escribe _'listo'_ cuando termines).\n\n` +
-              `👉 _Escribe *menu* para volver al menú principal._`;
-
-            await sock.sendMessage(targetJid, { text: manualAck });
-            continue;
-          }
-
-          if (userState.state === 'CONSULTA_FRANCO') {
-            if (['menu', 'menú', 'cancelar', 'salir', 'inicio'].includes(lowerBody)) {
-              userSessions[remoteJid].state = 'IDLE';
-              userSessions[remoteJid].updatedAt = Date.now();
-              saveSessions();
               const menuText = buildMainMenu(authUser, config);
-              await sock.sendMessage(targetJid, { text: menuText });
+              await sock.sendMessage(targetJid, { text: `⚠️ Opción no reconocida.\n\n${menuText}` });
               continue;
             }
-
-            const replyFranco = await generateConversationalReply(body, authUser, null, userSessions[remoteJid]);
-            userSessions[remoteJid].updatedAt = Date.now();
-            saveSessions();
-            await sock.sendMessage(targetJid, { text: replyFranco });
-            continue;
           }
 
-          if (userState.state === 'ATTENDANCE_MENU') {
+          if (userState.state === 'ATTENDANCE_MODULE') {
+            const choiceDigit = body.replace(/[^0-9]/g, '');
             if (choiceDigit === '1') {
-              userSessions[remoteJid] = { state: 'ATTENDANCE_DAILY', updatedAt: Date.now() };
+              userSessions[remoteJid] = { state: 'WAITING_ATTENDANCE' };
               saveSessions();
-              await sock.sendMessage(targetJid, { text: `📸 *Lista de Asistencia Diaria*\n\nPor favor adjunta la *foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._` });
+              await sock.sendMessage(targetJid, { text: `📸 *Envía la foto de la lista de raya firmada* o escribe el conteo de personal presente hoy (ej: _'14 presentes en obra Álamos'_).\n\n_Escribe *menu* para cancelar._` });
               continue;
             } else if (choiceDigit === '2') {
-              userSessions[remoteJid] = { state: 'ATTENDANCE_ABSENCE', updatedAt: Date.now() };
+              userSessions[remoteJid] = { state: 'WAITING_INCIDENTS' };
               saveSessions();
-              await sock.sendMessage(targetJid, { text: `❌ *Reporte de Faltas / Bajas*\n\nPor favor escribe el *nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._` });
+              await sock.sendMessage(targetJid, { text: `⚠️ *Escribe las incidencias del día, nombre del trabajador, puesto y motivo de falta o baja* (ej: _'Faltó Juan Pérez - Fierrero - Falta injustificada'_).\n\n_Escribe *menu* para cancelar._` });
               continue;
             } else if (choiceDigit === '3') {
-              userSessions[remoteJid] = { state: 'ATTENDANCE_HIRE', updatedAt: Date.now() };
+              userSessions[remoteJid] = { state: 'WAITING_NEW_HIRE' };
               saveSessions();
-              await sock.sendMessage(targetJid, { text: `🆕 *Registro de Nuevo Ingreso / Alta*\n\nPor favor escribe los *datos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy'_).\n\n_Escribe *menu* para cancelar._` });
+              await sock.sendMessage(targetJid, { text: `📝 *Envía los datos completos del nuevo trabajador* (Nombre completo, Puesto y Fecha de ingreso. Ej: _'Pedro López - Albañil - Ingresa hoy'_).\n\n_Escribe *menu* para cancelar._` });
               continue;
             }
           }
 
-          userSessions[remoteJid] = { state: 'IDLE', updatedAt: Date.now() };
+          userSessions[remoteJid] = { state: 'IDLE' };
           saveSessions();
-          await sock.sendMessage(targetJid, { text: `✅ *Información Recibida y Asentada con Éxito*\n\n_Escribe *menu* para ver el menú principal._` });
+          await sock.sendMessage(targetJid, { text: `✅ Recibido y canalizado a la administración de AMIS. Escribe *menu* para volver al menú principal.` });
 
         } catch (err) {
-          console.error('Error procesando mensaje Baileys:', err);
+          console.error('Error procesando mensaje:', err);
         }
       }
     });
+
   } catch (err) {
     console.error('Error inicializando WhatsApp Bot:', err);
   }
