@@ -527,65 +527,13 @@ async function responderCoachIA(query) {
     } catch (e) {}
   }
 
-  if (/cu[aá]nto debo|a qu[eé] ritmo|a qu[eé] velocidad|mi ritmo|ritmo ideal|siguiente carrera|siguiente salida|entreno de ma[nñ]ana|ritmo/i.test(q)) {
-    return `🏃‍♂️ *Recomendación de Ritmo y Entrenamiento (Coach Ted):*\n\n` +
-      `Basado en tu última sesión real de *${latest.distanciaKm} km a ${latest.ritmoMedio}* con FC media de *${latest.fcMedia} ppm*:\n\n` +
-      `• *Para tu rodaje suave regenerativo:* Sal entre *7:15 y 7:30 min/km* en los primeros 2 km. Tu objetivo es sostener *Zona 2 aeróbica pura* (<145 ppm) para optimizar quema de grasas y capilarización.\n` +
-      `• *Para tu día de calidad (Tempo):* Sostén *5:45 a 6:00 min/km* por bloques controlados de 15 minutos.\n` +
-      `• *Para series:* Tu paso objetivo es *5:00 a 5:15 min/km* con recuperación al trote suave.\n\n` +
-      `💡 *Regla de oro:* En tu última carrera rodaste a 157 ppm (Zona 3). Para que el fondo sea verdaderamente regenerativo, baja el paso 30 segundos al inicio.`;
-  }
-
-  if (/metr[oó]nomo|metometro|como.*pongo.*reloj/i.test(q)) {
-    return `⌚ *Cómo Activar el Metrónomo en tu Garmin Fēnix 5X:*\n\n` +
-      `Para elevar tu cadencia de ${latest.cadenciaMedia} spm al rango óptimo de 172-178 spm:\n\n` +
-      `1️⃣ Presiona el botón *START* (arriba derecha) y entra al perfil *Carrera* (Run).\n` +
-      `2️⃣ Mantén presionado el botón *UP / MENU* (botón central izquierdo) por 2 segundos.\n` +
-      `3️⃣ Entra a *Configuración de carrera* (Run Settings).\n` +
-      `4️⃣ Baja con el botón *DOWN* y selecciona *Metrónomo* (Metronome).\n` +
-      `5️⃣ En *Estado*, ponlo en *Activado* (On).\n` +
-      `6️⃣ En *Frecuencia*, ajústalo a *172 ppm* o *174 ppm* (para subir gradualmente desde tus ${latest.cadenciaMedia} spm actuales).\n` +
-      `7️⃣ En *Alerta / Sonido*, selecciona *Vibración* (ritmo táctil sin pitidos molestos).\n\n` +
-      `🎯 *Tip táctico:* Acorta la zancada y mueve los codos más rápido; las piernas seguirán la cadencia de tus brazos.`;
-  }
-
-  if (/cadencia|zancada|pisada|talon|impacto|rodillas|180|spm/i.test(q)) {
-    return `⚡ *Análisis de Cadencia y Biomecánica (Garmin Fēnix 5X):*\n\n` +
-      `• *Tu cadencia en tu última carrera:* Promediaste *${latest.cadenciaMedia} spm*.\n` +
-      `• *Balance de pisada:* ${latest.balance} (¡Excelente simetría entre pierna izquierda y derecha!).\n` +
-      `• *Objetivo:* Subir gradualmente a *170-174 spm*. Al aumentar la frecuencia con pasos más compactos, reduces el tiempo de impacto en el asfalto y proteges rodillas y sóleos.\n` +
-      `• *Consejo:* Usa el metrónomo en 172 ppm durante los primeros 10 minutos de tu próximo trote.`;
-  }
-
-  if (/zona|pulsaciones|frecuencia|cardiac|coraz[oó]n|ppm|pecho/i.test(q)) {
-    return `❤️ *Control de Zonas Cardíacas (Garmin Ted):*\n\n` +
-      `En tu sesión de 5 km promediaste *${latest.fcMedia} ppm* (Zona 3 Tempo):\n` +
-      `• *Zona 1 (<130 ppm):* Recuperación activa.\n` +
-      `• *Zona 2 (130 - 145 ppm):* *Tu base aeróbica fundamental.* Quema de grasas.\n` +
-      `• *Zona 3 (146 - 156 ppm):* Zona Tempo aeróbica donde estuviste ayer.\n` +
-      `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico (tocaste el límite superior a 168 ppm).\n` +
-      `• *Zona 5 (>168 ppm):* VO2 máx.\n\n` +
-      `📌 *Ajuste:* Inicia más suave tus salidas para mantenerte más tiempo en Zona 2.`;
-  }
-
-  if (/dolor|molestia|s[oó]leo|gemelo|pantorrilla|recupera|suplement|creatina|electrolit|agua|descanso/i.test(q)) {
-    return `💊 *Protocolo de Recuperación Muscular (Coach Ted):*\n\n` +
-      `• *Sóleos y Gemelos:* Aplica 10 minutos de Foam Roller suave y estiramiento con rodilla flexionada para aislar el sóleo.\n` +
-      `• *Hidratación Táctica:* 500 ml de agua con 300 mg de citrato de magnesio y una pizca de sal marina para reponer electrolitos.\n` +
-      `• *Sueño reparador:* Recuerda que la síntesis de colágeno y recuperación articular ocurre en fases de sueño profundo. Apunta a 7.5 horas hoy.`;
-  }
-
   return `🏃‍♂️ *RUNNING COACH & FISIOLOGÍA GARMIN*\n\n` +
     `Telemetría real sincronizada de tu Garmin Fēnix 5X:\n` +
     `• Registraste *${latest.distanciaKm} km a ${latest.ritmoMedio}* con cadencia de *${latest.cadenciaMedia} spm* y FC media de *${latest.fcMedia} ppm*.\n` +
     `• Tu balance de pisada fue de *${latest.balance}*.\n\n` +
     `💡 *¿Qué deseas consultar de tu entrenamiento?*\n` +
     `• Escribe *ayer* para ver el reporte biomédico completo de tu última sesión de 5K.\n` +
-    `• Escribe *ritmo* para saber a qué velocidad salir en tu próxima sesión.\n` +
-    `• Escribe *cadencia* para revisar tu zancada y metrónomo.\n` +
-    `• Escribe *zonas* para ver tus rangos cardíacos en detalle.\n` +
-    `• Escribe *recuperación* para cuidado de sóleos y electrolitos.\n\n` +
-    `_O pregúntame directamente cualquier duda de running, o escribe *menu* para volver._`;
+    `• O cuéntame cómo te sentiste, qué ritmo quieres probar o cómo vas con el metrónomo en tu reloj.`;
 }
 
 // =========================================================================
@@ -686,17 +634,9 @@ function detectarPilarDeConsulta(text) {
 async function responderConsultaPilar(pilar, query) {
   const q = (query || '').toLowerCase().trim();
 
-  // Respuestas División 1: Obra
+  // Respuestas División 1: Obra (Solo atajos exactos)
   if (pilar === 'PILAR_1_OBRA') {
-    if (/franco|parral|sierra bonita/i.test(q) || q === '2') {
-      return `⛏️ *Proyecto Franco / Parral (SIMA - Chihuahua)*\n\n` +
-        `• *Alcance:* 684 viviendas en edificios cuádruplex (prototipo Sierra Bonita).\n` +
-        `• *Estatus de Planos:* Visto bueno definitivo del martes 7 de octubre de 2026 (13 láminas ejecutivas autorizadas).\n` +
-        `• *Espesores de Muro:* Cero muros de 12 cm. Muros de *10 cm* (carga y colindancias) y *20 cm* (instalaciones sanitarias/bajantes y fachada de acceso).\n` +
-        `• *Honorarios Estructurales:* $240,000 + IVA (bonificables si contratan antes del 15 de diciembre de 2026).\n` +
-        `• *Exclusividad SIMA:* Franco edifica hasta 100 tradicionales; mínimo 584 exclusivas para AMIS.`;
-    }
-    if (/alamos|[aá]lamos|lope|infonavit/i.test(q) || q === '1') {
+    if (q === '1' || /^(alamos|[aá]lamos|lope|infonavit)$/i.test(q)) {
       return `🏢 *Proyecto Infonavit Álamos del Río (AMIS SIMA)*\n\n` +
         `• *Alcance:* 320 viviendas (20 torres de 4 niveles).\n` +
         `• *Monto Contrato:* $54,337,280.00 MXN ($169,804.00/viv exento de IVA).\n` +
@@ -704,7 +644,15 @@ async function responderConsultaPilar(pilar, query) {
         `• *Condición Suspensiva:* Plazos congelados hasta cumplimiento total del Día 'D' (dictamen de uso de suelo + planos autorizados).\n` +
         `• *Rotación:* Estricta rotación de 24 horas por nivel de molde SIMA.`;
     }
-    if (/material|precio|cemento|varilla|di[eé]sel|arena|grava/i.test(q) || q === '3') {
+    if (q === '2' || /^(franco|parral|sierra bonita)$/i.test(q)) {
+      return `⛏️ *Proyecto Franco / Parral (SIMA - Chihuahua)*\n\n` +
+        `• *Alcance:* 684 viviendas en edificios cuádruplex (prototipo Sierra Bonita).\n` +
+        `• *Estatus de Planos:* Visto bueno definitivo del martes 7 de octubre de 2026 (13 láminas ejecutivas autorizadas).\n` +
+        `• *Espesores de Muro:* Cero muros de 12 cm. Muros de *10 cm* y *20 cm*.\n` +
+        `• *Honorarios Estructurales:* $240,000 + IVA (bonificables si contratan antes del 15 de diciembre de 2026).\n` +
+        `• *Exclusividad SIMA:* Franco edifica hasta 100 tradicionales; mínimo 584 exclusivas para AMIS.`;
+    }
+    if (q === '3' || /^(material|materiales|precios|catalogo)$/i.test(q)) {
       return `🏗️ *Catálogo de Precios de Materiales (Compras AMIS):*\n\n` +
         `• *Cemento Gris Tolteca 50kg:* $245.00 MXN / Saco\n` +
         `• *Varilla 3/8" (No. 3):* $178.50 MXN / Tramo 12m\n` +
@@ -717,9 +665,9 @@ async function responderConsultaPilar(pilar, query) {
     return null;
   }
 
-  // Respuestas División 2: Fiscal / Finanzas
+  // Respuestas División 2: Fiscal / Finanzas (Solo atajos exactos)
   if (pilar === 'PILAR_2_FINANZAS_FISCAL') {
-    if (/saldo|banbaj[ií]o|banco|tesorer[ií]a|amis/i.test(q) || q === '1') {
+    if (q === '1' || /^(saldo|banbaj[ií]o|banco|tesorer[ií]a)$/i.test(q)) {
       return `💼 *Tesorería & Fiscal AMIS Constructora (ACO241114A70):*\n\n` +
         `• *Cuenta BanBajío Maestra:* 476863400201\n` +
         `• *Saldo Auditoría:* ~$9,050,000.00 MXN (Anticipo Álamos blindado).\n` +
@@ -728,26 +676,26 @@ async function responderConsultaPilar(pilar, query) {
         `  2. *DARNELIX Asimilables (8%):* $62,500.00 netos ($12,500 c/u para los 5 socios). Depósito: $67,129.63 MXN.\n` +
         `  3. *CONSTRUCTORA ROBLOCK (7%):* Destajos, sobrenóminas SPEI y raya en efectivo.`;
     }
-    if (/tadr|honorario.*ted|dort780211|consultor[ií]a/i.test(q) || q === '2') {
+    if (q === '2' || /^(tadr|honorarios?|consultor[ií]a)$/i.test(q)) {
       return `💼 *Contabilidad Personal TADR (RFC: DORT780211CQ5):*\n\n` +
         `• *Régimen:* Actividad Empresarial y Servicios Profesionales / Consultoría.\n` +
         `• *Directiva Espejo AMIS:* En facturas para reparto de socios se retiene 10% ISR y 10.67% IVA, apartando bolsa SAT (5.33% IVA residual + ISR).\n` +
         `• *Asesorías Propias:* 100% ingreso exclusivo de Ted Andrey.\n` +
         `• *Libro Maestro:* Control_Fiscal_y_Facturacion_2026_TADR.xlsx.`;
     }
-    if (/submayor|proyecto ejecutivo|360k/i.test(q) || q === '3') {
+    if (q === '3' || /^(submayor|proyecto ejecutivo|360k)$/i.test(q)) {
       return `📑 *Submayor Proyecto Ejecutivo AMIS ($360,000.00 MXN):*\n\n` +
         `• *Titularidad:* 50% Ing. Samuel Domínguez / 50% Lic. Ted Andrey.\n` +
         `• *Anticipo Cobrado:* $100,000.00 MXN (CFDI VIV-1).\n` +
         `• *Saldo por Cobrar:* $260,000.00 MXN.\n` +
         `• *Aislamiento:* Cuenta corriente 100% independiente de los repartos ordinarios de socios.`;
     }
-    if (/familiar|isabel|samuel.*sat|anual/i.test(q) || q === '4') {
+    if (q === '4' || /^(familiar|modulo familiar|isabel|samuel)$/i.test(q)) {
       return `👨‍👩‍👧 *Módulo Fiscal Familiar (AntiGravity Fiscal Familiar):*\n\n` +
         `1. *Ing. Samuel Domínguez (DORS510222UA2):* Régimen 606 (Dividendos) + 605 (Asimilados). Solo presenta Anual en Abril. Estatus: 100% blindado.\n` +
         `2. *Sra. Isabel Romero (ROGI561130NM0):* Alerta SAT activa por régimen 612. Acción prioritaria: Tramitar Disminución de Obligaciones ante SAT para dejarla solo en Sueldos/Asimilados.`;
     }
-    if (/sima|molde|mantenimiento/i.test(q) || q === '5') {
+    if (q === '5' || /^(sima|moldes?)$/i.test(q)) {
       return `⚙️ *Sistema de Moldes SIMA (Activos & Operación):*\n\n` +
         `• *Juegos de Moldes:* Equipos monolíticos de aluminio de alta resistencia para muros y losas.\n` +
         `• *Rotación Oficial:* 24 horas continuas de fraguado y descimbrado por nivel.\n` +
@@ -756,39 +704,40 @@ async function responderConsultaPilar(pilar, query) {
     return null;
   }
 
-  // Respuestas División 3: Personal / Tech
+  // Respuestas División 3: Personal / Tech (Solo atajos exactos)
   if (pilar === 'PILAR_3_PERSONAL') {
-    if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(q) || q === '1') {
+    if (q === '1' || /^(cripto|bitso|btc|usdt|portafolio)$/i.test(q)) {
       return await obtenerReporteCriptoBitso();
     }
-    if (/running|garmin|correr|entreno|sesi[oó]n|cadencia|ritmo|pulso|ppm|fc|zona/i.test(q) || q === '2') {
-      if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis/i.test(q)) {
-        return await obtenerAnalisisSesionCompleto(0);
-      }
+    if (q === '2' || /^(coach|running|menu coach)$/i.test(q)) {
       return await responderCoachIA(query);
     }
-    if (/supleai|suplement|app/i.test(q) || q === '3') {
+    if (/^(ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis|carrera ayer)$/i.test(q)) {
+      return await obtenerAnalisisSesionCompleto(0);
+    }
+    if (q === '3' || /^(supleai|app)$/i.test(q)) {
       return `📱 *SupleAI App (SaaS de Suplementación Inteligente):*\n\n` +
         `• *Arquitectura:* Frontend React Native multiplataforma + Backend FastAPI.\n` +
         `• *Monetización:* Deep-linking de suplementos recomendados vía programas de afiliados (Amazon México y Mercado Libre).\n` +
         `• *Blindaje Médico:* Regla de exclusión estricta para embarazo, lactancia y patologías crónicas.\n` +
         `• *Estatus:* Base de datos de ingredientes activos y compatibilidad fisiológica configurada.`;
     }
-    if (/china|yupoo|1688|taobao|casillero|sourcing/i.test(q) || q === '4') {
+    if (q === '4' || /^(china|importaciones|yupoo|1688)$/i.test(q)) {
       return `🇨🇳 *Compras en China & Abastecimiento Internacional:*\n\n` +
         `• *Fábricas y Plataformas:* Conexión directa OEM/ODM en 1688, Taobao y catálogos Yupoo.\n` +
         `• *Agentes y Casilleros:* Operación vía CSSBuy / Sugargoo para consolidación en bodega de China y US Closer para USA.\n` +
         `• *Protocolo de Inspección:* Control de calidad (QC) con fotos HD, verificación de medidas en cm e instrucción 'Drop Box' para aligerar peso volumétrico y blindar aduana.\n` +
         `• *Repositorio:* Expediente exclusivo en 06_COMPRAS_CHINAS.`;
     }
-    if (/agenda|pendiente|compromiso|reuni[oó]n/i.test(q) || q === '5') {
+    if (q === '5' || /^(agenda|pendientes)$/i.test(q)) {
       return `📋 *Agenda Ejecutiva Personal (Lic. Ted):*\n\n` +
         `• Asistente personal y coach activos 24/7.\n` +
         `• Monitoreo de portafolio Bitso sincronizado con precios en vivo.\n` +
         `• Reporte nocturno de running y recordatorios matutinos configurados.\n\n` +
         `_Todo en orden. ¿Deseas agendar alguna actividad o recordatorio específico?_`;
     }
-    return await responderCoachIA(query);
+    // Para cualquier conversación, duda o pregunta abierta: Dejar pasar a Gemini AI!
+    return null;
   }
 
   return null;
@@ -844,8 +793,8 @@ Tono: Analítico, preciso, matemático al centavo, blindado fiscalmente y conver
    - Reloj Oficial: Garmin Fēnix 5X (Cristal de zafiro, sensor Elevate, altímetro barométrico, 5 botones: LIGHT, UP/MENU, DOWN, START/STOP, BACK/LAP). Conoces al 100% sus pantallas, configuraciones de campos de datos, cómo activar el metrónomo (Botón START -> Carrera -> Mantener pulsado UP/MENU 2 seg -> Configuración de carrera -> Metrónomo -> Estado: Activado -> Frecuencia: 174-180 ppm -> Alerta: Vibración), calibración de zancada y métricas de VO2 Máx.
    - TELEMETRÍA REAL EN VIVO SINCRONIZADA DE GARMIN CONNECT:${latestRunDetails}
    - Metodología y Consejos Técnicos de Coach:
+     * Cuando Ted comente que le costó agarrar el paso con el metrónomo a 175 spm y que lo ajustó a 172 spm: Felicítalo por la decisión. Explícale con empatía y ciencia deportiva que subir de golpe de su cadencia natural (160 spm) a 175 spm es un salto biomecánico muy brusco (15 pasos más por minuto) que se siente antinatural y causa descoordinación. Bajarlo a 172 spm es una progresión ideal y sostenible.
      * Para rodaje regenerativo (Zona 2 pura <145 ppm): Recomiéndale salir a 7:15 - 7:30 min/km en los primeros 2 km para que la FC no suba a 157 ppm como en los 5 km de ayer.
-     * Para cadencia: Recomiéndale usar el metrónomo del Fēnix 5X para elevar de 160 spm a 170-174 spm con zancada más compacta.
      * Cuidado de sóleos con foam roller y reposición con magnesio/sal marina.
 2. Mercado Criptomonedas & Bitso:
    - Portafolio de Ted en vivo: 0.00063682 BTC + 105.85 USDT. Capital depositado: $3,000 MXN. Meta fijada: 0.001 BTC (100,000 satoshis). Faltan solo 0.00036318 BTC (convertibles desde USDT).
@@ -1090,14 +1039,14 @@ async function startWhatsAppBot() {
                 continue;
               }
 
-              if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis.*rutina|an[aá]lisis.*sesi[oó]n|an[aá]lisis.*ayer/i.test(lowerBody) || lowerBody === '1') {
+              if (/^(ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis.*rutina|an[aá]lisis.*sesi[oó]n|an[aá]lisis.*ayer)$/i.test(lowerBody) || lowerBody === '1') {
                 console.log('[COACH] Generando análisis biomédico Garmin para Ted');
                 const analisisSesion = await obtenerAnalisisSesionCompleto(0);
                 await sock.sendMessage(targetJid, { text: analisisSesion });
                 continue;
               }
 
-              if (/cadencia|zonas.*card[ií]acas|biomec[aá]nica|spm/i.test(lowerBody) || lowerBody === '2') {
+              if (lowerBody === '2') {
                 const cadenciaInfo = `⚡ *Análisis de Cadencia y Zonas Cardíacas (Garmin Ted)*\n\n` +
                   `• *Tu cadencia media:* 160 spm (Pico: 181 spm en 5K de ayer).\n` +
                   `• *Zona 3 Tempo:* 157 ppm promedio.\n\n` +
@@ -1106,14 +1055,14 @@ async function startWhatsAppBot() {
                 continue;
               }
 
-              if (/cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado|moneda|satoshi/i.test(lowerBody) || lowerBody === '3') {
+              if (/^(cripto|bitcoin|btc|bitso|usdt|eth|portafolio)$/i.test(lowerBody) || lowerBody === '3') {
                 console.log(`[CRIPTO BITSO] Solicitud de reporte de criptomonedas recibida de Ted`);
                 const cryptoReport = await obtenerReporteCriptoBitso();
                 await sock.sendMessage(targetJid, { text: cryptoReport });
                 continue;
               }
 
-              if (/agenda|pendiente|reuni[oó]n|compromiso/i.test(lowerBody) || lowerBody === '4') {
+              if (/^(agenda|pendientes)$/i.test(lowerBody) || lowerBody === '4') {
                 const agenda = `📋 *Agenda Ejecutiva Personal (Lic. Ted)*\n\n` +
                   `• Asistente personal y coach activos 24/7.\n` +
                   `• Reporte nocturno automático de running programado a las 8:30 PM.\n` +
@@ -1124,9 +1073,14 @@ async function startWhatsAppBot() {
                 continue;
               }
 
-              // Conversación continua con Coach IA
-              const coachRespuesta = await responderCoachIA(body);
-              await sock.sendMessage(targetJid, { text: coachRespuesta });
+              // Conversación fluida con Gemini AI para el grupo de Running
+              const aiReply = await consultarCerebroPorDivision('PILAR_3_PERSONAL', body);
+              if (aiReply) {
+                await sock.sendMessage(targetJid, { text: aiReply });
+              } else {
+                const coachRespuesta = await responderCoachIA(body);
+                await sock.sendMessage(targetJid, { text: coachRespuesta });
+              }
               continue;
             }
 
@@ -1210,17 +1164,17 @@ async function startWhatsAppBot() {
 
             // 3. Selección directa de División desde el Menú Maestro
             if (!userState.activePillar) {
-              if (lowerBody === '1' || /pilar 1|divisi[oó]n 1|obra/i.test(lowerBody)) {
+              if (lowerBody === '1' || /^(pilar 1|divisi[oó]n 1|obra)$/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_1_OBRA';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar1() });
                 continue;
-              } else if (lowerBody === '2' || /pilar 2|divisi[oó]n 2|fiscal|finanzas/i.test(lowerBody)) {
+              } else if (lowerBody === '2' || /^(pilar 2|divisi[oó]n 2|fiscal|finanzas)$/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_2_FINANZAS_FISCAL';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar2() });
                 continue;
-              } else if (lowerBody === '3' || /pilar 3|divisi[oó]n 3|personal/i.test(lowerBody)) {
+              } else if (lowerBody === '3' || /^(pilar 3|divisi[oó]n 3|personal)$/i.test(lowerBody)) {
                 userState.activePillar = 'PILAR_3_PERSONAL';
                 saveSessions();
                 await sock.sendMessage(targetJid, { text: getSubmenuPilar3() });
@@ -1248,7 +1202,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 5. Procesar atajo estructurado si coincide exactamente
+            // 5. Atajos rápidos de menú (solo números u opciones directas)
             const effectivePillar = userState.activePillar || detectedPillar || 'PILAR_1_OBRA';
             const pillarReply = await responderConsultaPilar(effectivePillar, body);
             if (pillarReply) {
@@ -1260,8 +1214,8 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 6. Conversación Natural con IA (Gemini Especializado por División)
-            console.log(`[AI TED] Generando respuesta conversacional para División: ${effectivePillar} ("${body.slice(0,30)}")...`);
+            // 6. Conversación Fluida con Inteligencia Artificial (Gemini Especializado por División)
+            console.log(`[AI TED] Generando respuesta conversacional para ${effectivePillar} ("${body.slice(0, 40)}")...`);
             const aiReply = await consultarCerebroPorDivision(effectivePillar, body, userState.history);
             if (aiReply) {
               userState.history.push({ role: 'user', text: body });
@@ -1272,7 +1226,7 @@ async function startWhatsAppBot() {
               continue;
             }
 
-            // 7. Mensaje por defecto si falla la IA
+            // 7. Respuesta por defecto si fallara la conexión a la IA
             const defaultTedMsg = `🏛️ *Centro de Mando Antigravity (Lic. Ted Andrey)*\n\n` +
               `No identifiqué una instrucción específica para "${body.slice(0, 40)}".\n\n` +
               `👉 Escribe *menu* para ver las 3 Divisiones Maestras, o selecciona *1*, *2* o *3* para ingresar a una división.`;
