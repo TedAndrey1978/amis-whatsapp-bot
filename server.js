@@ -366,6 +366,25 @@ server.listen(PORT, '0.0.0.0', () => {
 // =========================================================================
 const ULTIMAS_SESIONES_RUNNING = [
   {
+    fecha: 'Domingo 25 de Octubre, 2026 (07:30)',
+    tipo: 'Culiacán Carrera (Fondo 8.6K)',
+    distanciaKm: 8.64,
+    duracion: '1h 1m 31s',
+    ritmoMedio: '7:07 min/km',
+    ritmoMejorKm: '5:11 min/km',
+    fcMedia: 160,
+    fcMax: 170,
+    cadenciaMedia: 150,
+    cadenciaMax: 177,
+    calorias: 708,
+    balance: '49.9% / 50.1%',
+    oscilacion: '8.2 cm',
+    trainingEffect: 4.2,
+    zonasFC: { z1: '5%', z2: '20%', z3: '65%', z4: '10%', z5: '0%' },
+    tiempoRecuperacionSugerido: '36 a 48 horas',
+    sensacion: 'Fondo matutino sólido de 8.64 km. FC Media de 160 ppm con balance bilateral prácticamente perfecto (49.9% Izq / 50.1% Der) y Training Effect de 4.2.'
+  },
+  {
     fecha: 'Jueves 22 de Octubre, 2026 (19:34)',
     tipo: 'Culiacán Carrera (5K Continuo)',
     distanciaKm: 5.01,
@@ -382,45 +401,7 @@ const ULTIMAS_SESIONES_RUNNING = [
     trainingEffect: 3.7,
     zonasFC: { z1: '5%', z2: '20%', z3: '65%', z4: '10%', z5: '0%' },
     tiempoRecuperacionSugerido: '24 horas',
-    sensacion: 'Sesión sólida de 5 km en Culiacán. Intensidad en Zona 3 Tempo (157 ppm) con simetría casi perfecta en balance de contacto (49% Izq / 51% Der).'
-  },
-  {
-    fecha: 'Martes 20 de Octubre, 2026 (20:43)',
-    tipo: 'Culiacán Carrera (Rodaje Suave)',
-    distanciaKm: 2.02,
-    duracion: '15m 12s',
-    ritmoMedio: '7:13 min/km',
-    ritmoMejorKm: '6:45 min/km',
-    fcMedia: 134,
-    fcMax: 145,
-    cadenciaMedia: 158,
-    cadenciaMax: 172,
-    calorias: 160,
-    balance: '49.5% / 50.5%',
-    oscilacion: '7.8 cm',
-    trainingEffect: 2.1,
-    zonasFC: { z1: '25%', z2: '70%', z3: '5%', z4: '0%', z5: '0%' },
-    tiempoRecuperacionSugerido: '12 horas',
-    sensacion: 'Rodaje regenerativo suave en Zona 2 aeróbica.'
-  },
-  {
-    fecha: 'Sábado 17 de Octubre, 2026 (06:31)',
-    tipo: 'Tirada Larga Aeróbica (Fondo 14K)',
-    distanciaKm: 14.02,
-    duracion: '1h 37m 20s',
-    ritmoMedio: '6:57 min/km',
-    ritmoMejorKm: '6:30 min/km',
-    fcMedia: 146,
-    fcMax: 162,
-    cadenciaMedia: 162,
-    cadenciaMax: 178,
-    calorias: 1120,
-    balance: '49.2% / 50.8%',
-    oscilacion: '8.3 cm',
-    trainingEffect: 4.2,
-    zonasFC: { z1: '10%', z2: '60%', z3: '25%', z4: '5%', z5: '0%' },
-    tiempoRecuperacionSugerido: '36 horas',
-    sensacion: 'Fondo matutino de 14 km en Culiacán con buena reserva glucogénica.'
+    sensacion: 'Sesión sólida de 5 km en Culiacán. Intensidad en Zona 3 Tempo (157 ppm).'
   }
 ];
 
@@ -432,22 +413,56 @@ async function obtenerAnalisisSesionCompleto(sesionIndex = 0) {
       const runs = await db.collection('garmin_activities').find().sort({ fecha: -1 }).limit(5).toArray();
       if (runs && runs.length > 0) {
         const r = runs[sesionIndex] || runs[0];
+
+        let fechaLabel = r.fecha;
+        try {
+          const runDate = new Date(r.fecha.replace(' ', 'T'));
+          const today = new Date();
+          const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+          const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+          const diaNombre = diasSemana[runDate.getDay()];
+          const mesNombre = meses[runDate.getMonth()];
+          const horaStr = r.fecha.includes(' ') ? r.fecha.split(' ')[1].slice(0, 5) : '';
+
+          if (runDate.toDateString() === today.toDateString()) {
+            fechaLabel = `Hoy ${diaNombre} ${runDate.getDate()} de ${mesNombre}, ${runDate.getFullYear()} (${horaStr} AM)`;
+          } else {
+            const yesterday = new Date();
+            yesterday.setDate(today.getDate() - 1);
+            if (runDate.toDateString() === yesterday.toDateString()) {
+              fechaLabel = `Ayer ${diaNombre} ${runDate.getDate()} de ${mesNombre}, ${runDate.getFullYear()} (${horaStr})`;
+            } else {
+              fechaLabel = `${diaNombre} ${runDate.getDate()} de ${mesNombre}, ${runDate.getFullYear()} (${horaStr})`;
+            }
+          }
+        } catch(e) {}
+
+        const balLeft = r.balanceContactoPiso ? parseFloat(r.balanceContactoPiso) : 49.9;
+        const balRight = (100 - balLeft).toFixed(1);
+        const osc = r.oscilacionVerticalCm ? (r.oscilacionVerticalCm < 2 ? (r.oscilacionVerticalCm * 10).toFixed(1) : parseFloat(r.oscilacionVerticalCm).toFixed(1)) : '8.2';
+        const te = r.trainingEffectAerobico ? parseFloat(r.trainingEffectAerobico.toFixed(1)) : 4.2;
+
+        let recup = '24 horas';
+        if (te >= 4.0 || r.distanciaKm >= 8) recup = '36 a 48 horas';
+        else if (te >= 3.0) recup = '24 a 36 horas';
+
         s = {
-          fecha: r.fecha,
-          tipo: r.nombre || 'Carrera Garmin',
+          fecha: fechaLabel,
+          tipo: r.nombre || 'Culiacán Carrera',
           distanciaKm: r.distanciaKm,
           duracion: r.duracion,
           ritmoMedio: r.ritmoMedio,
           ritmoMejorKm: r.ritmoMax || 'N/A',
-          fcMedia: r.fcMedia || 157,
-          fcMax: r.fcMax || 168,
-          cadenciaMedia: r.cadenciaMedia || 160,
-          cadenciaMax: r.cadenciaMax || 181,
-          calorias: r.calorias || 400,
-          balance: r.balanceContactoPiso ? `${r.balanceContactoPiso}%` : '49.0% / 51.0%',
-          oscilacion: r.oscilacionVerticalCm ? `${r.oscilacionVerticalCm} cm` : '8.1 cm',
-          trainingEffect: r.trainingEffectAerobico || 3.7,
-          tiempoRecuperacionSugerido: '24 horas'
+          fcMedia: r.fcMedia || 160,
+          fcMax: r.fcMax || 170,
+          cadenciaMedia: r.cadenciaMedia || 150,
+          cadenciaMax: r.cadenciaMax || 177,
+          calorias: r.calorias || 708,
+          balance: `${balLeft}% Izq / ${balRight}% Der`,
+          oscilacion: `${osc} cm`,
+          trainingEffect: te,
+          tiempoRecuperacionSugerido: recup,
+          desnivel: r.desnivelPositivoM || 28
         };
       }
     } catch (e) {}
@@ -466,23 +481,25 @@ async function obtenerAnalisisSesionCompleto(sesionIndex = 0) {
     `• *Tiempo Total:* ${s.duracion}\n` +
     `• *Ritmo Promedio:* ${s.ritmoMedio}\n` +
     `• *Ritmo Máximo:* ${s.ritmoMejorKm}\n` +
-    `• *Gasto Calórico:* ${s.calorias} kcal\n\n` +
+    `• *Gasto Calórico:* ${s.calorias} kcal\n` +
+    `• *Desnivel Positivo:* +${s.desnivel || 28} m\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `❤️ *2. FISIOLOGÍA CARDIOVASCULAR*\n` +
     `• *FC Media:* ${s.fcMedia} ppm\n` +
     `• *FC Máxima:* ${s.fcMax} ppm\n` +
-    `• *Training Effect Aeróbico:* ${s.trainingEffect || '3.7'} / 5.0 (Impacto constructivo de capacidad aeróbica)\n\n` +
+    `• *Training Effect Aeróbico:* ${s.trainingEffect} / 5.0 (${s.trainingEffect >= 4.0 ? 'Impacto altamente constructivo / Sobrecarga óptima' : 'Mantenimiento aeróbico'})\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `⚡ *3. BIOMECÁNICA Y DINÁMICAS (GARMIN FĒNIX 5X)*\n` +
     `• *Cadencia Media:* ${s.cadenciaMedia} spm (Pico: ${s.cadenciaMax} spm)\n` +
-    `• *Balance de Contacto (GCT):* ${s.balance || '49% Izq / 51% Der'} (Excelente simetría bilateral)\n` +
-    `• *Oscilación Vertical:* ${s.oscilacion || '8.1 cm'}\n\n` +
+    `• *Balance de Contacto (GCT):* ${s.balance} (Simetría casi perfecta al 50/50)\n` +
+    `• *Oscilación Vertical:* ${s.oscilacion}\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `🧠 *4. DIAGNÓSTICO DEL COACH & CONSEJOS TÁCTICOS*\n` +
-    `1. *Intensidad:* Rodaste en Zona 3 Tempo (${s.fcMedia} ppm). Para rodajes suaves regenerativos, modula los primeros 2 km a ~7:15 min/km para sostener Zona 2 pura (<145 ppm).\n` +
-    `2. *Cadencia y Metrónomo:* Promediaste ${s.cadenciaMedia} spm. Activa el metrónomo de tu Fēnix 5X en 172-174 ppm con pasos más cortos para aligerar la carga articular.\n` +
-    `3. *Recuperación:* Hidratación con electrolitos y descanso activo en las próximas ${s.tiempoRecuperacionSugerido}.\n\n` +
-    `_Pregúntame cualquier duda de esta salida o de tu siguiente sesión._`;
+    `1. *Carga y Asimilación:* Rodaste ${s.distanciaKm.toFixed(2)} km a ${s.ritmoMedio} con FC Media de ${s.fcMedia} ppm (Zona 3 Tempo / Umbral). Tu Training Effect fue de ${s.trainingEffect}, lo que significa una ganancia cardiovascular tremenda.\n` +
+    `2. *Simetría Impecable:* Tu balance de ${s.balance} demuestra que estás pisando con total equilibrio sin sobrecargar ninguna articulación.\n` +
+    `3. *Cadencia y Zancada:* Promediaste ${s.cadenciaMedia} spm con picos de ${s.cadenciaMax} spm. En tus próximas salidas regenerativas, busca mantener pasos más cortitos a 165-170 spm para reducir la oscilación vertical.\n` +
+    `4. *Recuperación Obligatoria:* Por la alta exigencia de este fondo (${s.distanciaKm.toFixed(2)} km), tu ventana de recuperación sugerida es de *${s.tiempoRecuperacionSugerido}* con abundante hidratación, electrolitos/magnesio y descanso muscular.\n\n` +
+    `_Pregúntame cualquier duda de esta salida o de tu siguiente entreno._`;
 }
 
 // =========================================================================
@@ -568,12 +585,14 @@ async function responderCoachIA(query) {
   const q = (query || '').toLowerCase().trim();
 
   let latest = {
-    fecha: 'Jueves 22 de Octubre (19:34)',
-    distanciaKm: 5.01,
-    ritmoMedio: '6:54 min/km',
-    fcMedia: 157,
-    cadenciaMedia: 160,
-    balance: '49.0% / 51.0%'
+    fecha: 'Domingo 25 de Octubre (07:30)',
+    distanciaKm: 8.64,
+    duracion: '1h 1m 31s',
+    ritmoMedio: '7:07 min/km',
+    fcMedia: 160,
+    cadenciaMedia: 150,
+    balance: '49.9% Izq / 50.1% Der',
+    trainingEffect: 4.2
   };
 
   if (mongoClient) {
@@ -581,13 +600,16 @@ async function responderCoachIA(query) {
       const db = mongoClient.db('amis_whatsapp');
       const r = await db.collection('garmin_activities').findOne({}, { sort: { fecha: -1 } });
       if (r) {
+        const balL = r.balanceContactoPiso ? parseFloat(r.balanceContactoPiso) : 49.9;
         latest = {
           fecha: r.fecha,
           distanciaKm: r.distanciaKm,
+          duracion: r.duracion,
           ritmoMedio: r.ritmoMedio,
-          fcMedia: r.fcMedia || 157,
-          cadenciaMedia: r.cadenciaMedia || 160,
-          balance: r.balanceContactoPiso ? `${r.balanceContactoPiso}%` : '49.0% / 51.0%'
+          fcMedia: r.fcMedia || 160,
+          cadenciaMedia: r.cadenciaMedia || 150,
+          balance: `${balL}% Izq / ${(100 - balL).toFixed(1)}% Der`,
+          trainingEffect: r.trainingEffectAerobico ? parseFloat(r.trainingEffectAerobico.toFixed(1)) : 4.2
         };
       }
     } catch (e) {}
@@ -596,21 +618,21 @@ async function responderCoachIA(query) {
   if (/cu[aá]nto debo|a qu[eé] ritmo|a qu[eé] velocidad|mi ritmo|ritmo ideal|siguiente carrera|siguiente salida|entreno de ma[nñ]ana|ritmo/i.test(q)) {
     return `🏃‍♂️ *Recomendación de Ritmo y Entrenamiento (Coach Ted):*\n\n` +
       `Basado en tu última sesión real de *${latest.distanciaKm} km a ${latest.ritmoMedio}* con FC media de *${latest.fcMedia} ppm*:\n\n` +
-      `• *Para tu rodaje suave regenerativo:* Sal entre *7:15 y 7:30 min/km* en los primeros 2 km. Tu objetivo es sostener *Zona 2 aeróbica pura* (<145 ppm) para optimizar quema de grasas y capilarización.\n` +
-      `• *Para tu día de calidad (Tempo):* Sostén *5:45 a 6:00 min/km* por bloques controlados de 15 minutos.\n` +
-      `• *Para series:* Tu paso objetivo es *5:00 a 5:15 min/km* con recuperación al trote suave.\n\n` +
-      `💡 *Regla de oro:* En tu última carrera rodaste a 157 ppm (Zona 3). Para que el fondo sea verdaderamente regenerativo, baja el paso 30 segundos al inicio.`;
+      `• *Para tu rodaje regenerativo post-fondo:* Sal suave entre *7:25 y 7:45 min/km*. Tras los ${latest.distanciaKm} km con FC de ${latest.fcMedia} ppm, tu cuerpo requiere regeneración pura en *Zona 2 (<145 ppm)* para reciclar lactato sin fatiga neuromuscular.\n` +
+      `• *Para tu día de calidad (Tempo):* Bloques a *5:50 a 6:05 min/km*.\n` +
+      `• *Para series:* Paso objetivo de *5:00 a 5:15 min/km* con recuperación al trote suave.\n\n` +
+      `💡 *Regla de oro:* Tu salida tuvo Training Effect de ${latest.trainingEffect || '4.2'}. Dale al cuerpo al menos 36 horas de asimilación antes de volver a meter intensidad.`;
   }
 
   if (/metr[oó]nomo|metometro|como.*pongo.*reloj/i.test(q)) {
     return `⌚ *Cómo Activar el Metrónomo en tu Garmin Fēnix 5X:*\n\n` +
-      `Para elevar tu cadencia de ${latest.cadenciaMedia} spm al rango óptimo de 172-178 spm:\n\n` +
+      `Para elevar tu cadencia de ${latest.cadenciaMedia} spm al rango óptimo de 170-174 spm:\n\n` +
       `1️⃣ Presiona el botón *START* (arriba derecha) y entra al perfil *Carrera* (Run).\n` +
       `2️⃣ Mantén presionado el botón *UP / MENU* (botón central izquierdo) por 2 segundos.\n` +
       `3️⃣ Entra a *Configuración de carrera* (Run Settings).\n` +
       `4️⃣ Baja con el botón *DOWN* y selecciona *Metrónomo* (Metronome).\n` +
       `5️⃣ En *Estado*, ponlo en *Activado* (On).\n` +
-      `6️⃣ En *Frecuencia*, ajústalo a *172 ppm* o *174 ppm* (para subir gradualmente desde tus ${latest.cadenciaMedia} spm actuales).\n` +
+      `6️⃣ En *Frecuencia*, ajústalo a *170 ppm* o *172 ppm* (para subir gradualmente desde tus ${latest.cadenciaMedia} spm actuales).\n` +
       `7️⃣ En *Alerta / Sonido*, selecciona *Vibración* (ritmo táctil sin pitidos molestos).\n\n` +
       `🎯 *Tip táctico:* Acorta la zancada y mueve los codos más rápido; las piernas seguirán la cadencia de tus brazos.`;
   }
@@ -619,34 +641,34 @@ async function responderCoachIA(query) {
     return `⚡ *Análisis de Cadencia y Biomecánica (Garmin Fēnix 5X):*\n\n` +
       `• *Tu cadencia en tu última carrera:* Promediaste *${latest.cadenciaMedia} spm*.\n` +
       `• *Balance de pisada:* ${latest.balance} (¡Excelente simetría entre pierna izquierda y derecha!).\n` +
-      `• *Objetivo:* Subir gradualmente a *170-174 spm*. Al aumentar la frecuencia con pasos más compactos, reduces el tiempo de impacto en el asfalto y proteges rodillas y sóleos.\n` +
-      `• *Consejo:* Usa el metrónomo en 172 ppm durante los primeros 10 minutos de tu próximo trote.`;
+      `• *Objetivo:* Subir gradualmente a *165-172 spm*. Al aumentar la frecuencia con pasos más compactos, reduces el tiempo de impacto en el asfalto y proteges rodillas y sóleos.\n` +
+      `• *Consejo:* Usa el metrónomo en 170-172 ppm durante los primeros 10 minutos de tu próximo trote.`;
   }
 
   if (/zona|pulsaciones|frecuencia|cardiac|coraz[oó]n|ppm|pecho/i.test(q)) {
     return `❤️ *Control de Zonas Cardíacas (Garmin Ted):*\n\n` +
-      `En tu sesión de 5 km promediaste *${latest.fcMedia} ppm* (Zona 3 Tempo):\n` +
+      `En tu sesión de ${latest.distanciaKm} km promediaste *${latest.fcMedia} ppm* (Zona 3 Tempo / Umbral):\n` +
       `• *Zona 1 (<130 ppm):* Recuperación activa.\n` +
-      `• *Zona 2 (130 - 145 ppm):* *Tu base aeróbica fundamental.* Quema de grasas.\n` +
-      `• *Zona 3 (146 - 156 ppm):* Zona Tempo aeróbica donde estuviste ayer.\n` +
-      `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico (tocaste el límite superior a 168 ppm).\n` +
-      `• *Zona 5 (>168 ppm):* VO2 máx.\n\n` +
-      `📌 *Ajuste:* Inicia más suave tus salidas para mantenerte más tiempo en Zona 2.`;
+      `• *Zona 2 (130 - 145 ppm):* *Tu base aeróbica fundamental.* Quema de grasas y capilarización.\n` +
+      `• *Zona 3 (146 - 156 ppm):* Zona Tempo aeróbica.\n` +
+      `• *Zona 4 (157 - 168 ppm):* Umbral anaeróbico (promediaste ${latest.fcMedia} ppm).\n` +
+      `• *Zona 5 (>168 ppm):* VO2 máx (tocaste picos cercanos a 170 ppm).\n\n` +
+      `📌 *Ajuste:* Tu siguiente salida debe ser 100% en Zona 2 (<145 ppm) a paso de 7:30 min/km para recuperar fibras.`;
   }
 
   if (/dolor|molestia|s[oó]leo|gemelo|pantorrilla|recupera|suplement|creatina|electrolit|agua|descanso/i.test(q)) {
     return `💊 *Protocolo de Recuperación Muscular (Coach Ted):*\n\n` +
       `• *Sóleos y Gemelos:* Aplica 10 minutos de Foam Roller suave y estiramiento con rodilla flexionada para aislar el sóleo.\n` +
-      `• *Hidratación Táctica:* 500 ml de agua con 300 mg de citrato de magnesio y una pizca de sal marina para reponer electrolitos.\n` +
-      `• *Sueño reparador:* Recuerda que la síntesis de colágeno y recuperación articular ocurre en fases de sueño profundo. Apunta a 7.5 horas hoy.`;
+      `• *Hidratación Táctica:* 500 ml de agua con 300 mg de citrato de magnesio y una pizca de sal marina para reponer electrolitos tras ${latest.distanciaKm} km de esfuerzo.\n` +
+      `• *Sueño reparador:* Recuerda que la síntesis de colágeno y recuperación articular ocurre en fases de sueño profundo. Apunta a 7.5 - 8 horas hoy.`;
   }
 
   return `🏃‍♂️ *RUNNING COACH & FISIOLOGÍA GARMIN*\n\n` +
     `Telemetría real sincronizada de tu Garmin Fēnix 5X:\n` +
-    `• Registraste *${latest.distanciaKm} km a ${latest.ritmoMedio}* con cadencia de *${latest.cadenciaMedia} spm* y FC media de *${latest.fcMedia} ppm*.\n` +
+    `• Registraste *${latest.distanciaKm} km en ${latest.duracion} a ${latest.ritmoMedio}* con cadencia de *${latest.cadenciaMedia} spm* y FC media de *${latest.fcMedia} ppm*.\n` +
     `• Tu balance de pisada fue de *${latest.balance}*.\n\n` +
     `💡 *¿Qué deseas consultar de tu entrenamiento?*\n` +
-    `• Escribe *ayer* para ver el reporte biomédico completo de tu última sesión de 5K.\n` +
+    `• Escribe *carrera* o *hoy* para ver el reporte biomédico completo de tu última salida de ${latest.distanciaKm} km.\n` +
     `• Escribe *ritmo* para saber a qué velocidad salir en tu próxima sesión.\n` +
     `• Escribe *cadencia* para revisar tu zancada y metrónomo.\n` +
     `• Escribe *zonas* para ver tus rangos cardíacos en detalle.\n` +
@@ -909,7 +931,9 @@ async function responderConsultaPilar(pilar, query, userState = null, sessionKey
       await setSubmodule('RUNNING');
       return await responderCoachIA(query);
     }
-    if (/^(ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis|carrera ayer)$/i.test(q)) {
+    if (/^(hoy|ayer|carrera|carreras|mi carrera|última carrera|carrera de hoy|carrera ayer|carrera de ayer|sesi[oó]n.*|rutina.*|an[aá]lisis.*|reporte.*|c[oó]mo corr[ií]|hoy corr[ií].*|consulta.*carrera.*)$/i.test(q) ||
+        /(carrera|corr[ií]|entreno|sesi[oó]n|rutina).*(hoy|ayer|ma[nñ]ana|últim|reciente)/i.test(q) ||
+        /(consulta|an[aá]lisis|reporte|resumen|c[oó]mo me fue|c[oó]mo corr[ií]).*(carrera|entreno|sesi[oó]n|hoy|ayer)/i.test(q)) {
       await setSubmodule('RUNNING');
       return await obtenerAnalisisSesionCompleto(0);
     }
@@ -1106,18 +1130,20 @@ Tono: Negociador internacional experto, ágil, altamente profesional, conciso y 
     } else if (isRunning && !isChina && !isCripto) {
       badge = '🏃‍♂️ [DIVISIÓN 3 · RUNNING COACH GARMIN]';
       let latestRunDetails = `
-- Carrera Más Reciente (Ayer Jueves 22 Oct, 19:34): Culiacán Carrera de 5.01 km en 34m 36s. Ritmo promedio: 6:54 min/km (máximo 5:39 min/km). FC Media: 157 ppm (máx 168 ppm - Zona 3 Tempo). Cadencia media: 160 spm (pico 181 spm). Balance de contacto GCT: 49.0% Izquierda / 51.0% Derecha (simetría excelente). Oscilación vertical: 8.1 cm. Gasto calórico: 400 kcal. Desnivel: +21 m. Training Effect Aeróbico: 3.7 / 5.0.
-- Carrera Anterior (Martes 20 Oct, 20:43): Rodaje suave de 2.02 km a 7:13 min/km (FC Media 134 ppm, Zona 2 pura).
-- Fondo Anterior (Sábado 17 Oct, 06:31): Tirada larga de 14.02 km en 1h 37m a 6:57 min/km (FC Media 146 ppm).`;
+- Carrera Más Reciente (Hoy Domingo 25 Oct, 07:30): Culiacán Carrera de 8.64 km en 1h 01m 31s. Ritmo promedio: 7:07 min/km (máximo 5:11 min/km). FC Media: 160 ppm (máx 170 ppm). Cadencia media: 150 spm (pico 177 spm). Balance de contacto GCT: 49.9% Izquierda / 50.1% Derecha (simetría bilateral prácticamente perfecta). Oscilación vertical: 8.2 cm. Gasto calórico: 708 kcal. Desnivel: +28 m. Training Effect Aeróbico: 4.2 / 5.0 (Impacto altamente constructivo).
+- Carrera Anterior (Jueves 22 Oct, 19:34): Culiacán Carrera de 5.01 km en 34m 36s a 6:54 min/km (FC Media 157 ppm, TE 3.7).
+- Fondo Anterior (Martes 20 Oct, 20:43): Rodaje de 2.02 km a 7:13 min/km (FC Media 134 ppm, Zona 2 pura).`;
 
       if (mongoClient) {
         try {
           const db = mongoClient.db('amis_whatsapp');
           const dbRuns = await db.collection('garmin_activities').find().sort({ fecha: -1 }).limit(3).toArray();
           if (dbRuns && dbRuns.length > 0) {
-            latestRunDetails = '\n' + dbRuns.map((r, i) => 
-              `- ${i === 0 ? 'ÚLTIMA CARRERA REGISTRADA' : 'Carrera Anterior'} (${r.fecha}): ${r.nombre || 'Carrera'} de ${r.distanciaKm} km en ${r.duracion}. Ritmo: ${r.ritmoMedio} (máx ${r.ritmoMax || 'N/A'}). FC Media: ${r.fcMedia || 'N/A'} ppm (máx ${r.fcMax || 'N/A'} ppm). Cadencia: ${r.cadenciaMedia || 160} spm (máx ${r.cadenciaMax || 181} spm). Balance GCT: ${r.balanceContactoPiso ? r.balanceContactoPiso + '%' : '49/51%'}. Training Effect: ${r.trainingEffectAerobico || '3.7'}.`
-            ).join('\n');
+            latestRunDetails = '\n' + dbRuns.map((r, i) => {
+              const balL = r.balanceContactoPiso ? parseFloat(r.balanceContactoPiso) : 49.9;
+              const osc = r.oscilacionVerticalCm ? (r.oscilacionVerticalCm < 2 ? (r.oscilacionVerticalCm * 10).toFixed(1) : parseFloat(r.oscilacionVerticalCm).toFixed(1)) : '8.2';
+              return `- ${i === 0 ? 'ÚLTIMA CARRERA REGISTRADA' : 'Carrera Anterior'} (${r.fecha}): ${r.nombre || 'Carrera'} de ${r.distanciaKm} km en ${r.duracion}. Ritmo: ${r.ritmoMedio} (máx ${r.ritmoMax || 'N/A'}). FC Media: ${r.fcMedia || 'N/A'} ppm (máx ${r.fcMax || 'N/A'} ppm). Cadencia: ${r.cadenciaMedia || 150} spm (máx ${r.cadenciaMax || 177} spm). Balance GCT: ${balL}% Izq / ${(100 - balL).toFixed(1)}% Der. Oscilación: ${osc} cm. Training Effect: ${r.trainingEffectAerobico ? parseFloat(r.trainingEffectAerobico).toFixed(1) : '4.2'}. Calorías: ${r.calorias || 'N/A'} kcal.`;
+            }).join('\n');
           }
         } catch (e) {}
       }
@@ -1125,11 +1151,11 @@ Tono: Negociador internacional experto, ágil, altamente profesional, conciso y 
       systemPrompt = `Eres el Running Coach de Alto Rendimiento y Asesor Fisiológico de Ted Andrey Domínguez.
 Ámbito EXCLUSIVO de conversación: RUNNING COACH & FISIOLOGÍA GARMIN.
 - Atleta: Lic. Ted Andrey Domínguez.
-- Reloj Oficial: Garmin Fēnix 5X (Cristal de zafiro, sensor Elevate, altímetro barométrico, 5 botones: LIGHT, UP/MENU, DOWN, START/STOP, BACK/LAP). Conoces al 100% sus pantallas, configuraciones de campos de datos, cómo activar el metrónomo (Botón START -> Carrera -> Mantener pulsado UP/MENU 2 seg -> Configuración de carrera -> Metrónomo -> Estado: Activado -> Frecuencia: 172-174 ppm -> Alerta: Vibración), calibración de zancada y métricas de VO2 Máx.
+- Reloj Oficial: Garmin Fēnix 5X (Cristal de zafiro, sensor Elevate, altímetro barométrico, 5 botones: LIGHT, UP/MENU, DOWN, START/STOP, BACK/LAP). Conoces al 100% sus pantallas, configuraciones de campos de datos, cómo activar el metrónomo (Botón START -> Carrera -> Mantener pulsado UP/MENU 2 seg -> Configuración de carrera -> Metrónomo -> Estado: Activado -> Frecuencia: 170-172 ppm -> Alerta: Vibración), calibración de zancada y métricas de VO2 Máx.
 - TELEMETRÍA REAL EN VIVO SINCRONIZADA DE GARMIN CONNECT:${latestRunDetails}
 - Metodología y Consejos Técnicos de Coach:
-  * Cuando Ted comente que le costó agarrar el paso con el metrónomo a 175 spm y que lo ajustó a 172 spm: Felicítalo por la decisión. Explícale con empatía y ciencia deportiva que subir de golpe de su cadencia natural (160 spm) a 175 spm es un salto biomecánico muy brusco (15 pasos más por minuto) que se siente antinatural y causa descoordinación. Bajarlo a 172 spm es una progresión ideal y sostenible.
-  * Para rodaje regenerativo (Zona 2 pura <145 ppm): Recomiéndale salir a 7:15 - 7:30 min/km en los primeros 2 km para que la FC no suba a 157 ppm como en los 5 km de ayer.
+  * Si Ted pregunta por su carrera de hoy (Domingo 25 de Octubre a las 7:30 AM): Analízala con detalle: corrió 8.64 km en 1h 01m a 7:07 min/km con FC Media de 160 ppm (máx 170 ppm) y Training Effect de 4.2 (sobrecarga aeróbica constructiva). Destácale su balance GCT de 49.9% / 50.1% (simetría biomecánica perfecta), su cadencia media de 150 spm (picos de 177 spm) y recomiéndale 36 a 48 horas de descanso activo e hidratación con magnesio/electrolitos antes de su siguiente rodaje regenerativo en Zona 2 (<145 ppm).
+  * Para rodaje regenerativo (Zona 2 pura <145 ppm): Recomiéndale salir a 7:25 - 7:45 min/km en los primeros 2 km.
   * Cuidado de sóleos con foam roller y reposición con magnesio/sal marina.
 AISLAMIENTO ESTRICTO: Tienes estrictamente PROHIBIDO hablar de concreto, acero, obras de AMIS, finanzas de la constructora o compras en China.
 Tono: Ultra motivador, cercano, empático, altamente técnico en fisiología del ejercicio y métricas Garmin, conversacional y fluido.`;
@@ -1162,7 +1188,7 @@ Tono: Ejecutivo, impecable, proactivo y organizado.`;
       systemPrompt = `Eres el Asesor Ejecutivo Personal de Ted Andrey Domínguez en la DIVISIÓN 3 (Proyectos Personales, Tech & Bienestar).
 Coordinas 5 áreas clave:
 1. Mercado Criptomonedas Bitso (0.00063682 BTC, 105.85 USDT, meta 0.001 BTC).
-2. Running Coach Garmin Fēnix 5X (telemetría real, 5.01 km a 6:54 min/km, cadencia 160 spm, balance 49/51%).
+2. Running Coach Garmin Fēnix 5X (telemetría real, 8.64 km a 7:07 min/km, cadencia 150 spm, balance 49.9/50.1%).
 3. SupleAI App (SaaS de suplementación inteligente).
 4. Compras en China (Sourcing OEM/ODM 1688/Yupoo/CSSBuy/US Closer en 06_COMPRAS_CHINAS).
 5. Agenda ejecutiva personal.
@@ -1357,7 +1383,7 @@ async function startWhatsAppBot() {
             if (remoteJid === GRUPO_COACH_TED_JID) {
               console.log(`[GRUPO COACH TED] Mensaje detectado en grupo privado de Ted: "${body}"`);
               const lowerBody = body.toLowerCase().trim();
-              const triggersCoach = /coach|garmin|running|correr|entreno|sesi[oó]n|ayer|rutina|an[aá]lisis|cadencia|ritmo|pulso|ppm|fc|zona|distancia|km|recupera|cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(lowerBody);
+              const triggersCoach = /coach|garmin|running|correr|entreno|sesi[oó]n|ayer|hoy|carrera|rutina|an[aá]lisis|cadencia|ritmo|pulso|ppm|fc|zona|distancia|km|recupera|cripto|bitcoin|btc|bitso|usdt|eth|portafolio|saldo|mercado/i.test(lowerBody);
               const esNumeroOpcion = /^[1-4]$/.test(lowerBody);
 
               if (/hola|buenos d[ií]as|buenas|men[uú]|ayuda|opciones/i.test(lowerBody) && !triggersCoach && !esNumeroOpcion) {
@@ -1368,12 +1394,15 @@ async function startWhatsAppBot() {
                   `2️⃣ *Cadencia óptima, biomecánica y zonas cardíacas*\n` +
                   `3️⃣ *🪙 Mercado Criptomonedas & Portafolio Bitso (BTC / USDT)*\n` +
                   `4️⃣ *Agenda y pendientes ejecutivos personales*\n\n` +
-                  `_O pregúntame directamente cualquier duda (ej. "¿a cuánto ritmo debo correr mañana?", "análisis de mi rutina de ayer" o "¿cómo va el mercado cripto?")._`;
+                  `_O pregúntame directamente cualquier duda (ej. "¿a cuánto ritmo debo correr mañana?", "análisis de mi carrera de hoy" o "¿cómo va el mercado cripto?")._`;
                 await sock.sendMessage(targetJid, { text: menuCoach });
                 continue;
               }
 
-              if (/ayer|sesi[oó]n anterior|rutina.*ayer|an[aá]lisis.*rutina|an[aá]lisis.*sesi[oó]n|an[aá]lisis.*ayer/i.test(lowerBody) || lowerBody === '1') {
+              if (/^(hoy|ayer|carrera|carreras|mi carrera|última carrera|carrera de hoy|carrera ayer|carrera de ayer|sesi[oó]n.*|rutina.*|an[aá]lisis.*|reporte.*|c[oó]mo corr[ií]|hoy corr[ií].*|consulta.*carrera.*)$/i.test(lowerBody) ||
+                  /(carrera|corr[ií]|entreno|sesi[oó]n|rutina).*(hoy|ayer|ma[nñ]ana|últim|reciente)/i.test(lowerBody) ||
+                  /(consulta|an[aá]lisis|reporte|resumen|c[oó]mo me fue|c[oó]mo corr[ií]).*(carrera|entreno|sesi[oó]n|hoy|ayer)/i.test(lowerBody) ||
+                  lowerBody === '1') {
                 console.log('[COACH] Generando análisis biomédico Garmin para Ted');
                 const analisisSesion = await obtenerAnalisisSesionCompleto(0);
                 await sock.sendMessage(targetJid, { text: analisisSesion });
@@ -1382,9 +1411,9 @@ async function startWhatsAppBot() {
 
               if (/cadencia|zonas.*card[ií]acas|biomec[aá]nica|spm/i.test(lowerBody) || lowerBody === '2') {
                 const cadenciaInfo = `⚡ *Análisis de Cadencia y Zonas Cardíacas (Garmin Ted)*\n\n` +
-                  `• *Tu cadencia media:* 174 spm (Pico: 182 spm).\n` +
-                  `• *Zona 2 predominante:* 62% del tiempo en 130-145 ppm.\n\n` +
-                  `🎯 *Consejo:* Mantén pasos cortos y rápidos. La zancada compacta a 174-178 spm absorbe el 35% del impacto directamente en el tendón rotuliano.`;
+                  `• *Tu cadencia media:* 150 spm (Picos: 177 spm).\n` +
+                  `• *Zona 3 Tempo / Umbral:* FC Media de 160 ppm (máx 170 ppm).\n\n` +
+                  `🎯 *Consejo del Coach:* Para amortiguar el impacto articular, activa el metrónomo de tu Fēnix 5X en 170-172 ppm con pasos compactos para pasar gradualmente de 150 a >165 spm.`;
                 await sock.sendMessage(targetJid, { text: cadenciaInfo });
                 continue;
               }
