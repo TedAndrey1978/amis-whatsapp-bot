@@ -1014,11 +1014,100 @@ async function responderConsultaPilar(pilar, query, userState = null, sessionKey
 
   // Respuestas Pilar 3: Personal, Tech & Bienestar
   if (pilar === 'PILAR_3_PERSONAL') {
-    if (q === '1' || /^(cripto|bitso|btc|usdt|portafolio)$/i.test(q)) {
+    const isChinaActive = userState?.activeSubmodule === 'CHINA';
+
+    // 1. Manejo contextual si Ted está dentro de compras en China
+    if (isChinaActive) {
+      if (q === '1' || /sunny|j&t|negra/i.test(q)) {
+        return `🩴 *Chanclas SunnyStepp Negras (TikTok Shop)*\n\n` +
+          `• *Guía Oficial:* \`JMX501070912602\`\n` +
+          `• *Paquetería:* J&T Express México\n` +
+          `• *Estatus:* En camino / Paquete enviado.\n` +
+          `• *Entrega Estimada:* *31 Octubre - 03 Noviembre*\n` +
+          `• *Portal de Rastreo:* https://www.jtexpress.mx/`;
+      }
+      if (q === '2' || /qiagineshi|imile|gris/i.test(q)) {
+        return `🩴 *Sandalias QIAGINESHI Grises (TikTok Shop)*\n\n` +
+          `• *Guía Oficial:* \`IM08030028394479\`\n` +
+          `• *Paquetería:* iMile Delivery México\n` +
+          `• *Estatus:* En camino / Paquete enviado.\n` +
+          `• *Entrega Estimada:* *31 Octubre - 03 Noviembre*\n` +
+          `• *Portal de Rastreo:* https://www.imiledelivery.com/`;
+      }
+      if (q === '3' || /golf|pantal[oó]n|chicly/i.test(q)) {
+        return `👖 *Pantalones de Golf (Chicly Shop)*\n\n` +
+          `• *Guía Oficial:* \`NUDE5001903166EX\` (Order 1526)\n` +
+          `• *Estatus:* En México (Aduana liberada el 19-Oct). En centro de clasificación hacia Culiacán.\n` +
+          `• *Entrega Estimada:* *31 Octubre - 05 Noviembre*\n` +
+          `• *Portal de Rastreo:* https://www.17track.net/es`;
+      }
+      if (q === '4' || /tenis|mcqueen|golden/i.test(q)) {
+        return `👟 *Tenis Alexander McQueen + Golden Goose (CSSBuy)*\n\n` +
+          `• *Guía Oficial:* \`JMX101847892320\` (Paquete: \`P261025342887\`)\n` +
+          `• *Estatus:* En vuelo transcontinental hacia México (\`CN, 货物离开操作中心\`).\n` +
+          `• *Entrega Estimada:* *02 al 06 de Noviembre*\n` +
+          `• *Portal de Rastreo:* https://www.jtexpress.mx/`;
+      }
+      if (q === '5' || /rolex|chanel|bolso|reloj|reembolso/i.test(q)) {
+        return `💼 *Bolso Chanel + Reloj Rolex Submariner (CSSBuy)*\n\n` +
+          `• *Monto:* $1,119.74 USD (~$22,001.54 MXN)\n` +
+          `• *Retiro ID:* \`20261030112725681\` (Orden: \`20261029004249667\`)\n` +
+          `• *Estatus:* En curso (Reembolso en proceso a CLABE 722969023034419209 de Mercado Pago).\n` +
+          `• *Portal CSSBuy:* https://www.cssbuy.com/`;
+      }
+    }
+
+    // 2. Preguntas específicas por producto (con enlaces directos de una vez)
+    if (/chanclas?|sandalias?/i.test(q)) {
+      await setSubmodule('CHINA');
+      return `🩴 *Estatus de tus Chanclas (TikTok Shop - 2 Paquetes):*\n\n` +
+        `Ambos pedidos están en camino hacia tu domicilio en Culiacán con entrega estimada para este fin de semana (*31 de Octubre al 03 de Noviembre*):\n\n` +
+        `1️⃣ *Chanclas SunnyStepp Negras (Talla MX 28-29):*\n` +
+        `• *Paquetería:* J&T Express México\n` +
+        `• *Guía Oficial:* \`JMX501070912602\`\n` +
+        `• *Estatus:* En camino / Paquete enviado.\n` +
+        `• *Rastreo en vivo:* https://www.jtexpress.mx/\n\n` +
+        `2️⃣ *Sandalias Chanclas QIAGINESHI Grises (Talla 42-43):*\n` +
+        `• *Paquetería:* iMile Delivery México\n` +
+        `• *Guía Oficial:* \`IM08030028394479\`\n` +
+        `• *Estatus:* En camino / Paquete enviado.\n` +
+        `• *Rastreo en vivo:* https://www.imiledelivery.com/\n\n` +
+        `_Escribe *1* o *2* para rastrear cada paquete individual, o escribe *estatus* para ver todos tus pedidos._`;
+    }
+    if (/tenis|mcqueen|golden goose/i.test(q)) {
+      await setSubmodule('CHINA');
+      return `👟 *Estatus Tenis Alexander McQueen + Golden Goose:*\n\n` +
+        `• *Artículos:* Alexander McQueen (EUR 43) y Golden Goose (EUR 38)\n` +
+        `• *Guía:* \`JMX101847892320\` (Paquete: \`P261025342887\`)\n` +
+        `• *Ruta:* BY-MX-EXP ➔ J&T Express México\n` +
+        `• *Estatus:* En vuelo transcontinental hacia México (\`CN, 货物离开操作中心\`).\n` +
+        `• *Entrega Estimada:* *02 al 06 de Noviembre de 2026* en Culiacán.\n` +
+        `• *Rastreo en vivo:* https://www.jtexpress.mx/`;
+    }
+    if (/rolex|chanel|bolso|reloj|reembolso/i.test(q)) {
+      await setSubmodule('CHINA');
+      return `💼 *Estatus Bolso Chanel + Reloj Rolex Submariner:*\n\n` +
+        `• *Monto:* $1,119.74 USD (~$22,001.54 MXN)\n` +
+        `• *Retiro ID:* \`20261030112725681\` (Orden: \`20261029004249667\`)\n` +
+        `• *Estatus:* *En curso (Reembolso en proceso a tu cuenta Mercado Pago CLABE 722969023034419209)* tras cancelación por filtro legal de marca en CSSBuy. Los fondos vienen de regreso.\n` +
+        `• *Portal CSSBuy:* https://www.cssbuy.com/`;
+    }
+    if (/golf|pantal[oó]n|pantalones/i.test(q)) {
+      await setSubmodule('CHINA');
+      return `👖 *Estatus Pantalones de Golf (Chicly Shop):*\n\n` +
+        `• *Artículos:* Set 6 piezas casual stretch (Talla 32W x 32L)\n` +
+        `• *Guía:* \`NUDE5001903166EX\` (Order 1526)\n` +
+        `• *Estatus:* *En México (Aduana liberada el 19-Oct)*. En centro de clasificación nacional rumbo a Culiacán.\n` +
+        `• *Entrega Estimada:* *31 de Octubre al 05 de Noviembre de 2026*.\n` +
+        `• *Rastreo en vivo:* https://www.17track.net/es`;
+    }
+
+    // 3. Opciones numéricas del menú Pilar 3 (solo si NO está en China)
+    if ((q === '1' && !isChinaActive) || /^(cripto|bitso|btc|usdt|portafolio)$/i.test(q)) {
       await setSubmodule('BITSO');
       return await obtenerReporteCriptoBitso();
     }
-    if (q === '2' || /^(coach|running|menu coach|garmin|entreno)$/i.test(q)) {
+    if ((q === '2' && !isChinaActive) || /^(coach|running|menu coach|garmin|entreno)$/i.test(q)) {
       await setSubmodule('RUNNING');
       return await responderCoachIA(query);
     }
@@ -1028,7 +1117,7 @@ async function responderConsultaPilar(pilar, query, userState = null, sessionKey
       await setSubmodule('RUNNING');
       return await obtenerAnalisisSesionCompleto(0);
     }
-    if (q === '3' || /^(supleai|app)$/i.test(q)) {
+    if ((q === '3' && !isChinaActive) || /^(supleai|app)$/i.test(q)) {
       await setSubmodule('SUPLEAI');
       return `📱 *SupleAI App (SaaS de Suplementación Inteligente):*\n\n` +
         `• *Arquitectura:* Frontend React Native multiplataforma + Backend FastAPI.\n` +
@@ -1037,54 +1126,13 @@ async function responderConsultaPilar(pilar, query, userState = null, sessionKey
         `• *Estatus:* Base de datos de ingredientes activos y compatibilidad fisiológica configurada.\n\n` +
         `_¿Deseas consultar sobre ingredientes, monetización de afiliados o desarrollo de la app?_`;
     }
-    if (/chanclas?|sandalias?/i.test(q)) {
-      await setSubmodule('CHINA');
-      return `🩴 *Estatus de tus Chanclas (TikTok Shop - 2 Paquetes):*\n\n` +
-        `Ambos pedidos están en camino hacia tu domicilio en Culiacán con entrega estimada para este fin de semana (*31 de Octubre al 03 de Noviembre*):\n\n` +
-        `1️⃣ *Chanclas SunnyStepp Negras (Talla MX 28-29):*\n` +
-        `• *Paquetería:* J&T Express México\n` +
-        `• *Guía Oficial:* \`JMX501070912602\`\n` +
-        `• *Estatus:* En camino / Paquete enviado.\n\n` +
-        `2️⃣ *Sandalias Chanclas QIAGINESHI Grises (Talla 42-43):*\n` +
-        `• *Paquetería:* iMile Delivery México\n` +
-        `• *Guía Oficial:* \`IM08030028394479\`\n` +
-        `• *Estatus:* En camino / Paquete enviado.\n\n` +
-        `_¿Deseas consultar el enlace directo de rastreo en J&T o iMile?_`;
-    }
-    if (/tenis|mcqueen|golden goose/i.test(q)) {
-      await setSubmodule('CHINA');
-      return `👟 *Estatus Tenis Alexander McQueen + Golden Goose:*\n\n` +
-        `• *Artículos:* Alexander McQueen (EUR 43) y Golden Goose (EUR 38)\n` +
-        `• *Guía:* \`JMX101847892320\` (Paquete: \`P261025342887\`)\n` +
-        `• *Ruta:* BY-MX-EXP ➔ J&T Express México\n` +
-        `• *Estatus:* En vuelo transcontinental hacia México (\`CN, 货物离开操作中心\`).\n` +
-        `• *Entrega Estimada:* *02 al 06 de Noviembre de 2026* en Culiacán.\n\n` +
-        `_¿Deseas consultar el enlace de rastreo en J&T Express?_`;
-    }
-    if (/rolex|chanel|bolso|reloj|reembolso/i.test(q)) {
-      await setSubmodule('CHINA');
-      return `💼 *Estatus Bolso Chanel + Reloj Rolex Submariner:*\n\n` +
-        `• *Monto:* $1,119.74 USD (~$22,001.54 MXN)\n` +
-        `• *Retiro ID:* \`20261030112725681\` (Orden: \`20261029004249667\`)\n` +
-        `• *Estatus:* *En curso (Reembolso en proceso a tu cuenta Mercado Pago CLABE 722969023034419209)* tras cancelación por filtro legal de marca en CSSBuy. Los fondos vienen de regreso.\n\n` +
-        `_¿Deseas revisar opciones con otro agente de compra para estos artículos?_`;
-    }
-    if (/golf|pantal[oó]n|pantalones/i.test(q)) {
-      await setSubmodule('CHINA');
-      return `👖 *Estatus Pantalones de Golf (Chicly Shop):*\n\n` +
-        `• *Artículos:* Set 6 piezas casual stretch (Talla 32W x 32L)\n` +
-        `• *Guía:* \`NUDE5001903166EX\` (Order 1526)\n` +
-        `• *Estatus:* *En México (Aduana liberada el 19-Oct)*. En centro de clasificación nacional rumbo a Culiacán.\n` +
-        `• *Entrega Estimada:* *31 de Octubre al 05 de Noviembre de 2026*.\n\n` +
-        `_¿Deseas el enlace de rastreo en 17TRACK?_`;
-    }
-    if (q === '4' || 
+    if ((q === '4' && !isChinaActive) || 
         /^(china|importaciones|yupoo|1688|sourcing|pedidos?|paquetes?|compras?|rastreo|gu[ií]as?|estatus|dame el estatus|qu[eé] tengo pendiente.*|qu[eé] productos.*)$/i.test(q) ||
-        (userState?.activeSubmodule === 'CHINA' && /(estatus|pedidos?|paquetes?|compras?|rastreo|gu[ií]as?|qu[eé] tengo)/i.test(q))) {
+        (isChinaActive && /(estatus|pedidos?|paquetes?|compras?|rastreo|gu[ií]as?|qu[eé] tengo)/i.test(q))) {
       await setSubmodule('CHINA');
       return await obtenerReporteComprasChina();
     }
-    if (q === '5' || /^(agenda|pendientes)$/i.test(q)) {
+    if ((q === '5' && !isChinaActive) || /^(agenda|pendientes)$/i.test(q)) {
       await setSubmodule('AGENDA');
       return `📋 *Agenda Ejecutiva Personal (Lic. Ted):*\n\n` +
         `• Asistente personal y coach activos 24/7.\n` +
